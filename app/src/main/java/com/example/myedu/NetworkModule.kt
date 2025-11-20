@@ -10,38 +10,37 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Headers
 
-// We no longer need Login API here, WebView handles it.
 interface OshSuApi {
+    // We skip login. We only hit the data endpoints.
     @GET("public/api/user")
     suspend fun getUser(): ResponseBody
+    
+    // Adding specific grade endpoints to test blindly
+    @GET("public/api/studentPayStatus") 
+    suspend fun getPayStatus(): ResponseBody
 }
 
-// GLOBAL STORE FOR STOLEN CREDENTIALS
-object CredentialStore {
-    var cookies: String? = null
-    var userAgent: String? = null
+object TokenStore {
+    var manualToken: String = ""
 }
 
-class HybridInterceptor : Interceptor {
+class ManualAuthInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val original = chain.request()
         val builder = original.newBuilder()
 
-        // Use the EXACT Cookies and UA from the WebView
-        CredentialStore.cookies?.let { builder.header("Cookie", it) }
-        CredentialStore.userAgent?.let { builder.header("User-Agent", it) }
-        
-        // If we found the JWT inside the cookie, add it as Bearer too (Double-Lock)
-        CredentialStore.cookies?.let { cookies ->
-            val jwt = cookies.split(";").find { it.trim().startsWith("myedu-jwt-token=") }
-            if (jwt != null) {
-                val token = jwt.substringAfter("=").trim()
-                builder.header("Authorization", "Bearer $token")
-            }
-        }
-
-        builder.header("Referer", "https://myedu.oshsu.kg/")
+        // 1. HEADER MIMICRY
+        builder.header("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Mobile Safari/537.36")
+        builder.header("Referer", "https://myedu.oshsu.kg/#/main")
         builder.header("Accept", "application/json, text/plain, */*")
+
+        // 2. INJECT THE PASTED TOKEN
+        if (TokenStore.manualToken.isNotEmpty()) {
+            val t = TokenStore.manualToken.trim()
+            builder.header("Authorization", "Bearer $t")
+            // Some servers require the cookie too, so we send both to be safe
+            builder.header("Cookie", "myedu-jwt-token=$t")
+        }
 
         return chain.proceed(builder.build())
     }
@@ -52,7 +51,7 @@ object NetworkClient {
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
-        .addInterceptor(HybridInterceptor())
+        .addInterceptor(ManualAuthInterceptor())
         .build()
 
     val api: OshSuApi = Retrofit.Builder()

@@ -6,81 +6,83 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewModelScope
-import coil.compose.AsyncImage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
-
-// Simple holder for UI data
-data class UIProfile(val name: String, val group: String, val avatar: String)
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainViewModel : ViewModel() {
     var isLoading by mutableStateOf(false)
-    var token by mutableStateOf<String?>(null)
-    var profile by mutableStateOf<UIProfile?>(null)
-    var logs by mutableStateOf("Ready.")
+    var logText by mutableStateOf("System Ready.\n")
 
-    fun log(msg: String) { logs = "\n" }
+    fun appendLog(msg: String) {
+        val time = SimpleDateFormat("HH:mm:ss", Locale.US).format(Date())
+        logText += "[$time] $msg\n"
+    }
 
     fun login(email: String, pass: String) {
         viewModelScope.launch {
             isLoading = true
-            log("--- Login Start ---")
+            appendLog("--- STARTING LOGIN ---")
+            appendLog("Target: $email")
+            
             try {
-                val response = NetworkClient.api.login(LoginRequest(email, pass))
-                val t = response.authorisation?.token
-                if (t != null) {
-                    token = "Bearer "
-                    log("Token OK. Fetching Profile...")
-                    fetchProfile()
-                } else {
-                    log("Login Failed: No token.")
+                // 1. LOGIN REQUEST
+                appendLog("Sending POST request...")
+                val loginResp = withContext(Dispatchers.IO) {
+                    NetworkClient.api.login(LoginRequest(email, pass))
                 }
+                appendLog("Response Status: ${loginResp.status}")
+                
+                val token = loginResp.authorisation?.token
+                if (token == null) {
+                    appendLog("FAILURE: Token is null!")
+                    return@launch
+                }
+                appendLog("Token received (Length: ${token.length})")
+                
+                // 2. PROFILE REQUEST
+                appendLog("Fetching Profile (studentinfo)...")
+                val bearer = "Bearer $token"
+                
+                val rawJson = withContext(Dispatchers.IO) {
+                    // Read string on IO thread to prevent UI freeze
+                    NetworkClient.api.getStudentInfo(bearer).string()
+                }
+                
+                appendLog("Profile Data Downloaded: ${rawJson.length} chars")
+                // Log first 100 chars to verify content
+                appendLog("Snippet: ${rawJson.take(100)}...")
+
+                // 3. PARSE
+                val jsonObj = JSONObject(rawJson)
+                val movement = jsonObj.optJSONObject("studentMovement")
+                val group = movement?.optString("avn_group_name")
+                
+                appendLog("SUCCESS! Group: $group")
+                
             } catch (e: Exception) {
-                log("Login Error: ${e.message}")
+                appendLog("CRITICAL ERROR: ${e.javaClass.simpleName}")
+                appendLog("Msg: ${e.message}")
+                e.printStackTrace()
             } finally {
                 isLoading = false
-            }
-        }
-    }
-
-    private fun fetchProfile() {
-        viewModelScope.launch {
-            try {
-                // 1. Get Raw Text
-                val rawResponse = NetworkClient.api.getStudentInfo(token!!).string()
-                log("Raw Data Length: ${rawResponse.length}")
-                
-                // 2. Manual Parsing (Safer)
-                val json = JSONObject(rawResponse)
-                val avatar = json.optString("avatar", "")
-                
-                val movement = json.optJSONObject("studentMovement")
-                val group = movement?.optString("avn_group_name") ?: "Unknown Group"
-                
-                val spec = movement?.optJSONObject("speciality")
-                val name = spec?.optString("name_en") ?: "Unknown Major"
-
-                profile = UIProfile(name, group, avatar)
-                log("Parsed:  / ")
-                
-            } catch (e: Exception) {
-                log("Profile Parse Error: ${e.message}")
-                e.printStackTrace()
+                appendLog("--- OPERATION END ---")
             }
         }
     }
@@ -89,67 +91,83 @@ class MainViewModel : ViewModel() {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { MaterialTheme { OshSuApp() } }
+        setContent { 
+            MaterialTheme { 
+                LoggerScreen() 
+            } 
+        }
     }
 }
 
 @Composable
-fun OshSuApp(vm: MainViewModel = viewModel()) {
-    Column(Modifier.fillMaxSize()) {
-        if (vm.token == null) {
-            LoginScreen(vm)
-        } else {
-            ProfileScreen(vm)
-        }
+fun LoggerScreen(vm: MainViewModel = viewModel()) {
+    Column(Modifier.fillMaxSize().background(Color.Black).padding(16.dp)) {
         
-        // CONSOLE
-        Divider(color = Color.Red, thickness = 2.dp)
-        Box(Modifier.fillMaxWidth().weight(1f).background(Color.Black).padding(8.dp)) {
-            val scroll = rememberScrollState()
-            Text(vm.logs, color = Color.Green, fontFamily = FontFamily.Monospace, fontSize = 10.sp, modifier = Modifier.verticalScroll(scroll))
-        }
-    }
-}
-
-@Composable
-fun LoginScreen(vm: MainViewModel) {
-    Column(Modifier.padding(16.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("MyEDU V5 (Raw Mode)", style = MaterialTheme.typography.headlineMedium)
+        Text("DIAGNOSTIC MODE V6", color = Color.White, style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(16.dp))
+
+        // INPUTS
         var e by remember { mutableStateOf("") }
         var p by remember { mutableStateOf("") }
-        OutlinedTextField(value = e, onValueChange = { e = it }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth())
-        Spacer(Modifier.height(8.dp))
-        OutlinedTextField(value = p, onValueChange = { p = it }, label = { Text("Password") }, modifier = Modifier.fillMaxWidth())
-        Spacer(Modifier.height(16.dp))
-        Button(onClick = { vm.login(e, p) }, enabled = !vm.isLoading, modifier = Modifier.fillMaxWidth()) {
-            Text(if (vm.isLoading) "..." else "Login")
-        }
-    }
-}
 
-@Composable
-fun ProfileScreen(vm: MainViewModel) {
-    val p = vm.profile
-    if (p == null) {
-        Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
-    } else {
-        Column(Modifier.padding(16.dp).fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AsyncImage(
-                    model = p.avatar,
-                    contentDescription = null,
-                    modifier = Modifier.size(80.dp).clip(CircleShape),
-                    contentScale = ContentScale.Crop
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = e, 
+                onValueChange = { e = it }, 
+                label = { Text("Email") },
+                modifier = Modifier.weight(1f),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = Color.Green,
+                    unfocusedBorderColor = Color.Gray
                 )
-                Spacer(Modifier.width(16.dp))
-                Column {
-                    Text(p.name, style = MaterialTheme.typography.titleMedium)
-                    Text(p.group, style = MaterialTheme.typography.bodyLarge, color = Color.Blue)
-                }
-            }
+            )
+            OutlinedTextField(
+                value = p, 
+                onValueChange = { p = it }, 
+                label = { Text("Pass") },
+                modifier = Modifier.weight(1f),
+                 colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = Color.Green,
+                    unfocusedBorderColor = Color.Gray
+                )
+            )
         }
+        
+        Spacer(Modifier.height(8.dp))
+        
+        Button(
+            onClick = { vm.login(e, p) }, 
+            enabled = !vm.isLoading,
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Green, contentColor = Color.Black),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(if (vm.isLoading) "RUNNING..." else "START TEST")
+        }
+
+        Spacer(Modifier.height(16.dp))
+        Divider(color = Color.DarkGray)
+        
+        // THE LOG CONSOLE
+        val scroll = rememberScrollState()
+        
+        // Auto-scroll to bottom when log changes
+        LaunchedEffect(vm.logText) {
+            scroll.animateScrollTo(scroll.maxValue)
+        }
+
+        Text(
+            text = vm.logText,
+            color = Color.Green,
+            fontFamily = FontFamily.Monospace,
+            fontSize = 12.sp,
+            lineHeight = 14.sp,
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scroll)
+        )
     }
 }

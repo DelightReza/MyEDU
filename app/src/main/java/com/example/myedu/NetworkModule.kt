@@ -12,7 +12,6 @@ import retrofit2.http.Header
 import retrofit2.http.Headers
 import retrofit2.http.POST
 
-// Keep Login as is, it works
 data class LoginRequest(val email: String, val password: String)
 data class LoginResponse(val status: String?, val authorisation: AuthData?)
 data class AuthData(val token: String?, val is_student: Boolean?)
@@ -22,7 +21,6 @@ interface OshSuApi {
     @POST("public/api/login")
     suspend fun login(@Body request: LoginRequest): LoginResponse
 
-    // CHANGED: Return raw ResponseBody to prevent parsing crashes
     @Headers("Accept: application/json")
     @GET("public/api/studentinfo")
     suspend fun getStudentInfo(@Header("Authorization") token: String): ResponseBody
@@ -32,8 +30,8 @@ object NetworkClient {
     private const val BASE_URL = "https://api.myedu.oshsu.kg/" 
 
     private val client = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(60, TimeUnit.SECONDS) // Increased timeout
+        .readTimeout(60, TimeUnit.SECONDS)
         .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY })
         .build()
 

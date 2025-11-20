@@ -8,22 +8,16 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewModelScope
@@ -31,172 +25,134 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
+import okhttp3.ResponseBody
 
 class MainViewModel : ViewModel() {
-    var logText by mutableStateOf("Select a method to start.")
-    var showWebView by mutableStateOf(false)
+    var appState by mutableStateOf("LOGIN") 
+    var userName by mutableStateOf("")
+    var scanLog by mutableStateOf("Ready to scan.")
 
-    init {
-        DebugLog.onUpdate = { logText = it }
+    // 1. Called when WebView detects login
+    fun onSessionCaptured(cookies: String, ua: String) {
+        if (appState == "DASHBOARD") return
+        
+        SessionStore.cookies = cookies
+        SessionStore.userAgent = ua
+        
+        verifySession()
     }
 
-    // METHOD A: AUTO COOKIES (NATIVE)
-    fun runMethodA(e: String, p: String) {
+    // 2. Test the captured session
+    private fun verifySession() {
         viewModelScope.launch {
-            DebugLog.clear()
-            DebugLog.log("--- RUNNING METHOD A (CookieJar) ---")
-            SessionConfig.useCookieJar = true
-            SessionConfig.useManualCookie = null
-            SessionConfig.cookieJar.clear()
-
             try {
-                val resp = withContext(Dispatchers.IO) { NetworkClient.api.login(LoginRequest(e, p)) }
-                DebugLog.log("Login Status: ${resp.status}")
+                val raw = withContext(Dispatchers.IO) { NetworkClient.api.getUser().string() }
+                val json = JSONObject(raw)
+                val user = json.optJSONObject("user")
                 
-                val token = resp.authorisation?.token
-                if (token != null) {
-                    DebugLog.log("Token acquired. Testing /user...")
-                    // Hybrid approach: Native CookieJar + Manual Header Token
-                    SessionConfig.useManualCookie = "myedu-jwt-token=$token" 
-                    
-                    val user = withContext(Dispatchers.IO) { NetworkClient.api.getUser().string() }
-                    DebugLog.log("USER DATA: ${user.take(100)}...")
-                } else {
-                    DebugLog.log("FAIL: No token in login response.")
+                if (user != null) {
+                    userName = user.optString("name", "Student")
+                    appState = "DASHBOARD"
                 }
-            } catch (e: Exception) { DebugLog.log("ERROR: ${e.message}") }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
-    }
-
-    // METHOD B: MANUAL BAKING
-    fun runMethodB(e: String, p: String) {
-        viewModelScope.launch {
-            DebugLog.clear()
-            DebugLog.log("--- RUNNING METHOD B (Manual Bake) ---")
-            SessionConfig.useCookieJar = false
-            
-            try {
-                val resp = withContext(Dispatchers.IO) { NetworkClient.api.login(LoginRequest(e, p)) }
-                val token = resp.authorisation?.token
-                
-                if (token != null) {
-                    DebugLog.log("Token found. Baking cookies...")
-                    val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.000000'Z'", Locale.US)
-                    sdf.timeZone = TimeZone.getTimeZone("UTC")
-                    val ts = sdf.format(Date())
-                    
-                    val cookieStr = "myedu-jwt-token=$token; my_edu_update=$ts"
-                    SessionConfig.useManualCookie = cookieStr
-                    
-                    val user = withContext(Dispatchers.IO) { NetworkClient.api.getUser().string() }
-                    DebugLog.log("SUCCESS? Body: ${user.take(100)}")
-                }
-            } catch (e: Exception) { DebugLog.log("ERROR: ${e.message}") }
-        }
-    }
-
-    // METHOD C: VISIBLE WEBVIEW
-    fun startMethodC() {
-        DebugLog.clear()
-        DebugLog.log("--- RUNNING METHOD C (Visual WebView) ---")
-        showWebView = true
     }
     
-    fun onWebViewCookies(cookies: String) {
-        showWebView = false
-        DebugLog.log("WebView Cookies Captured!")
+    // 3. Scanner to find the grades
+    fun scanGrades() {
         viewModelScope.launch {
-            SessionConfig.useCookieJar = false
-            SessionConfig.useManualCookie = cookies
-            try {
-                val user = withContext(Dispatchers.IO) { NetworkClient.api.getUser().string() }
-                DebugLog.log("API TEST RESULT: ${user.take(100)}...")
-            } catch (e: Exception) { DebugLog.log("API Fail: ${e.message}") }
+            scanLog = "Scanning..."
+            var log = ""
+            
+            log += checkEndpoint("studentSession") { NetworkClient.api.scanSession() }
+            log += checkEndpoint("studentCurricula") { NetworkClient.api.scanCurricula() }
+            log += checkEndpoint("student_mark_list") { NetworkClient.api.scanMarkList() }
+            log += checkEndpoint("transcript") { NetworkClient.api.scanTranscript() }
+            log += checkEndpoint("payStatus") { NetworkClient.api.scanPayStatus() }
+            
+            scanLog = log
         }
+    }
+
+    private suspend fun checkEndpoint(name: String, call: suspend () -> ResponseBody): String {
+        return try {
+            val res = withContext(Dispatchers.IO) { call().string() }
+            if (res.contains("{")) "✅ $name: FOUND! (${res.length}B)\n" 
+            else "❌ $name: Empty\n"
+        } catch (e: Exception) { "❌ $name: ${e.message}\n" }
+    }
+    
+    fun logout() {
+        CookieManager.getInstance().removeAllCookies(null)
+        appState = "LOGIN"
     }
 }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { MaterialTheme { DebugUI() } }
+        setContent { MaterialTheme { AppContent() } }
     }
 }
 
 @Composable
-fun DebugUI(vm: MainViewModel = viewModel()) {
-    val clipboard = LocalClipboardManager.current
-    var email by remember { mutableStateOf("") }
-    var pass by remember { mutableStateOf("") }
-
-    if (vm.showWebView) {
-        WebViewDialog(vm)
-    }
-
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text("THE ULTIMATE DEBUGGER (V24)", style = MaterialTheme.typography.titleLarge, color = Color.Red)
-        Spacer(Modifier.height(8.dp))
-        
-        Row {
-            OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, modifier = Modifier.weight(1f))
-            Spacer(Modifier.width(4.dp))
-            OutlinedTextField(value = pass, onValueChange = { pass = it }, label = { Text("Pass") }, modifier = Modifier.weight(1f))
-        }
-        
-        Spacer(Modifier.height(8.dp))
-        
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Button(onClick = { vm.runMethodA(email, pass) }, modifier = Modifier.weight(1f)) { Text("A: Native") }
-            Spacer(Modifier.width(4.dp))
-            Button(onClick = { vm.runMethodB(email, pass) }, modifier = Modifier.weight(1f)) { Text("B: Bake") }
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Button(onClick = { vm.startMethodC() }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00695C))) { Text("C: WEBVIEW") }
-        }
-
-        Spacer(Modifier.height(8.dp))
-        Divider()
-        
-        SelectionContainer(Modifier.weight(1f).background(Color.Black).padding(8.dp)) {
-            val scroll = rememberScrollState()
-            Text(vm.logText, color = Color.Green, fontFamily = FontFamily.Monospace, fontSize = 10.sp, modifier = Modifier.verticalScroll(scroll))
-        }
-        
-        Button(
-            onClick = { clipboard.setText(AnnotatedString(vm.logText)) }, 
-            colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("COPY LOGS TO CLIPBOARD")
-        }
+fun AppContent(vm: MainViewModel = viewModel()) {
+    if (vm.appState == "LOGIN") {
+        LoginWebView(vm)
+    } else {
+        DashboardScreen(vm)
     }
 }
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun WebViewDialog(vm: MainViewModel) {
-    Dialog(onDismissRequest = { vm.showWebView = false }) {
-        Card(Modifier.fillMaxWidth().height(500.dp)) {
-            AndroidView(factory = { ctx ->
-                WebView(ctx).apply {
-                    settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true
-                    settings.userAgentString = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Mobile Safari/537.36"
-                    webViewClient = object : WebViewClient() {
-                        override fun onPageFinished(view: WebView?, url: String?) {
-                            val cookies = CookieManager.getInstance().getCookie(url)
-                            if (cookies != null && cookies.contains("myedu-jwt-token")) {
-                                vm.onWebViewCookies(cookies)
-                            }
+fun LoginWebView(vm: MainViewModel) {
+    Column(Modifier.fillMaxSize()) {
+        LinearProgressIndicator(Modifier.fillMaxWidth())
+        AndroidView(factory = { ctx ->
+            WebView(ctx).apply {
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                // Use the User-Agent that worked for you
+                settings.userAgentString = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Mobile Safari/537.36"
+                
+                webViewClient = object : WebViewClient() {
+                    override fun onPageFinished(view: WebView?, url: String?) {
+                        val cookies = CookieManager.getInstance().getCookie(url)
+                        if (cookies != null && cookies.contains("myedu-jwt-token")) {
+                            vm.onSessionCaptured(cookies, settings.userAgentString)
                         }
                     }
-                    loadUrl("https://myedu.oshsu.kg/#/login")
                 }
-            })
+                loadUrl("https://myedu.oshsu.kg/#/login")
+            }
+        }, modifier = Modifier.fillMaxSize())
+    }
+}
+
+@Composable
+fun DashboardScreen(vm: MainViewModel) {
+    Column(Modifier.fillMaxSize().padding(16.dp)) {
+        Text("Welcome, ${vm.userName}", style = MaterialTheme.typography.headlineSmall)
+        Divider(Modifier.padding(vertical = 16.dp))
+        
+        Button(onClick = { vm.scanGrades() }, modifier = Modifier.fillMaxWidth()) {
+            Text("FIND GRADES")
+        }
+        
+        Spacer(Modifier.height(16.dp))
+        
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF212121)),
+            modifier = Modifier.fillMaxWidth().weight(1f)
+        ) {
+            Text(vm.scanLog, color = Color.Green, modifier = Modifier.padding(16.dp))
+        }
+        
+        Button(onClick = { vm.logout() }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red), modifier = Modifier.fillMaxWidth()) {
+            Text("LOGOUT")
         }
     }
 }

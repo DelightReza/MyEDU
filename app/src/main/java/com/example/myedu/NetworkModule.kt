@@ -1,7 +1,8 @@
 package com.example.myedu
 
-import okhttp3.Interceptor
+import java.util.concurrent.TimeUnit
 import okhttp3.OkHttpClient
+import okhttp3.ResponseBody
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -11,46 +12,28 @@ import retrofit2.http.Header
 import retrofit2.http.Headers
 import retrofit2.http.POST
 
-// --- DATA MODELS ---
-
+// Keep Login as is, it works
 data class LoginRequest(val email: String, val password: String)
-data class LoginResponse(val status: String, val authorisation: AuthData)
-data class AuthData(val token: String, val type: String, val is_student: Boolean)
-
-// Profile Data Structure (Based on your logs)
-data class StudentInfoResponse(
-    val avatar: String?,
-    val studentMovement: StudentMovement?
-)
-
-data class StudentMovement(
-    val avn_group_name: String?, // e.g. "ИНл-16-21"
-    val speciality: NameData?,
-    val faculty: NameData?
-)
-
-data class NameData(
-    val name_en: String? // e.g. "General Medicine"
-)
-
-// --- API DEFINITION ---
+data class LoginResponse(val status: String?, val authorisation: AuthData?)
+data class AuthData(val token: String?, val is_student: Boolean?)
 
 interface OshSuApi {
     @Headers("Content-Type: application/json", "Accept: application/json")
     @POST("public/api/login")
     suspend fun login(@Body request: LoginRequest): LoginResponse
 
+    // CHANGED: Return raw ResponseBody to prevent parsing crashes
     @Headers("Accept: application/json")
     @GET("public/api/studentinfo")
-    suspend fun getStudentInfo(@Header("Authorization") token: String): StudentInfoResponse
+    suspend fun getStudentInfo(@Header("Authorization") token: String): ResponseBody
 }
-
-// --- CLIENT ---
 
 object NetworkClient {
     private const val BASE_URL = "https://api.myedu.oshsu.kg/" 
 
     private val client = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
         .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY })
         .build()
 

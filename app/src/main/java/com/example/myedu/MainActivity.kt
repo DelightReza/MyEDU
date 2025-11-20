@@ -1,12 +1,13 @@
 package com.example.myedu
 
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,7 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
@@ -22,32 +23,35 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewModelScope
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
-// VIEW MODEL
+// Simple holder for UI data
+data class UIProfile(val name: String, val group: String, val avatar: String)
+
 class MainViewModel : ViewModel() {
     var isLoading by mutableStateOf(false)
-    var statusMessage by mutableStateOf("Please Log In")
     var token by mutableStateOf<String?>(null)
-    var studentInfo by mutableStateOf<StudentInfoResponse?>(null)
+    var profile by mutableStateOf<UIProfile?>(null)
+    var logs by mutableStateOf("Ready.")
+
+    fun log(msg: String) { logs = "\n" }
 
     fun login(email: String, pass: String) {
         viewModelScope.launch {
             isLoading = true
-            statusMessage = "Connecting..."
+            log("--- Login Start ---")
             try {
                 val response = NetworkClient.api.login(LoginRequest(email, pass))
-                val receivedToken = response.authorisation.token
-                
-                if (receivedToken.isNotEmpty()) {
-                    token = "Bearer $receivedToken"
-                    statusMessage = "Login Success! Fetching Profile..."
+                val t = response.authorisation?.token
+                if (t != null) {
+                    token = "Bearer "
+                    log("Token OK. Fetching Profile...")
                     fetchProfile()
                 } else {
-                    statusMessage = "Login Failed: Token empty"
+                    log("Login Failed: No token.")
                 }
             } catch (e: Exception) {
-                statusMessage = "Error: ${e.message}"
-                Log.e("API_ERROR", "Login failed", e)
+                log("Login Error: ${e.message}")
             } finally {
                 isLoading = false
             }
@@ -57,17 +61,31 @@ class MainViewModel : ViewModel() {
     private fun fetchProfile() {
         viewModelScope.launch {
             try {
-                val info = NetworkClient.api.getStudentInfo(token!!)
-                studentInfo = info
-                statusMessage = "Welcome!"
+                // 1. Get Raw Text
+                val rawResponse = NetworkClient.api.getStudentInfo(token!!).string()
+                log("Raw Data Length: ${rawResponse.length}")
+                
+                // 2. Manual Parsing (Safer)
+                val json = JSONObject(rawResponse)
+                val avatar = json.optString("avatar", "")
+                
+                val movement = json.optJSONObject("studentMovement")
+                val group = movement?.optString("avn_group_name") ?: "Unknown Group"
+                
+                val spec = movement?.optJSONObject("speciality")
+                val name = spec?.optString("name_en") ?: "Unknown Major"
+
+                profile = UIProfile(name, group, avatar)
+                log("Parsed:  / ")
+                
             } catch (e: Exception) {
-                statusMessage = "Profile Error: ${e.message}"
+                log("Profile Parse Error: ${e.message}")
+                e.printStackTrace()
             }
         }
     }
 }
 
-// UI
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -77,76 +95,61 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun OshSuApp(vm: MainViewModel = viewModel()) {
-    if (vm.token == null) {
-        LoginScreen(vm)
-    } else {
-        ProfileScreen(vm)
+    Column(Modifier.fillMaxSize()) {
+        if (vm.token == null) {
+            LoginScreen(vm)
+        } else {
+            ProfileScreen(vm)
+        }
+        
+        // CONSOLE
+        Divider(color = Color.Red, thickness = 2.dp)
+        Box(Modifier.fillMaxWidth().weight(1f).background(Color.Black).padding(8.dp)) {
+            val scroll = rememberScrollState()
+            Text(vm.logs, color = Color.Green, fontFamily = FontFamily.Monospace, fontSize = 10.sp, modifier = Modifier.verticalScroll(scroll))
+        }
     }
 }
 
 @Composable
 fun LoginScreen(vm: MainViewModel) {
-    Column(
-        Modifier.fillMaxSize().padding(32.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text("MyEDU v3", style = MaterialTheme.typography.headlineMedium, color = Color(0xFF1976D2))
-        Spacer(Modifier.height(32.dp))
-        
+    Column(Modifier.padding(16.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("MyEDU V5 (Raw Mode)", style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.height(16.dp))
         var e by remember { mutableStateOf("") }
         var p by remember { mutableStateOf("") }
-
         OutlinedTextField(value = e, onValueChange = { e = it }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(value = p, onValueChange = { p = it }, label = { Text("Password") }, modifier = Modifier.fillMaxWidth())
-        
         Spacer(Modifier.height(16.dp))
-        Text(vm.statusMessage, color = Color.Gray)
-        Spacer(Modifier.height(24.dp))
-        
         Button(onClick = { vm.login(e, p) }, enabled = !vm.isLoading, modifier = Modifier.fillMaxWidth()) {
-            Text(if (vm.isLoading) "Loading..." else "Login")
+            Text(if (vm.isLoading) "..." else "Login")
         }
     }
 }
 
 @Composable
 fun ProfileScreen(vm: MainViewModel) {
-    val info = vm.studentInfo
-    val mov = info?.studentMovement
-
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
-        // Profile Card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
-        ) {
-            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+    val p = vm.profile
+    if (p == null) {
+        Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+    } else {
+        Column(Modifier.padding(16.dp).fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 AsyncImage(
-                    model = info?.avatar,
-                    contentDescription = "Profile",
+                    model = p.avatar,
+                    contentDescription = null,
                     modifier = Modifier.size(80.dp).clip(CircleShape),
                     contentScale = ContentScale.Crop
                 )
                 Spacer(Modifier.width(16.dp))
                 Column {
-                    Text(mov?.speciality?.name_en ?: "Student", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    Text(mov?.avn_group_name ?: "Group Loading...", color = Color.Gray)
-                    Text(mov?.faculty?.name_en ?: "Faculty", fontSize = 12.sp, lineHeight = 14.sp)
+                    Text(p.name, style = MaterialTheme.typography.titleMedium)
+                    Text(p.group, style = MaterialTheme.typography.bodyLarge, color = Color.Blue)
                 }
             }
-        }
-
-        Spacer(Modifier.height(24.dp))
-        Text("Academic Record", style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(8.dp))
-        
-        Box(
-            modifier = Modifier.fillMaxWidth().height(100.dp).padding(8.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("Grades coming soon...", color = Color.Gray)
         }
     }
 }

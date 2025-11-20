@@ -46,11 +46,12 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.material3:material3")
     
-    // Networking & Parsing
+    // Networking - NOW USING GSON FOR JSON
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-scalars:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0") 
     implementation("com.squareup.okhttp3:logging-interceptor:4.10.0")
-    implementation("org.jsoup:jsoup:1.16.1")
+    
+    // Async
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1")
 }

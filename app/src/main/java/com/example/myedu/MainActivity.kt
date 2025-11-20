@@ -13,8 +13,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext 
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext // <--- Fixed Import
+import androidx.compose.ui.text.font.FontWeight // <--- Fixed Import
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
@@ -29,7 +29,7 @@ import okhttp3.ResponseBody
 class MainViewModel : ViewModel() {
     var appState by mutableStateOf("LOGIN") 
     var isLoading by mutableStateOf(false)
-    var status by mutableStateOf("Ready (V22: Native Cookies)")
+    var status by mutableStateOf("Ready (V23: Manual Baking)")
     var userName by mutableStateOf("")
     var scanResults by mutableStateOf("Waiting for scan...")
     
@@ -47,20 +47,17 @@ class MainViewModel : ViewModel() {
             isLoading = true
             status = "Logging in..."
             try {
-                // 1. API Login (CookieJar will catch the cookies automatically)
                 val resp = withContext(Dispatchers.IO) {
                     NetworkClient.api.login(LoginRequest(email, pass))
                 }
                 
                 val token = resp.authorisation?.token
                 if (token != null) {
-                    // 2. Set Header Token
                     TokenStore.jwtToken = token
-                    
                     context.getSharedPreferences("MyEduPrefs", Context.MODE_PRIVATE)
                         .edit().putString("jwt_token", token).apply()
                         
-                    status = "Token & Cookies Acquired. Verifying..."
+                    status = "Token Acquired. Verifying..."
                     verifyToken()
                 } else {
                     status = "Login Failed: No token."
@@ -84,7 +81,7 @@ class MainViewModel : ViewModel() {
                     userName = user.optString("name", "Student")
                     appState = "DASHBOARD"
                 } else {
-                    status = "Token Rejected (401). Check Cookies."
+                    status = "Token Rejected (401). Cookie injection failed?"
                     appState = "LOGIN"
                 }
             } catch (e: Exception) {

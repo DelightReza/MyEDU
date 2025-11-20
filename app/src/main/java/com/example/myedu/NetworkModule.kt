@@ -6,10 +6,15 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
+import java.util.ArrayList
+import java.util.HashMap
 import okhttp3.*
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.http.*
+import retrofit2.http.Body
+import retrofit2.http.GET
+import retrofit2.http.Headers
+import retrofit2.http.POST
 
 // --- LOGGING SYSTEM ---
 object DebugLog {
@@ -28,7 +33,7 @@ object DebugLog {
     fun getFullLog(): String = sb.toString()
 }
 
-// --- API ---
+// --- API DEFINITION ---
 data class LoginRequest(val email: String, val password: String)
 data class LoginResponse(val status: String?, val authorisation: AuthData?)
 data class AuthData(val token: String?, val is_student: Boolean?)
@@ -56,15 +61,17 @@ class MemoryCookieJar : CookieJar {
     
     override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
         if (SessionConfig.useCookieJar) {
-            cache[url.host] = cookies
+            // FIX: Use .host() instead of .host
+            cache[url.host()] = cookies
             DebugLog.log("🍪 CookieJar saved ${cookies.size} cookies.")
-            cookies.forEach { DebugLog.log("   -> ${it.name}=${it.value.take(10)}...") }
+            // FIX: Use .name() and .value()
+            cookies.forEach { DebugLog.log("   -> ${it.name()}=${it.value().take(10)}...") }
         }
     }
 
     override fun loadForRequest(url: HttpUrl): List<Cookie> {
         return if (SessionConfig.useCookieJar) {
-            val cookies = cache[url.host] ?: ArrayList()
+            val cookies = cache[url.host()] ?: ArrayList()
             if (cookies.isNotEmpty()) DebugLog.log("🍪 CookieJar loading ${cookies.size} cookies")
             cookies
         } else {
@@ -95,12 +102,14 @@ class DiagnosticInterceptor : Interceptor {
         }
 
         val request = builder.build()
-        DebugLog.log("🚀 SENDING ${request.method} ${request.url}")
-        DebugLog.log("   Headers: ${request.headers.names()}")
+        // FIX: Use .method(), .url(), .headers()
+        DebugLog.log("🚀 SENDING ${request.method()} ${request.url()}")
+        DebugLog.log("   Headers: ${request.headers()}")
         
         try {
             val response = chain.proceed(request)
-            DebugLog.log("⬅️ RECEIVED ${response.code}")
+            // FIX: Use .code()
+            DebugLog.log("⬅️ RECEIVED ${response.code()}")
             return response
         } catch (e: Exception) {
             DebugLog.log("💥 NETWORK ERROR: ${e.message}")

@@ -57,13 +57,11 @@ class MainViewModel : ViewModel() {
                 val resp = withContext(Dispatchers.IO) { NetworkClient.api.login(LoginRequest(e, p)) }
                 DebugLog.log("Login Status: ${resp.status}")
                 
-                // IMPORTANT: Manually inject Bearer for next request if CookieJar captured cookie
                 val token = resp.authorisation?.token
                 if (token != null) {
                     DebugLog.log("Token acquired. Testing /user...")
-                    // For Method A, we normally rely on CookieJar, but let's try manual Bearer too
-                    // because sometimes Jar misses it
-                    SessionConfig.useManualCookie = "myedu-jwt-token=$token" // Hybrid hack
+                    // Hybrid approach: Native CookieJar + Manual Header Token
+                    SessionConfig.useManualCookie = "myedu-jwt-token=$token" 
                     
                     val user = withContext(Dispatchers.IO) { NetworkClient.api.getUser().string() }
                     DebugLog.log("USER DATA: ${user.take(100)}...")
@@ -82,7 +80,6 @@ class MainViewModel : ViewModel() {
             SessionConfig.useCookieJar = false
             
             try {
-                // 1. Login to get token
                 val resp = withContext(Dispatchers.IO) { NetworkClient.api.login(LoginRequest(e, p)) }
                 val token = resp.authorisation?.token
                 
@@ -164,7 +161,6 @@ fun DebugUI(vm: MainViewModel = viewModel()) {
         Spacer(Modifier.height(8.dp))
         Divider()
         
-        // LOG CONSOLE
         SelectionContainer(Modifier.weight(1f).background(Color.Black).padding(8.dp)) {
             val scroll = rememberScrollState()
             Text(vm.logText, color = Color.Green, fontFamily = FontFamily.Monospace, fontSize = 10.sp, modifier = Modifier.verticalScroll(scroll))

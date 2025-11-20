@@ -31,11 +31,15 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.material3:material3")
-    // Extended Icons for nice profile icons
-    implementation("androidx.compose.material:material-icons-extended:1.5.4") 
+    implementation("androidx.compose.material:material-icons-extended:1.5.4")
+    
+    // CRITICAL FOR VIEWMODEL IMPORT
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1")
     
     implementation("androidx.webkit:webkit:1.8.0")
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    
+    // CRITICAL FOR COIL IMPORT
     implementation("io.coil-kt:coil-compose:2.4.0")
 }

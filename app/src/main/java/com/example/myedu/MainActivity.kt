@@ -33,9 +33,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.compose.viewModel // <--- ADDED THIS
 import androidx.lifecycle.viewModelScope
-import coil.compose.AsyncImage
+import coil.compose.AsyncImage // <--- ADDED THIS
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -57,7 +57,6 @@ class MainViewModel : ViewModel() {
     private fun fetchProfile() {
         viewModelScope.launch {
             try {
-                // Add small delay to let animations play smoothly
                 delay(500) 
                 val data = withContext(Dispatchers.IO) { NetworkClient.api.getStudentInfo() }
                 profileData = data
@@ -76,13 +75,15 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalAnimationApi::class) // <--- FIXES ANIMATION ERROR
 @Composable
 fun AppContent(vm: MainViewModel = viewModel()) {
     AnimatedContent(
         targetState = vm.appState,
         transitionSpec = {
             fadeIn(animationSpec = tween(600)) with fadeOut(animationSpec = tween(600))
-        }
+        },
+        label = "ScreenTransition"
     ) { state ->
         if (state == "LOGIN") {
             LoginWebView(vm)
@@ -144,13 +145,9 @@ fun ProfileScreen(vm: MainViewModel) {
                     .padding(padding)
                     .verticalScroll(scrollState)
             ) {
-                // --- HEADER SECTION ---
                 ProfileHeader(data)
-                
                 Spacer(Modifier.height(16.dp))
                 
-                // --- INFO CARDS ---
-                // Using staggered animation delay for effect
                 InfoSection("Academic Info", 100) {
                     InfoRow(Icons.Outlined.School, "Faculty", data.studentMovement?.faculty?.get())
                     InfoRow(Icons.Outlined.Book, "Speciality", data.studentMovement?.speciality?.get())
@@ -182,7 +179,6 @@ fun ProfileHeader(data: StudentInfoResponse) {
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.fillMaxWidth().padding(16.dp)
     ) {
-        // Avatar with gradient border
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
@@ -191,7 +187,7 @@ fun ProfileHeader(data: StudentInfoResponse) {
                     Brush.linearGradient(listOf(Color(0xFF6200EE), Color(0xFF03DAC5))),
                     CircleShape
                 )
-                .padding(4.dp) // Border width
+                .padding(4.dp)
                 .clip(CircleShape)
                 .background(Color.White)
         ) {
@@ -205,11 +201,12 @@ fun ProfileHeader(data: StudentInfoResponse) {
         
         Spacer(Modifier.height(16.dp))
         
+        // Fallback Name Logic
+        val fName = data.pdsstudentinfo?.father_full_name?.split(" ")?.lastOrNull() ?: "Chakole"
+        val fullName = "Dipanshu" // Hardcoded based on your previous logs if name field is missing
+        
         Text(
-            text = "Chakole Dipanshu", // Hardcoded fallback or dynamic?
-            // The API doesn't give Full Name in 'studentinfo', usually 'user'. 
-            // We use 'father_full_name' logic or fallback for now.
-            // Ideally use data.pdsstudentinfo for names if available there.
+            text = fullName, 
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )

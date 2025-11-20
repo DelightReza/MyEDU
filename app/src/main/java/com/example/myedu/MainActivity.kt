@@ -1,24 +1,21 @@
 package com.example.myedu
 
-import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.Bitmap
 import android.os.Bundle
-import android.util.Log
-import android.webkit.CookieManager
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewModelScope
@@ -30,73 +27,79 @@ import okhttp3.ResponseBody
 
 class MainViewModel : ViewModel() {
     var appState by mutableStateOf("LOGIN") 
-    var status by mutableStateOf("Ready")
+    var isLoading by mutableStateOf(false)
+    var status by mutableStateOf("Ready (V21: The Mixer)")
     var userName by mutableStateOf("")
-    var scanResults by mutableStateOf("")
     
-    // GHOST CONTROLS
-    var ghostUrl by mutableStateOf("https://myedu.oshsu.kg/#/login")
-    var triggerInjection by mutableStateOf(false)
-    var emailInput by mutableStateOf("")
-    var passInput by mutableStateOf("")
-
-    // STEP 1: User Clicks Login (Native UI)
-    fun attemptNativeLogin(e: String, p: String) {
-        emailInput = e
-        passInput = p
-        status = "Authenticating (Ghost Engine)..."
-        triggerInjection = true // Wakes up the hidden browser
-    }
-
-    // STEP 2: Hidden Browser Succeeds
-    fun onGhostLoginSuccess(cookies: String, ua: String, context: Context) {
-        if (appState == "DASHBOARD") return
-        
-        status = "Session Captured. Verifying..."
-        TokenStore.cookies = cookies
-        TokenStore.userAgent = ua
-        
-        // Save session for next time
+    // Scanner Data
+    var scanResults by mutableStateOf("Waiting for scan...")
+    
+    // 1. AUTO-LOGIN CHECK
+    fun checkSavedToken(context: Context) {
         val prefs = context.getSharedPreferences("MyEduPrefs", Context.MODE_PRIVATE)
-        prefs.edit().putString("cookies", cookies).putString("ua", ua).apply()
-        
-        verifySession()
-    }
-
-    // STEP 3: Verify Session with API
-    fun checkSavedSession(context: Context) {
-        val prefs = context.getSharedPreferences("MyEduPrefs", Context.MODE_PRIVATE)
-        val c = prefs.getString("cookies", null)
-        val u = prefs.getString("ua", null)
-        
-        if (c != null && u != null) {
-            TokenStore.cookies = c
-            TokenStore.userAgent = u
-            verifySession()
+        val savedToken = prefs.getString("jwt_token", null)
+        if (savedToken != null) {
+            TokenStore.jwtToken = savedToken
+            verifyToken()
         }
     }
 
-    private fun verifySession() {
+    // 2. NATIVE LOGIN (METHOD 1)
+    fun login(email: String, pass: String, context: Context) {
         viewModelScope.launch {
+            isLoading = true
+            status = "Logging in via API..."
             try {
-                val raw = withContext(Dispatchers.IO) { NetworkClient.api.getUser().string() }
-                val json = JSONObject(raw)
-                val user = json.optJSONObject("user")
-                if (user != null) {
-                    userName = user.optString("name", "Student")
-                    appState = "DASHBOARD"
+                // A. Get Token
+                val resp = withContext(Dispatchers.IO) {
+                    NetworkClient.api.login(LoginRequest(email, pass))
+                }
+                
+                val token = resp.authorisation?.token
+                if (token != null) {
+                    // B. Save Token Globally (Interceptor picks it up - METHOD 2)
+                    TokenStore.jwtToken = token
+                    
+                    // C. Save to Disk
+                    context.getSharedPreferences("MyEduPrefs", Context.MODE_PRIVATE)
+                        .edit().putString("jwt_token", token).apply()
+                        
+                    status = "Token Acquired. Verifying..."
+                    verifyToken()
                 } else {
-                    status = "Session Expired."
-                    appState = "LOGIN"
+                    status = "Login Failed: No token returned."
                 }
             } catch (e: Exception) {
                 status = "Login Error: ${e.message}"
-                appState = "LOGIN"
+            } finally {
+                isLoading = false
             }
         }
     }
 
-    // STEP 4: Grade Scanner
+    private fun verifyToken() {
+        viewModelScope.launch {
+            try {
+                // Try to fetch User Profile using the new token
+                val raw = withContext(Dispatchers.IO) { NetworkClient.api.getUser().string() }
+                val json = JSONObject(raw)
+                val user = json.optJSONObject("user")
+                
+                if (user != null) {
+                    userName = user.optString("name", "Student")
+                    appState = "DASHBOARD"
+                } else {
+                    status = "Token Rejected (401)"
+                    appState = "LOGIN"
+                }
+            } catch (e: Exception) {
+                status = "Verification Failed: ${e.message}"
+                appState = "LOGIN"
+            }
+        }
+    }
+    
+    // 3. SCANNER ACTION
     fun scanForGrades() {
         viewModelScope.launch {
             scanResults = "Scanning..."
@@ -114,93 +117,45 @@ class MainViewModel : ViewModel() {
     private suspend fun checkEndpoint(name: String, call: suspend () -> ResponseBody): String {
         return try {
             val res = withContext(Dispatchers.IO) { call().string() }
-            if (res.length > 50 && res.contains("{")) "✅ $name: OK (${res.length}B)\n" 
-            else "❌ $name: Empty\n"
+            if (res.length > 50 && res.contains("{")) "✅ $name: SUCCESS (${res.length}B)\n" 
+            else "❌ $name: Empty/Invalid\n"
         } catch (e: Exception) { "❌ $name: Error\n" }
     }
     
     fun logout(context: Context) {
         context.getSharedPreferences("MyEduPrefs", Context.MODE_PRIVATE).edit().clear().apply()
-        CookieManager.getInstance().removeAllCookies(null)
         appState = "LOGIN"
+        status = "Logged Out"
     }
 }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { MaterialTheme { AppContent() } }
+        setContent { MaterialTheme { AppUI() } }
     }
 }
 
 @Composable
-fun AppContent(vm: MainViewModel = viewModel()) {
+fun AppUI(vm: MainViewModel = viewModel()) {
     val context = LocalContext.current
-    LaunchedEffect(Unit) { vm.checkSavedSession(context) }
-
-    // THE INVISIBLE GHOST BROWSER (Size 0dp)
-    Box(Modifier.size(0.dp)) { 
-        GhostWebView(vm, context)
-    }
+    LaunchedEffect(Unit) { vm.checkSavedToken(context) }
 
     if (vm.appState == "LOGIN") {
-        LoginScreen(vm)
+        LoginScreen(vm, context)
     } else {
         DashboardScreen(vm, context)
     }
 }
 
-@SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun GhostWebView(vm: MainViewModel, context: Context) {
-    AndroidView(factory = { ctx ->
-        WebView(ctx).apply {
-            settings.javaScriptEnabled = true
-            settings.domStorageEnabled = true
-            settings.userAgentString = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Mobile Safari/537.36"
-            
-            webViewClient = object : WebViewClient() {
-                override fun onPageFinished(view: WebView?, url: String?) {
-                    if (url != null && url.contains("/main")) {
-                        val cookies = CookieManager.getInstance().getCookie(url)
-                        if (cookies != null && cookies.contains("myedu-jwt-token")) {
-                            vm.onGhostLoginSuccess(cookies, settings.userAgentString, context)
-                        }
-                    }
-                    // Inject JS to fill password fields
-                    if (url != null && url.contains("login") && vm.triggerInjection) {
-                        Log.d("GHOST", "Injecting Credentials...")
-                        val js = """
-                            var inputs = document.querySelectorAll('input');
-                            var btn = document.querySelector('button');
-                            if(inputs.length >= 2) {
-                                inputs[0].value = '${vm.emailInput}';
-                                inputs[0].dispatchEvent(new Event('input'));
-                                inputs[1].value = '${vm.passInput}';
-                                inputs[1].dispatchEvent(new Event('input'));
-                                setTimeout(function(){ 
-                                    if(btn) btn.click(); 
-                                }, 500);
-                            }
-                        """
-                        view?.evaluateJavascript(js, null)
-                        vm.triggerInjection = false 
-                    }
-                }
-            }
-            loadUrl(vm.ghostUrl)
-        }
-    }, update = { view ->
-        if (vm.triggerInjection) {
-            view.reload() 
-        }
-    })
-}
-
-@Composable
-fun LoginScreen(vm: MainViewModel) {
-    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("MyEDU Native", style = MaterialTheme.typography.displaySmall, color = Color(0xFF1565C0))
+fun LoginScreen(vm: MainViewModel, context: Context) {
+    Column(
+        Modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("MyEDU Mixer", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
         Spacer(Modifier.height(32.dp))
         
         var e by remember { mutableStateOf("") }
@@ -212,33 +167,41 @@ fun LoginScreen(vm: MainViewModel) {
         Spacer(Modifier.height(24.dp))
         
         Button(
-            onClick = { vm.attemptNativeLogin(e, p) }, 
+            onClick = { vm.login(e, p, context) }, 
+            enabled = !vm.isLoading,
             modifier = Modifier.fillMaxWidth().height(50.dp)
         ) {
-            Text("LOGIN")
+            Text(if (vm.isLoading) "Connecting..." else "Log In")
         }
         Spacer(Modifier.height(16.dp))
-        Text(vm.status, color = Color.Gray)
+        Text(vm.status, color = if(vm.status.contains("Error")) Color.Red else Color.Gray)
     }
 }
 
 @Composable
 fun DashboardScreen(vm: MainViewModel, context: Context) {
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Welcome, ${vm.userName}", style = MaterialTheme.typography.headlineSmall)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(vm.userName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Button(onClick = { vm.logout(context) }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) {
+                Text("LOGOUT")
+            }
+        }
         Divider(Modifier.padding(vertical = 16.dp))
         
+        Text("Grade Scanner", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(8.dp))
+        
         Button(onClick = { vm.scanForGrades() }, modifier = Modifier.fillMaxWidth()) {
-            Text("SCAN SERVER FOR GRADES")
+            Text("FIND GRADES URL")
         }
-        
         Spacer(Modifier.height(16.dp))
-        Card(Modifier.fillMaxWidth().weight(1f), colors = CardDefaults.cardColors(containerColor = Color(0xFF212121))) {
-            Text(vm.scanResults, color = Color.Green, modifier = Modifier.padding(16.dp))
-        }
         
-        Button(onClick = { vm.logout(context) }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red), modifier = Modifier.fillMaxWidth()) {
-            Text("LOGOUT")
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF212121)),
+            modifier = Modifier.fillMaxWidth().weight(1f)
+        ) {
+            Text(vm.scanResults, color = Color.Green, modifier = Modifier.padding(16.dp))
         }
     }
 }

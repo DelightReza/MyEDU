@@ -7,15 +7,27 @@ import okhttp3.Response
 import okhttp3.ResponseBody
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Headers
+import retrofit2.http.POST
 
-// --- API DEFINITION (Data Only) ---
+// 1. API DEFINITION
+data class LoginRequest(val email: String, val password: String)
+data class LoginResponse(val status: String?, val authorisation: AuthData?)
+data class AuthData(val token: String?, val is_student: Boolean?)
+
 interface OshSuApi {
+    // Method 1: Native Login
+    @Headers("Content-Type: application/json", "Accept: application/json")
+    @POST("public/api/login")
+    suspend fun login(@Body request: LoginRequest): LoginResponse
+
+    // Method 2: Data endpoints (Authorized via Interceptor)
     @GET("public/api/user")
     suspend fun getUser(): ResponseBody
 
-    // --- GRADE SCANNER ENDPOINTS ---
+    // --- SCANNER ENDPOINTS ---
     @GET("public/api/studentSession")
     suspend fun scanSession(): ResponseBody
 
@@ -29,33 +41,29 @@ interface OshSuApi {
     suspend fun scanTranscript(): ResponseBody
 }
 
-// --- GLOBAL CREDENTIAL STORE ---
+// 2. GLOBAL TOKEN STORE
 object TokenStore {
-    var cookies: String? = null
-    var userAgent: String? = null
+    var jwtToken: String? = null
 }
 
-// --- INTERCEPTOR (Injects Stolen Cookies) ---
-class GhostInterceptor : Interceptor {
+// 3. INTERCEPTOR (The "God Mode" Logic)
+class MixerInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val original = chain.request()
         val builder = original.newBuilder()
 
-        // Inject credentials captured by the Ghost Browser
-        TokenStore.userAgent?.let { builder.header("User-Agent", it) }
-        TokenStore.cookies?.let { builder.header("Cookie", it) }
-        
-        // Double-Lock: Extract JWT from cookie and add as Bearer
-        TokenStore.cookies?.let {
-            val jwt = it.split(";").find { c -> c.trim().startsWith("myedu-jwt-token=") }
-            if (jwt != null) {
-                val token = jwt.substringAfter("=").trim()
-                builder.header("Authorization", "Bearer $token")
-            }
-        }
-
-        builder.header("Referer", "https://myedu.oshsu.kg/")
+        // Always look like Chrome (Matches your Curl)
+        builder.header("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Mobile Safari/537.36")
+        builder.header("Referer", "https://myedu.oshsu.kg/#/main")
         builder.header("Accept", "application/json, text/plain, */*")
+
+        // Inject the token if we have it (from API Login)
+        TokenStore.jwtToken?.let { token ->
+            // 1. Header Lock
+            builder.header("Authorization", "Bearer $token")
+            // 2. Cookie Lock (Crucial!)
+            builder.header("Cookie", "myedu-jwt-token=$token")
+        }
 
         return chain.proceed(builder.build())
     }
@@ -66,7 +74,7 @@ object NetworkClient {
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
-        .addInterceptor(GhostInterceptor())
+        .addInterceptor(MixerInterceptor())
         .build()
 
     val api: OshSuApi = Retrofit.Builder()

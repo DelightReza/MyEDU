@@ -4,7 +4,6 @@ import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,7 +29,7 @@ import okhttp3.ResponseBody
 class MainViewModel : ViewModel() {
     var appState by mutableStateOf("LOGIN") 
     var isLoading by mutableStateOf(false)
-    var status by mutableStateOf("Ready (V21: The Mixer)")
+    var status by mutableStateOf("Ready (V22: Native Cookies)")
     var userName by mutableStateOf("")
     var scanResults by mutableStateOf("Waiting for scan...")
     
@@ -48,20 +47,20 @@ class MainViewModel : ViewModel() {
             isLoading = true
             status = "Logging in..."
             try {
-                // 1. API Login
+                // 1. API Login (CookieJar will catch the cookies automatically)
                 val resp = withContext(Dispatchers.IO) {
                     NetworkClient.api.login(LoginRequest(email, pass))
                 }
                 
                 val token = resp.authorisation?.token
                 if (token != null) {
-                    // 2. Set Global Token (Interceptor will inject it as Cookie)
+                    // 2. Set Header Token
                     TokenStore.jwtToken = token
                     
                     context.getSharedPreferences("MyEduPrefs", Context.MODE_PRIVATE)
                         .edit().putString("jwt_token", token).apply()
                         
-                    status = "Token Acquired. Verifying..."
+                    status = "Token & Cookies Acquired. Verifying..."
                     verifyToken()
                 } else {
                     status = "Login Failed: No token."
@@ -85,7 +84,7 @@ class MainViewModel : ViewModel() {
                     userName = user.optString("name", "Student")
                     appState = "DASHBOARD"
                 } else {
-                    status = "Token Rejected (401)"
+                    status = "Token Rejected (401). Check Cookies."
                     appState = "LOGIN"
                 }
             } catch (e: Exception) {
@@ -150,7 +149,7 @@ fun LoginScreen(vm: MainViewModel, context: Context) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("MyEDU Mixer", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
+        Text("MyEDU Native", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
         Spacer(Modifier.height(32.dp))
         
         var e by remember { mutableStateOf("") }

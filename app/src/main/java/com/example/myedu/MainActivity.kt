@@ -28,7 +28,7 @@ import java.util.Locale
 
 class MainViewModel : ViewModel() {
     var isLoading by mutableStateOf(false)
-    var logText by mutableStateOf("System Ready.\n")
+    var logText by mutableStateOf("Stealth Mode Ready.\n")
 
     fun appendLog(msg: String) {
         val time = SimpleDateFormat("HH:mm:ss", Locale.US).format(Date())
@@ -38,51 +38,55 @@ class MainViewModel : ViewModel() {
     fun login(email: String, pass: String) {
         viewModelScope.launch {
             isLoading = true
-            appendLog("--- STARTING LOGIN ---")
-            appendLog("Target: $email")
+            appendLog("--- LOGIN V7 (STEALTH) ---")
             
             try {
-                // 1. LOGIN REQUEST
-                appendLog("Sending POST request...")
+                // 1. LOGIN
+                appendLog("Logging in as Chrome...")
                 val loginResp = withContext(Dispatchers.IO) {
                     NetworkClient.api.login(LoginRequest(email, pass))
                 }
-                appendLog("Response Status: ${loginResp.status}")
                 
                 val token = loginResp.authorisation?.token
                 if (token == null) {
-                    appendLog("FAILURE: Token is null!")
+                    appendLog("FAIL: No token returned.")
                     return@launch
                 }
-                appendLog("Token received (Length: ${token.length})")
                 
-                // 2. PROFILE REQUEST
-                appendLog("Fetching Profile (studentinfo)...")
+                appendLog("Token OK: ${token.take(10)}...")
+                
+                // 2. PROFILE (The step that failed before)
+                appendLog("Requesting Profile...")
                 val bearer = "Bearer $token"
+                appendLog("Header: $bearer") // VISUAL CHECK
                 
                 val rawJson = withContext(Dispatchers.IO) {
-                    // Read string on IO thread to prevent UI freeze
                     NetworkClient.api.getStudentInfo(bearer).string()
                 }
                 
-                appendLog("Profile Data Downloaded: ${rawJson.length} chars")
-                // Log first 100 chars to verify content
-                appendLog("Snippet: ${rawJson.take(100)}...")
-
+                // If we get here, 401 is fixed!
+                appendLog("SUCCESS (200 OK)")
+                appendLog("Bytes read: ${rawJson.length}")
+                
                 // 3. PARSE
                 val jsonObj = JSONObject(rawJson)
                 val movement = jsonObj.optJSONObject("studentMovement")
-                val group = movement?.optString("avn_group_name")
+                val group = movement?.optString("avn_group_name") ?: "Unknown"
+                val spec = movement?.optJSONObject("speciality")
+                val major = spec?.optString("name_en") ?: "Unknown"
+
+                appendLog("--- RESULT ---")
+                appendLog("Group: $group")
+                appendLog("Major: $major")
                 
-                appendLog("SUCCESS! Group: $group")
-                
+            } catch (e: retrofit2.HttpException) {
+                appendLog("HTTP ERROR: ${e.code()} ${e.message()}")
             } catch (e: Exception) {
-                appendLog("CRITICAL ERROR: ${e.javaClass.simpleName}")
-                appendLog("Msg: ${e.message}")
+                appendLog("CRASH: ${e.message}")
                 e.printStackTrace()
             } finally {
                 isLoading = false
-                appendLog("--- OPERATION END ---")
+                appendLog("--- END ---")
             }
         }
     }
@@ -91,83 +95,50 @@ class MainViewModel : ViewModel() {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { 
-            MaterialTheme { 
-                LoggerScreen() 
-            } 
-        }
+        setContent { MaterialTheme { LoggerScreen() } }
     }
 }
 
 @Composable
 fun LoggerScreen(vm: MainViewModel = viewModel()) {
     Column(Modifier.fillMaxSize().background(Color.Black).padding(16.dp)) {
-        
-        Text("DIAGNOSTIC MODE V6", color = Color.White, style = MaterialTheme.typography.titleLarge)
+        Text("STEALTH MODE V7", color = Color.Cyan, style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(16.dp))
 
-        // INPUTS
         var e by remember { mutableStateOf("") }
         var p by remember { mutableStateOf("") }
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
-                value = e, 
-                onValueChange = { e = it }, 
-                label = { Text("Email") },
+                value = e, onValueChange = { e = it }, label = { Text("Email") },
                 modifier = Modifier.weight(1f),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedBorderColor = Color.Green,
-                    unfocusedBorderColor = Color.Gray
-                )
+                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = Color.Cyan, unfocusedBorderColor = Color.Gray)
             )
             OutlinedTextField(
-                value = p, 
-                onValueChange = { p = it }, 
-                label = { Text("Pass") },
+                value = p, onValueChange = { p = it }, label = { Text("Pass") },
                 modifier = Modifier.weight(1f),
-                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedBorderColor = Color.Green,
-                    unfocusedBorderColor = Color.Gray
-                )
+                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = Color.Cyan, unfocusedBorderColor = Color.Gray)
             )
         }
-        
         Spacer(Modifier.height(8.dp))
-        
         Button(
-            onClick = { vm.login(e, p) }, 
-            enabled = !vm.isLoading,
-            colors = ButtonDefaults.buttonColors(containerColor = Color.Green, contentColor = Color.Black),
+            onClick = { vm.login(e, p) }, enabled = !vm.isLoading,
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Cyan, contentColor = Color.Black),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(if (vm.isLoading) "RUNNING..." else "START TEST")
+            Text(if (vm.isLoading) "RUNNING..." else "TEST CONNECTION")
         }
 
         Spacer(Modifier.height(16.dp))
         Divider(color = Color.DarkGray)
         
-        // THE LOG CONSOLE
         val scroll = rememberScrollState()
-        
-        // Auto-scroll to bottom when log changes
-        LaunchedEffect(vm.logText) {
-            scroll.animateScrollTo(scroll.maxValue)
-        }
+        LaunchedEffect(vm.logText) { scroll.animateScrollTo(scroll.maxValue) }
 
         Text(
-            text = vm.logText,
-            color = Color.Green,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 12.sp,
-            lineHeight = 14.sp,
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scroll)
+            text = vm.logText, color = Color.Green,
+            fontFamily = FontFamily.Monospace, fontSize = 12.sp,
+            modifier = Modifier.fillMaxSize().verticalScroll(scroll)
         )
     }
 }

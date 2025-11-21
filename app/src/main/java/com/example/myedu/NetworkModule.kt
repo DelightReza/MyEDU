@@ -6,6 +6,7 @@ import java.util.concurrent.TimeUnit
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
@@ -16,6 +17,10 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Query
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 // --- DATA MODELS ---
 
@@ -42,7 +47,7 @@ data class NameObj(val name_en: String?, val name_ru: String?, val name_kg: Stri
 data class EduYear(val id: Int, val name_en: String?, val active: Boolean)
 data class ScheduleWrapper(val schedule_items: List<ScheduleItem>?)
 
-// UPDATED SCHEDULE ITEM WITH BUILDING INFO
+// Updated Schedule Item with Building Info
 data class ScheduleItem(
     val day: Int,
     val id_lesson: Int,
@@ -50,7 +55,7 @@ data class ScheduleItem(
     val teacher: TeacherObj?,
     val room: RoomObj?,
     val subject_type: NameObj?,
-    val classroom: ClassroomObj? // Added this
+    val classroom: ClassroomObj?
 )
 
 data class ClassroomObj(val building: BuildingObj?)
@@ -106,17 +111,33 @@ class UniversalCookieJar : CookieJar {
         return ArrayList(cookieStore)
     }
     
+    // CRITICAL FIX: Manually inject the token cookie
     fun injectSessionCookies(token: String) {
-        // Manually inject session cookies as if we were the browser
+        val targetUrl = "https://api.myedu.oshsu.kg".toHttpUrlOrNull() ?: return
+        
+        // 1. JWT Token Cookie
         val jwtCookie = Cookie.Builder()
             .domain("myedu.oshsu.kg")
             .path("/")
             .name("myedu-jwt-token")
             .value(token)
             .build()
-            
-        cookieStore.removeAll { it.name == "myedu-jwt-token" }
+
+        // 2. Timestamp Cookie
+        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.000000'Z'", Locale.US)
+        sdf.timeZone = TimeZone.getTimeZone("UTC")
+        val timestamp = sdf.format(Date())
+        
+        val timeCookie = Cookie.Builder()
+            .domain("myedu.oshsu.kg")
+            .path("/")
+            .name("my_edu_update")
+            .value(timestamp)
+            .build()
+        
+        cookieStore.removeAll { it.name == "myedu-jwt-token" || it.name == "my_edu_update" }
         cookieStore.add(jwtCookie)
+        cookieStore.add(timeCookie)
     }
     
     fun clear() {

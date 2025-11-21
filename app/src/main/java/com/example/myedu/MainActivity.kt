@@ -393,7 +393,7 @@ fun ProfileScreen(vm: MainViewModel) {
                         Text("Remaining: ${debt.toInt()} KGS", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                     }
 
-                    // SERVER MESSAGES
+                    // --- SERVER MESSAGES (Centered) ---
                     if (!pay.access_message.isNullOrEmpty()) {
                         Spacer(Modifier.height(12.dp))
                         HorizontalDivider(
@@ -404,7 +404,10 @@ fun ProfileScreen(vm: MainViewModel) {
                         pay.access_message.forEach { msg ->
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(bottom = 4.dp)
+                                horizontalArrangement = Arrangement.Center, // Centers content horizontally
+                                modifier = Modifier
+                                    .fillMaxWidth() // Fills width so centering works
+                                    .padding(bottom = 4.dp)
                             ) {
                                 Icon(
                                     Icons.Outlined.Warning, 

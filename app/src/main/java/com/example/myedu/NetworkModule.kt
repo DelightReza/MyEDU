@@ -1,7 +1,12 @@
 package com.example.myedu
 
 import com.google.gson.GsonBuilder
+import java.text.SimpleDateFormat
 import java.util.ArrayList
+import java.util.Date
+import java.util.HashMap
+import java.util.Locale
+import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 import okhttp3.Cookie
 import okhttp3.CookieJar
@@ -85,19 +90,32 @@ class UniversalCookieJar : CookieJar {
         return ArrayList(cookieStore)
     }
     
-    // FIX: Manually inject the token cookie since the server doesn't send it
-    fun addManualCookie(token: String) {
-        val url = "https://api.myedu.oshsu.kg".toHttpUrlOrNull() ?: return
-        val cookie = Cookie.Builder()
-            .domain("api.myedu.oshsu.kg")
+    // FIX: Inject BOTH the Token and the Timestamp cookie
+    fun injectSessionCookies(token: String) {
+        // 1. JWT Token Cookie
+        val jwtCookie = Cookie.Builder()
+            .domain("myedu.oshsu.kg") // Set on Root domain to match Referer
             .path("/")
             .name("myedu-jwt-token")
             .value(token)
             .build()
+
+        // 2. Update Timestamp Cookie (Simulating Browser JS behavior)
+        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.000000'Z'", Locale.US)
+        sdf.timeZone = TimeZone.getTimeZone("UTC")
+        val timestamp = sdf.format(Date())
         
-        // Remove old if exists
-        cookieStore.removeAll { it.name == "myedu-jwt-token" }
-        cookieStore.add(cookie)
+        val timeCookie = Cookie.Builder()
+            .domain("myedu.oshsu.kg")
+            .path("/")
+            .name("my_edu_update")
+            .value(timestamp)
+            .build()
+        
+        // Remove old versions and add new ones
+        cookieStore.removeAll { it.name == "myedu-jwt-token" || it.name == "my_edu_update" }
+        cookieStore.add(jwtCookie)
+        cookieStore.add(timeCookie)
     }
     
     fun clear() {

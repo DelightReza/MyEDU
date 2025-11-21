@@ -73,14 +73,18 @@ class MainViewModel : ViewModel() {
             NetworkClient.interceptor.authToken = null
             
             try {
-                // 1. LOGIN API CALL
-                val resp = withContext(Dispatchers.IO) { NetworkClient.api.login(LoginRequest(email, pass)) }
+                // FIX: Trim inputs to remove accidental copy-paste spaces
+                val cleanEmail = email.trim()
+                val cleanPass = pass.trim()
+
+                // 1. LOGIN
+                val resp = withContext(Dispatchers.IO) { NetworkClient.api.login(LoginRequest(cleanEmail, cleanPass)) }
                 val token = resp.authorisation?.token
                 
                 if (token != null) {
-                    // 2. INJECT TOKENS (FIX FOR 401)
+                    // 2. INJECT TOKENS & COOKIES (FULL SESSION REPLICATION)
                     NetworkClient.interceptor.authToken = token
-                    NetworkClient.cookieJar.addManualCookie(token) // <--- CRITICAL FIX
+                    NetworkClient.cookieJar.injectSessionCookies(token) 
                     
                     // 3. FETCH DATA
                     val user = withContext(Dispatchers.IO) { NetworkClient.api.getUser().user }
@@ -92,7 +96,7 @@ class MainViewModel : ViewModel() {
                     
                     appState = "APP"
                 } else {
-                    errorMsg = "Incorrect credentials"
+                    errorMsg = "Incorrect credentials (No Token)"
                 }
             } catch (e: Exception) {
                 errorMsg = "Login Failed: ${e.message}"

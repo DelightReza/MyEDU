@@ -1,69 +1,75 @@
 package com.example.myedu
 
-import android.annotation.SuppressLint
 import android.os.Bundle
-import android.webkit.CookieManager
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.*
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel // <--- ADDED THIS
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewModelScope
-import coil.compose.AsyncImage // <--- ADDED THIS
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import coil.compose.AsyncImage
 
 class MainViewModel : ViewModel() {
-    var appState by mutableStateOf("LOGIN") 
-    var profileData by mutableStateOf<StudentInfoResponse?>(null)
-    var isLoading by mutableStateOf(true)
+    var appState by mutableStateOf("LOGIN")
+    var isLoading by mutableStateOf(false)
+    var statusMsg by mutableStateOf("Ready to connect.")
+    var profileUrl by mutableStateOf<String?>(null)
 
-    fun onSessionCaptured(cookies: String, ua: String) {
-        if (appState == "PROFILE") return
-        SessionStore.cookies = cookies
-        SessionStore.userAgent = ua
-        appState = "PROFILE"
-        fetchProfile()
+    fun login(email: String, pass: String) {
+        viewModelScope.launch {
+            isLoading = true
+            statusMsg = "Handshaking..."
+            
+            try {
+                // 1. Perform Login
+                val resp = withContext(Dispatchers.IO) {
+                    NetworkClient.api.login(LoginRequest(email, pass))
+                }
+                
+                // 2. Check Token
+                val token = resp.authorisation?.token
+                if (token != null) {
+                    // Set token for future requests
+                    NetworkClient.interceptor.authToken = token
+                    statusMsg = "Authorized. Fetching Profile..."
+                    
+                    // 3. Fetch Profile to prove session works
+                    fetchProfile()
+                } else {
+                    statusMsg = "Login Failed: Server rejected credentials."
+                }
+                
+            } catch (e: Exception) {
+                statusMsg = "Error: ${e.message}"
+                if (e.message?.contains("401") == true) {
+                    statusMsg = "401: Headers Rejected. (Still blocked)"
+                }
+            } finally {
+                isLoading = false
+            }
+        }
     }
 
-    private fun fetchProfile() {
-        viewModelScope.launch {
-            try {
-                delay(500) 
-                val data = withContext(Dispatchers.IO) { NetworkClient.api.getStudentInfo() }
-                profileData = data
-                isLoading = false
-            } catch (e: Exception) {
-                e.printStackTrace()
+    private suspend fun fetchProfile() {
+        try {
+            val profile = withContext(Dispatchers.IO) {
+                NetworkClient.api.getProfile()
             }
+            profileUrl = profile.avatar
+            appState = "PROFILE"
+        } catch (e: Exception) {
+            statusMsg = "Profile Fetch Failed: ${e.message}"
         }
     }
 }
@@ -75,207 +81,61 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalAnimationApi::class) // <--- FIXES ANIMATION ERROR
 @Composable
 fun AppContent(vm: MainViewModel = viewModel()) {
-    AnimatedContent(
-        targetState = vm.appState,
-        transitionSpec = {
-            fadeIn(animationSpec = tween(600)) with fadeOut(animationSpec = tween(600))
-        },
-        label = "ScreenTransition"
-    ) { state ->
-        if (state == "LOGIN") {
-            LoginWebView(vm)
-        } else {
-            ProfileScreen(vm)
-        }
-    }
-}
-
-@SuppressLint("SetJavaScriptEnabled")
-@Composable
-fun LoginWebView(vm: MainViewModel) {
-    Column(Modifier.fillMaxSize()) {
-        LinearProgressIndicator(Modifier.fillMaxWidth())
-        AndroidView(factory = { ctx ->
-            WebView(ctx).apply {
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                settings.userAgentString = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Mobile Safari/537.36"
-                
-                webViewClient = object : WebViewClient() {
-                    override fun onPageFinished(view: WebView?, url: String?) {
-                        val cookies = CookieManager.getInstance().getCookie(url)
-                        if (cookies != null && cookies.contains("myedu-jwt-token")) {
-                            vm.onSessionCaptured(cookies, settings.userAgentString)
-                        }
-                    }
-                }
-                loadUrl("https://myedu.oshsu.kg/#/login")
-            }
-        }, modifier = Modifier.fillMaxSize())
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ProfileScreen(vm: MainViewModel) {
-    val data = vm.profileData
-    val scrollState = rememberScrollState()
-    
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Student Profile") },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color.Transparent
-                )
-            )
-        }
-    ) { padding ->
-        if (vm.isLoading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        } else if (data != null) {
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .verticalScroll(scrollState)
-            ) {
-                ProfileHeader(data)
-                Spacer(Modifier.height(16.dp))
-                
-                InfoSection("Academic Info", 100) {
-                    InfoRow(Icons.Outlined.School, "Faculty", data.studentMovement?.faculty?.get())
-                    InfoRow(Icons.Outlined.Book, "Speciality", data.studentMovement?.speciality?.get())
-                    InfoRow(Icons.Outlined.Groups, "Group", data.studentMovement?.avn_group_name)
-                    InfoRow(Icons.Outlined.CastForEducation, "Form", data.studentMovement?.edu_form?.get())
-                }
-
-                InfoSection("Personal Details", 200) {
-                    InfoRow(Icons.Outlined.Cake, "Birthday", data.pdsstudentinfo?.birthday)
-                    InfoRow(Icons.Outlined.Badge, "Passport", data.pdsstudentinfo?.passport_number)
-                    InfoRow(Icons.Outlined.Home, "Address", data.pdsstudentinfo?.address)
-                    InfoRow(Icons.Outlined.Phone, "Phone", data.pdsstudentinfo?.phone)
-                }
-                
-                InfoSection("Family", 300) {
-                    InfoRow(Icons.Outlined.Person, "Father", data.pdsstudentinfo?.father_full_name)
-                    InfoRow(Icons.Outlined.Person2, "Mother", data.pdsstudentinfo?.mother_full_name)
-                }
-
-                Spacer(Modifier.height(32.dp))
-            }
-        }
+    if (vm.appState == "LOGIN") {
+        LoginScreen(vm)
+    } else {
+        ProfileScreen(vm)
     }
 }
 
 @Composable
-fun ProfileHeader(data: StudentInfoResponse) {
+fun LoginScreen(vm: MainViewModel) {
     Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.fillMaxWidth().padding(16.dp)
+        Modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(130.dp)
-                .background(
-                    Brush.linearGradient(listOf(Color(0xFF6200EE), Color(0xFF03DAC5))),
-                    CircleShape
-                )
-                .padding(4.dp)
-                .clip(CircleShape)
-                .background(Color.White)
+        Text("Windows Native", style = MaterialTheme.typography.displaySmall, color = Color(0xFF0078D7))
+        Spacer(Modifier.height(32.dp))
+        
+        var e by remember { mutableStateOf("") }
+        var p by remember { mutableStateOf("") }
+        
+        OutlinedTextField(value = e, onValueChange = { e = it }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(value = p, onValueChange = { p = it }, label = { Text("Password") }, modifier = Modifier.fillMaxWidth())
+        
+        Spacer(Modifier.height(24.dp))
+        
+        Button(
+            onClick = { vm.login(e, p) }, 
+            enabled = !vm.isLoading,
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0078D7))
         ) {
-            AsyncImage(
-                model = data.avatar,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().clip(CircleShape)
-            )
+            Text(if (vm.isLoading) "Connecting..." else "Sign In")
         }
         
         Spacer(Modifier.height(16.dp))
-        
-        // Fallback Name Logic
-        val fName = data.pdsstudentinfo?.father_full_name?.split(" ")?.lastOrNull() ?: "Chakole"
-        val fullName = "Dipanshu" // Hardcoded based on your previous logs if name field is missing
-        
-        Text(
-            text = fullName, 
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
-        )
-        
-        Surface(
-            color = MaterialTheme.colorScheme.secondaryContainer,
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.padding(top = 8.dp)
-        ) {
-            Text(
-                text = data.studentMovement?.avn_group_name ?: "Student",
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-        }
+        Text(vm.statusMsg, color = if (vm.statusMsg.contains("Error") || vm.statusMsg.contains("401")) Color.Red else Color.Gray)
     }
 }
 
 @Composable
-fun InfoSection(title: String, delay: Int, content: @Composable () -> Unit) {
-    var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        delay(delay.toLong())
-        visible = true
-    }
-
-    AnimatedVisibility(
-        visible = visible,
-        enter = slideInVertically(initialOffsetY = { 50 }) + fadeIn()
-    ) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)
-            )
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(2.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column(Modifier.padding(12.dp)) {
-                    content()
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun InfoRow(icon: ImageVector, label: String, value: String?) {
-    if (value.isNullOrEmpty()) return
-    
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.outline,
-            modifier = Modifier.size(20.dp)
+fun ProfileScreen(vm: MainViewModel) {
+    Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("Welcome Back", style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.height(24.dp))
+        
+        AsyncImage(
+            model = vm.profileUrl,
+            contentDescription = "Avatar",
+            modifier = Modifier.size(120.dp)
         )
-        Spacer(Modifier.width(16.dp))
-        Column {
-            Text(text = label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(text = value, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-        }
+        
+        Spacer(Modifier.height(16.dp))
+        Text("Native Login Successful!", color = Color.Green, fontWeight = FontWeight.Bold)
     }
 }

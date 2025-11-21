@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke // <--- FIXED: Added missing import
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
@@ -45,17 +46,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-// --- MOCK DATA MODELS ---
+// --- MOCK DATA ---
 data class ClassSession(val time: String, val subject: String, val room: String, val type: String)
 
-// --- THEME ENGINE (Full Dynamic Color) ---
+// --- THEME ENGINE ---
 @Composable
 fun MyEduTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
-    // Dynamic Colors are standard in M3 1.2+
+    // Dynamic Colors (Material You)
     val colorScheme = when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -209,10 +210,10 @@ fun HomeScreen(vm: MainViewModel) {
         
         Spacer(Modifier.height(24.dp))
         
-        // MODERN M3 CARD WITH SURFACE TOKENS
+        // MODERN M3 CARD
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) // Fixed Import
         ) {
             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
@@ -262,7 +263,7 @@ fun ProfileScreen(vm: MainViewModel) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.height(48.dp))
         
-        // Avatar with Gradient Border
+        // Avatar
         Box(contentAlignment = Alignment.Center, modifier = Modifier.size(128.dp).background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary)), CircleShape).padding(3.dp).clip(CircleShape).background(MaterialTheme.colorScheme.background)) {
             AsyncImage(model = profile?.avatar, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape))
         }
@@ -308,7 +309,6 @@ fun SectionHeader(title: String) {
 fun DetailCard(icon: ImageVector, title: String, value: String) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-        // MODERN TOKEN: surfaceContainerLow
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         shape = RoundedCornerShape(12.dp)
     ) {

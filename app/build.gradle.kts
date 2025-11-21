@@ -15,10 +15,7 @@ android {
         versionName = "1.0"
     }
     buildFeatures { compose = true }
-    composeOptions { 
-        // Compiler 1.5.10 matches Kotlin 1.9.22
-        kotlinCompilerExtensionVersion = "1.5.10" 
-    }
+    composeOptions { kotlinCompilerExtensionVersion = "1.5.10" }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
@@ -31,7 +28,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.activity:activity-compose:1.8.2")
     
-    // UPGRADE: BOM 2024.04.00 brings M3 1.2.1 (Supports surfaceContainer)
+    // BOM 2024.04.00 = Material 3 1.2.1 (Includes surfaceContainer colors)
     implementation(platform("androidx.compose:compose-bom:2024.04.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")

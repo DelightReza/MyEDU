@@ -321,16 +321,43 @@ fun ProfileScreen(vm: MainViewModel) {
     val fullName = "${user?.last_name ?: ""} ${user?.name ?: ""}".trim().ifEmpty { "Student" }
     val pay = vm.payStatus
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp), 
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Spacer(Modifier.height(48.dp))
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(128.dp).background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary)), CircleShape).padding(3.dp).clip(CircleShape).background(MaterialTheme.colorScheme.background)) {
-            AsyncImage(model = profile?.avatar, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape))
+        
+        // Avatar
+        Box(
+            contentAlignment = Alignment.Center, 
+            modifier = Modifier
+                .size(128.dp)
+                .background(
+                    Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary)), 
+                    CircleShape
+                )
+                .padding(3.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            AsyncImage(
+                model = profile?.avatar, 
+                contentDescription = null, 
+                contentScale = ContentScale.Crop, 
+                modifier = Modifier.fillMaxSize().clip(CircleShape)
+            )
         }
+        
         Spacer(Modifier.height(16.dp))
         Text(fullName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text(user?.email ?: "", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
         
         Spacer(Modifier.height(24.dp))
+        
+        // --- UPDATED TUITION CARD ---
         if (pay != null) {
             Card(
                 Modifier.fillMaxWidth(),
@@ -338,11 +365,14 @@ fun ProfileScreen(vm: MainViewModel) {
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
             ) {
                 Column(Modifier.padding(16.dp)) {
+                    // Header
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Tuition Contract", fontWeight = FontWeight.Bold)
                         Icon(Icons.Outlined.Payments, null, tint = MaterialTheme.colorScheme.primary)
                     }
                     Spacer(Modifier.height(12.dp))
+                    
+                    // Payment Data
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Column {
                             Text("Paid", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
@@ -353,11 +383,44 @@ fun ProfileScreen(vm: MainViewModel) {
                             Text("${pay.need_summa?.toInt() ?: 0} KGS", style = MaterialTheme.typography.titleMedium)
                         }
                     }
-                    if ((pay.getDebt()) > 0) {
+                    
+                    // Debt Warning
+                    val debt = pay.getDebt()
+                    if (debt > 0) {
                         Spacer(Modifier.height(8.dp))
                         HorizontalDivider()
                         Spacer(Modifier.height(8.dp))
-                        Text("Remaining: ${pay.getDebt().toInt()} KGS", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                        Text("Remaining: ${debt.toInt()} KGS", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                    }
+
+                    // SERVER MESSAGES
+                    if (!pay.access_message.isNullOrEmpty()) {
+                        Spacer(Modifier.height(12.dp))
+                        HorizontalDivider(
+                            modifier = Modifier.padding(bottom = 8.dp),
+                            color = MaterialTheme.colorScheme.error.copy(alpha = 0.2f)
+                        )
+                        
+                        pay.access_message.forEach { msg ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Warning, 
+                                    contentDescription = null, 
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = msg, 
+                                    style = MaterialTheme.typography.bodyMedium, 
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
                     }
                 }
             }

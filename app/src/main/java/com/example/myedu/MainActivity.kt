@@ -23,6 +23,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -44,34 +45,23 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-// --- MOCK DATA MODELS (For Home Page) ---
+// --- MOCK DATA MODELS ---
 data class ClassSession(val time: String, val subject: String, val room: String, val type: String)
 
-// --- THEME ENGINE ---
+// --- THEME ENGINE (Full Dynamic Color) ---
 @Composable
 fun MyEduTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
+    // Dynamic Colors are standard in M3 1.2+
     val colorScheme = when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> darkColorScheme(
-            primary = Color(0xFFAEC6FF),
-            secondary = Color(0xFFBBC6E4),
-            tertiary = Color(0xFFDABDE2),
-            surface = Color(0xFF1B1B1F),
-            background = Color(0xFF1B1B1F)
-        )
-        else -> lightColorScheme(
-            primary = Color(0xFF005AC1),
-            secondary = Color(0xFF535E78),
-            tertiary = Color(0xFF715573),
-            surface = Color(0xFFFEF7FF),
-            background = Color(0xFFFEF7FF)
-        )
+        darkTheme -> darkColorScheme()
+        else -> lightColorScheme()
     }
 
     val view = LocalView.current
@@ -89,23 +79,21 @@ fun MyEduTheme(
 
 // --- VIEWMODEL ---
 class MainViewModel : ViewModel() {
-    var appState by mutableStateOf("LOGIN") // LOGIN, APP
-    var currentTab by mutableStateOf(0) // 0 = Home, 1 = Profile
-    
+    var appState by mutableStateOf("LOGIN")
+    var currentTab by mutableStateOf(0)
     var isLoading by mutableStateOf(false)
     var errorMsg by mutableStateOf<String?>(null)
     
     var userData by mutableStateOf<UserData?>(null)
     var profileData by mutableStateOf<StudentInfoResponse?>(null)
     
-    // Mock Data for Home
     val todayClasses = listOf(
         ClassSession("08:30", "Internal Medicine", "Lec Hall 1", "Lecture"),
         ClassSession("10:00", "Clinical Surgery", "Room 304", "Seminar"),
         ClassSession("13:00", "Pediatrics", "Clinic 2", "Practice")
     )
     val mockGpa = "3.82"
-    val currentSemester = "9" // This was in your previous logs
+    val currentSemester = "9"
 
     fun login(email: String, pass: String) {
         viewModelScope.launch {
@@ -159,20 +147,19 @@ fun AppContent(vm: MainViewModel = viewModel()) {
     }
 }
 
-// --- MAIN APP STRUCTURE (Bottom Nav) ---
 @Composable
 fun MainAppStructure(vm: MainViewModel) {
     Scaffold(
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+                    icon = { Icon(Icons.Default.Home, "Home") },
                     label = { Text("Home") },
                     selected = vm.currentTab == 0,
                     onClick = { vm.currentTab = 0 }
                 )
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
+                    icon = { Icon(Icons.Default.Person, "Profile") },
                     label = { Text("Profile") },
                     selected = vm.currentTab == 1,
                     onClick = { vm.currentTab = 1 }
@@ -181,21 +168,11 @@ fun MainAppStructure(vm: MainViewModel) {
         }
     ) { padding ->
         Box(Modifier.padding(padding)) {
-            AnimatedContent(
-                targetState = vm.currentTab,
-                transitionSpec = {
-                    fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
-                },
-                label = "TabNav"
-            ) { tab ->
-                if (tab == 0) HomeScreen(vm) else ProfileScreen(vm)
-            }
+            if (vm.currentTab == 0) HomeScreen(vm) else ProfileScreen(vm)
         }
     }
 }
 
-// --- SCREEN 1: HOME (DASHBOARD) ---
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(vm: MainViewModel) {
     val user = vm.userData
@@ -203,26 +180,16 @@ fun HomeScreen(vm: MainViewModel) {
     val scrollState = rememberScrollState()
     
     Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(horizontal = 16.dp)
+        Modifier.fillMaxSize().verticalScroll(scrollState).padding(horizontal = 16.dp)
     ) {
-        Spacer(Modifier.height(48.dp)) // Top padding
-        
-        // 1. Greeting
+        Spacer(Modifier.height(48.dp))
         Text("Good Morning,", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
         Text(user?.name ?: "Student", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
         
         Spacer(Modifier.height(24.dp))
         
-        // 2. Quick Stats Row
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            // Semester Card
-            ElevatedCard(
-                modifier = Modifier.weight(1f),
-                colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-            ) {
+            ElevatedCard(modifier = Modifier.weight(1f), colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
                 Column(Modifier.padding(16.dp)) {
                     Icon(Icons.Outlined.CalendarToday, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
                     Spacer(Modifier.height(8.dp))
@@ -230,12 +197,7 @@ fun HomeScreen(vm: MainViewModel) {
                     Text(vm.currentSemester, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                 }
             }
-            
-            // GPA Card
-            ElevatedCard(
-                modifier = Modifier.weight(1f),
-                colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-            ) {
+            ElevatedCard(modifier = Modifier.weight(1f), colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
                 Column(Modifier.padding(16.dp)) {
                     Icon(Icons.Outlined.TrendingUp, null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
                     Spacer(Modifier.height(8.dp))
@@ -247,58 +209,49 @@ fun HomeScreen(vm: MainViewModel) {
         
         Spacer(Modifier.height(24.dp))
         
-        // 3. Status Banner
-        OutlinedCard(
-            colors = CardDefaults.outlinedCardColors(containerColor = Color.Transparent),
-            border = null // Just using it for layout
+        // MODERN M3 CARD WITH SURFACE TOKENS
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Status: Active Student", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = Color(0xFF4CAF50))
-                Spacer(Modifier.weight(1f))
-                Text(profile?.studentMovement?.avn_group_name ?: "...", style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text("Status: Active Student", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    Text(profile?.studentMovement?.avn_group_name ?: "...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
 
         Spacer(Modifier.height(32.dp))
-        
-        // 4. Today's Schedule
         Text("Today's Classes", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(16.dp))
         
         vm.todayClasses.forEach { session ->
             Card(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(2.dp)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                elevation = CardDefaults.cardElevation(0.dp)
             ) {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(session.time, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text("AM", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
                     }
                     Spacer(Modifier.width(16.dp))
-                    // Vertical Divider
                     Box(Modifier.width(4.dp).height(40.dp).clip(RoundedCornerShape(2.dp)).background(MaterialTheme.colorScheme.primary))
                     Spacer(Modifier.width(16.dp))
                     Column {
                         Text(session.subject, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Outlined.Place, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.outline)
-                            Spacer(Modifier.width(4.dp))
-                            Text("${session.room} • ${session.type}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-                        }
+                        Text("${session.room} • ${session.type}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                     }
                 }
             }
         }
-        
-        Spacer(Modifier.height(80.dp)) // Bottom padding for nav bar
+        Spacer(Modifier.height(80.dp))
     }
 }
 
-// --- SCREEN 2: PROFILE ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(vm: MainViewModel) {
@@ -306,29 +259,12 @@ fun ProfileScreen(vm: MainViewModel) {
     val profile = vm.profileData
     val fullName = "${user?.last_name ?: ""} ${user?.name ?: ""}".trim().ifEmpty { "Student" }
     
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.height(48.dp))
         
-        // Avatar (No Gradient, Solid Surface)
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(120.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-        ) {
-            AsyncImage(
-                model = profile?.avatar,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
+        // Avatar with Gradient Border
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(128.dp).background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary)), CircleShape).padding(3.dp).clip(CircleShape).background(MaterialTheme.colorScheme.background)) {
+            AsyncImage(model = profile?.avatar, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape))
         }
         
         Spacer(Modifier.height(16.dp))
@@ -356,34 +292,23 @@ fun ProfileScreen(vm: MainViewModel) {
         DetailCard(Icons.Outlined.Person2, "Mother", profile?.pdsstudentinfo?.mother_full_name ?: "-")
         
         Spacer(Modifier.height(32.dp))
-        Button(
-            onClick = { vm.logout() }, 
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(Icons.Default.Logout, null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
+        Button(onClick = { vm.logout() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer), modifier = Modifier.fillMaxWidth()) {
             Text("Log Out")
         }
         Spacer(Modifier.height(80.dp))
     }
 }
 
-// --- HELPER COMPONENTS ---
 @Composable
 fun SectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp, start = 4.dp)
-    )
+    Text(text = title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp, start = 4.dp))
 }
 
 @Composable
 fun DetailCard(icon: ImageVector, title: String, value: String) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+        // MODERN TOKEN: surfaceContainerLow
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         shape = RoundedCornerShape(12.dp)
     ) {
@@ -412,23 +337,11 @@ fun LoginScreen(vm: MainViewModel) {
             Icon(Icons.Default.School, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(24.dp))
             Text("MyEDU", style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
-            Text("Student Portal", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
             Spacer(Modifier.height(48.dp))
 
-            OutlinedTextField(
-                value = email, onValueChange = { email = it },
-                label = { Text("Email") }, modifier = Modifier.fillMaxWidth(),
-                singleLine = true, shape = RoundedCornerShape(12.dp),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next)
-            )
+            OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
             Spacer(Modifier.height(16.dp))
-            OutlinedTextField(
-                value = pass, onValueChange = { pass = it },
-                label = { Text("Password") }, modifier = Modifier.fillMaxWidth(),
-                singleLine = true, shape = RoundedCornerShape(12.dp),
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done)
-            )
+            OutlinedTextField(value = pass, onValueChange = { pass = it }, label = { Text("Password") }, modifier = Modifier.fillMaxWidth(), singleLine = true, visualTransformation = PasswordVisualTransformation())
 
             if (vm.errorMsg != null) {
                 Spacer(Modifier.height(16.dp))
@@ -436,14 +349,8 @@ fun LoginScreen(vm: MainViewModel) {
             }
 
             Spacer(Modifier.height(32.dp))
-            Button(
-                onClick = { vm.login(email, pass) },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                enabled = !vm.isLoading
-            ) {
-                if (vm.isLoading) CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
-                else Text("Sign In")
+            Button(onClick = { vm.login(email, pass) }, modifier = Modifier.fillMaxWidth().height(56.dp), enabled = !vm.isLoading) {
+                if (vm.isLoading) CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary) else Text("Sign In")
             }
         }
     }

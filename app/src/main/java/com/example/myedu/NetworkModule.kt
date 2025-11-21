@@ -1,5 +1,6 @@
 package com.example.myedu
 
+import com.google.gson.GsonBuilder
 import java.util.ArrayList
 import java.util.HashMap
 import java.util.concurrent.TimeUnit
@@ -69,7 +70,7 @@ interface OshSuApi {
     ): List<ScheduleWrapper>
 }
 
-// --- WINDOWS ENGINE ---
+// --- NATIVE WINDOWS ENGINE ---
 
 class WindowsCookieJar : CookieJar {
     private val cookieStore = HashMap<String, List<Cookie>>()
@@ -81,17 +82,17 @@ class WindowsInterceptor : Interceptor {
     var authToken: String? = null
 
     override fun intercept(chain: Interceptor.Chain): Response {
-        val original = chain.request()
-        val builder = original.newBuilder()
+        val builder = chain.request().newBuilder()
 
-        // CRITICAL: Exact Windows Headers (Restored)
+        // 1. WINDOWS HEADERS
         builder.header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         builder.header("Accept", "application/json, text/plain, */*")
-        builder.header("Accept-Language", "en-US,en;q=0.9,ru;q=0.8")
-        builder.header("Accept-Encoding", "gzip, deflate, br")
         builder.header("Referer", "https://myedu.oshsu.kg/")
         builder.header("Origin", "https://myedu.oshsu.kg")
         
+        // FIX: REMOVED "Accept-Encoding". OkHttp handles gzip automatically.
+
+        // 2. SECURITY HEADERS
         builder.header("sec-ch-ua", "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"Google Chrome\";v=\"120\"")
         builder.header("sec-ch-ua-mobile", "?0")
         builder.header("sec-ch-ua-platform", "\"Windows\"")
@@ -100,6 +101,7 @@ class WindowsInterceptor : Interceptor {
         builder.header("Sec-Fetch-Site", "same-site")
         builder.header("X-Requested-With", "XMLHttpRequest")
 
+        // 3. AUTH TOKEN
         if (authToken != null) {
             builder.header("Authorization", "Bearer $authToken")
         }
@@ -112,15 +114,17 @@ object NetworkClient {
     val cookieJar = WindowsCookieJar()
     val interceptor = WindowsInterceptor()
 
+    // FIX: Use Lenient Gson to tolerate minor server errors
+    private val gson = GsonBuilder().setLenient().create()
+
     val api: OshSuApi = Retrofit.Builder()
         .baseUrl("https://api.myedu.oshsu.kg/")
         .client(OkHttpClient.Builder()
             .cookieJar(cookieJar)
             .addInterceptor(interceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
             .build())
-        .addConverterFactory(GsonConverterFactory.create())
+        .addConverterFactory(GsonConverterFactory.create(gson))
         .build()
         .create(OshSuApi::class.java)
 }

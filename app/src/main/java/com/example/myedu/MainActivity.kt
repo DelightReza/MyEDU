@@ -66,12 +66,14 @@ class MainViewModel : ViewModel() {
             isLoading = true
             errorMsg = null
             try {
+                // 1. NATIVE LOGIN
                 val resp = withContext(Dispatchers.IO) { NetworkClient.api.login(LoginRequest(email, pass)) }
                 val token = resp.authorisation?.token
                 
                 if (token != null) {
                     NetworkClient.interceptor.authToken = token
                     
+                    // 2. FETCH DATA
                     val user = withContext(Dispatchers.IO) { NetworkClient.api.getUser().user }
                     val profile = withContext(Dispatchers.IO) { NetworkClient.api.getProfile() }
                     userData = user
@@ -83,7 +85,7 @@ class MainViewModel : ViewModel() {
                     errorMsg = "Incorrect credentials"
                 }
             } catch (e: Exception) {
-                errorMsg = if(e.message?.contains("401") == true) "Access Denied" else "Error: ${e.message}"
+                errorMsg = "Login Failed: ${e.message}"
                 e.printStackTrace()
             } finally {
                 isLoading = false
@@ -95,31 +97,20 @@ class MainViewModel : ViewModel() {
         try {
             val mov = profile.studentMovement
             if (mov?.id_speciality != null && mov.id_edu_form != null && profile.active_semester != null) {
-                
                 val years = withContext(Dispatchers.IO) { NetworkClient.api.getYears() }
                 val activeYearId = years.find { it.active }?.id ?: 25 
-                
                 val wrappers = withContext(Dispatchers.IO) {
-                    NetworkClient.api.getSchedule(
-                        specId = mov.id_speciality,
-                        formId = mov.id_edu_form,
-                        yearId = activeYearId,
-                        semId = profile.active_semester
-                    )
+                    NetworkClient.api.getSchedule(mov.id_speciality, mov.id_edu_form, activeYearId, profile.active_semester)
                 }
-                
                 val allItems = wrappers.flatMap { it.schedule_items ?: emptyList() }
                 fullSchedule = allItems.sortedBy { it.id_lesson }
                 
                 val cal = Calendar.getInstance()
                 val javaDay = cal.get(Calendar.DAY_OF_WEEK)
                 val todayApi = if(javaDay == 1) 0 else javaDay - 1 
-                
                 todayClasses = fullSchedule.filter { it.day == todayApi }
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        } catch (e: Exception) { e.printStackTrace() }
     }
     
     fun logout() {
@@ -131,7 +122,7 @@ class MainViewModel : ViewModel() {
     }
 }
 
-// --- UI SETUP ---
+// --- UI ---
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -148,7 +139,6 @@ fun MyEduTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable 
     } else {
         if (darkTheme) darkColorScheme() else lightColorScheme()
     }
-    
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -163,41 +153,42 @@ fun MyEduTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable 
 
 @Composable
 fun AppContent(vm: MainViewModel = viewModel()) {
-    AnimatedContent(
-        targetState = vm.appState,
-        transitionSpec = { fadeIn(tween(500)) togetherWith fadeOut(tween(500)) },
-        label = "Root"
-    ) { state ->
+    AnimatedContent(targetState = vm.appState, label = "Root") { state ->
         if (state == "LOGIN") LoginScreen(vm) else MainAppStructure(vm)
     }
 }
 
 @Composable
-fun MainAppStructure(vm: MainViewModel) {
-    Scaffold(
-        bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Home, null) },
-                    label = { Text("Home") },
-                    selected = vm.currentTab == 0,
-                    onClick = { vm.currentTab = 0 }
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.DateRange, null) },
-                    label = { Text("Schedule") },
-                    selected = vm.currentTab == 1,
-                    onClick = { vm.currentTab = 1 }
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Person, null) },
-                    label = { Text("Profile") },
-                    selected = vm.currentTab == 2,
-                    onClick = { vm.currentTab = 2 }
-                )
+fun LoginScreen(vm: MainViewModel) {
+    var email by remember { mutableStateOf("") }
+    var pass by remember { mutableStateOf("") }
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+        Column(modifier = Modifier.fillMaxSize().padding(24.dp).systemBarsPadding(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(Icons.Default.School, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.height(24.dp))
+            Text("MyEDU", style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(48.dp))
+            OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            Spacer(Modifier.height(16.dp))
+            OutlinedTextField(value = pass, onValueChange = { pass = it }, label = { Text("Password") }, modifier = Modifier.fillMaxWidth(), singleLine = true, visualTransformation = PasswordVisualTransformation())
+            if (vm.errorMsg != null) { Spacer(Modifier.height(16.dp)); Text(vm.errorMsg!!, color = MaterialTheme.colorScheme.error) }
+            Spacer(Modifier.height(32.dp))
+            Button(onClick = { vm.login(email, pass) }, modifier = Modifier.fillMaxWidth().height(56.dp), enabled = !vm.isLoading) {
+                if (vm.isLoading) CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary) else Text("Sign In")
             }
         }
-    ) { padding ->
+    }
+}
+
+@Composable
+fun MainAppStructure(vm: MainViewModel) {
+    Scaffold(bottomBar = {
+        NavigationBar {
+            NavigationBarItem(icon = { Icon(Icons.Default.Home, null) }, label = { Text("Home") }, selected = vm.currentTab == 0, onClick = { vm.currentTab = 0 })
+            NavigationBarItem(icon = { Icon(Icons.Default.DateRange, null) }, label = { Text("Schedule") }, selected = vm.currentTab == 1, onClick = { vm.currentTab = 1 })
+            NavigationBarItem(icon = { Icon(Icons.Default.Person, null) }, label = { Text("Profile") }, selected = vm.currentTab == 2, onClick = { vm.currentTab = 2 })
+        }
+    }) { padding ->
         Box(Modifier.padding(padding)) {
             when(vm.currentTab) {
                 0 -> HomeScreen(vm)
@@ -208,111 +199,79 @@ fun MainAppStructure(vm: MainViewModel) {
     }
 }
 
-// --- HOME SCREEN ---
 @Composable
 fun HomeScreen(vm: MainViewModel) {
     val user = vm.userData
     val profile = vm.profileData
-    
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
         Spacer(Modifier.height(48.dp))
         Text("Good Morning,", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
         Text(user?.name ?: "Student", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
-        
         Spacer(Modifier.height(24.dp))
-        
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             StatCard(Icons.Outlined.CalendarToday, "Semester", profile?.active_semester?.toString() ?: "-", MaterialTheme.colorScheme.primaryContainer, Modifier.weight(1f))
             StatCard(Icons.Outlined.Groups, "Group", profile?.studentMovement?.avn_group_name ?: "-", MaterialTheme.colorScheme.secondaryContainer, Modifier.weight(1f))
         }
-        
         Spacer(Modifier.height(32.dp))
         Text("Today's Classes", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(16.dp))
-        
         if (vm.todayClasses.isEmpty()) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)), modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(24.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.Weekend, null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(16.dp))
-                    Text("No classes today! Enjoy.", style = MaterialTheme.typography.bodyLarge)
+                    Text("No classes today!", style = MaterialTheme.typography.bodyLarge)
                 }
             }
-        } else {
-            vm.todayClasses.forEach { item -> ClassItem(item) }
-        }
+        } else { vm.todayClasses.forEach { item -> ClassItem(item) } }
         Spacer(Modifier.height(80.dp))
     }
 }
 
-// --- SCHEDULE SCREEN ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScheduleScreen(vm: MainViewModel) {
     val tabs = listOf("Mon", "Tue", "Wed", "Thu", "Fri")
-    var selectedDay by remember { mutableStateOf(0) } // 0=Mon (API 1)
-    
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(title = { Text("Timetable") })
-        }
-    ) { padding ->
+    var selectedDay by remember { mutableStateOf(0) } 
+    Scaffold(topBar = { CenterAlignedTopAppBar(title = { Text("Timetable") }) }) { padding ->
         Column(Modifier.padding(padding)) {
             ScrollableTabRow(selectedTabIndex = selectedDay, edgePadding = 16.dp) {
-                tabs.forEachIndexed { index, title ->
-                    Tab(
-                        selected = selectedDay == index,
-                        onClick = { selectedDay = index },
-                        text = { Text(title) }
-                    )
-                }
+                tabs.forEachIndexed { index, title -> Tab(selected = selectedDay == index, onClick = { selectedDay = index }, text = { Text(title) }) }
             }
-            
             LazyColumn(Modifier.padding(16.dp)) {
                 val dayApi = selectedDay + 1
                 val classes = vm.fullSchedule.filter { it.day == dayApi }
-                
-                if (classes.isEmpty()) {
-                    item {
-                        Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                            Text("Free Day", style = MaterialTheme.typography.titleMedium, color = Color.Gray)
-                        }
-                    }
-                } else {
-                    items(classes) { item -> ClassItem(item) }
-                }
+                if (classes.isEmpty()) item { Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) { Text("Free Day", color = Color.Gray) } }
+                else items(classes) { item -> ClassItem(item) }
                 item { Spacer(Modifier.height(80.dp)) }
             }
         }
     }
 }
 
-// --- PROFILE SCREEN ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(vm: MainViewModel) {
     val user = vm.userData
     val profile = vm.profileData
-    
+    val fullName = "${user?.last_name ?: ""} ${user?.name ?: ""}".trim().ifEmpty { "Student" }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.height(48.dp))
         Box(contentAlignment = Alignment.Center, modifier = Modifier.size(128.dp).background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary)), CircleShape).padding(3.dp).clip(CircleShape).background(MaterialTheme.colorScheme.background)) {
             AsyncImage(model = profile?.avatar, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape))
         }
         Spacer(Modifier.height(16.dp))
-        Text("${user?.last_name} ${user?.name}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(fullName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text(user?.email ?: "", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
-        
+        Spacer(Modifier.height(12.dp))
+        AssistChip(onClick = {}, label = { Text("Active Student") }, leadingIcon = { Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50)) })
         Spacer(Modifier.height(32.dp))
         InfoSection("Academic")
         DetailCard(Icons.Outlined.School, "Faculty", profile?.studentMovement?.faculty?.get() ?: "-")
         DetailCard(Icons.Outlined.Book, "Speciality", profile?.studentMovement?.speciality?.get() ?: "-")
         Spacer(Modifier.height(24.dp))
         InfoSection("Personal")
-        DetailCard(Icons.Outlined.Badge, "Passport", profile?.pdsstudentinfo?.passport_number ?: "-")
+        DetailCard(Icons.Outlined.Badge, "Passport/PIN", profile?.pdsstudentinfo?.passport_number ?: "-")
         DetailCard(Icons.Outlined.Phone, "Phone", profile?.pdsstudentinfo?.phone ?: "-")
         Spacer(Modifier.height(32.dp))
         Button(onClick = { vm.logout() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer), modifier = Modifier.fillMaxWidth()) { Text("Log Out") }
@@ -335,11 +294,7 @@ fun StatCard(icon: ImageVector, label: String, value: String, bg: Color, modifie
 
 @Composable
 fun ClassItem(item: ScheduleItem) {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)),
-        elevation = CardDefaults.cardElevation(0.dp)
-    ) {
+    Card(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f))) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(50.dp)) {
                 Text("${item.id_lesson}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
@@ -358,44 +313,17 @@ fun ClassItem(item: ScheduleItem) {
 }
 
 @Composable
-fun InfoSection(title: String) {
-    Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp, start = 4.dp))
-}
+fun InfoSection(title: String) { Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp, start = 4.dp)) }
 
 @Composable
 fun DetailCard(icon: ImageVector, title: String, value: String) {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.3f))
-    ) {
+    Card(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.3f))) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(24.dp))
             Spacer(Modifier.width(16.dp))
             Column {
                 Text(title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
                 Text(value, style = MaterialTheme.typography.bodyMedium)
-            }
-        }
-    }
-}
-
-@Composable
-fun LoginScreen(vm: MainViewModel) {
-    var email by remember { mutableStateOf("") }
-    var pass by remember { mutableStateOf("") }
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
-        Column(modifier = Modifier.fillMaxSize().padding(24.dp).systemBarsPadding(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Default.School, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(24.dp))
-            Text("MyEDU", style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(48.dp))
-            OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-            Spacer(Modifier.height(16.dp))
-            OutlinedTextField(value = pass, onValueChange = { pass = it }, label = { Text("Password") }, modifier = Modifier.fillMaxWidth(), singleLine = true, visualTransformation = PasswordVisualTransformation())
-            if (vm.errorMsg != null) { Spacer(Modifier.height(16.dp)); Text(vm.errorMsg!!, color = MaterialTheme.colorScheme.error) }
-            Spacer(Modifier.height(32.dp))
-            Button(onClick = { vm.login(email, pass) }, modifier = Modifier.fillMaxWidth().height(56.dp), enabled = !vm.isLoading) {
-                if (vm.isLoading) CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary) else Text("Sign In")
             }
         }
     }

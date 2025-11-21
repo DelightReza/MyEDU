@@ -50,7 +50,16 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        setContent { MyEduTheme { AppContent() } }
+        setContent { 
+            val vm: MainViewModel = viewModel()
+            val context = LocalContext.current
+            
+            LaunchedEffect(Unit) {
+                vm.initSession(context)
+            }
+
+            MyEduTheme { AppContent(vm) } 
+        }
     }
 }
 
@@ -75,9 +84,17 @@ fun MyEduTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable 
 }
 
 @Composable
-fun AppContent(vm: MainViewModel = viewModel()) {
+fun AppContent(vm: MainViewModel) {
+    // CHANGED: Handle STARTUP state to avoid login flash
     AnimatedContent(targetState = vm.appState, label = "Root") { state ->
-        if (state == "LOGIN") LoginScreen(vm) else MainAppStructure(vm)
+        when (state) {
+            "LOGIN" -> LoginScreen(vm)
+            "APP" -> MainAppStructure(vm)
+            else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                // This is the "Splash Screen" while we check for the token
+                CircularProgressIndicator() 
+            }
+        }
     }
 }
 
@@ -105,7 +122,6 @@ fun LoginScreen(vm: MainViewModel) {
 
 @Composable
 fun MainAppStructure(vm: MainViewModel) {
-    // Handle Back Press for Transcript
     BackHandler(enabled = vm.selectedClass != null || vm.showTranscriptScreen) { 
         when {
             vm.selectedClass != null -> vm.selectedClass = null
@@ -124,7 +140,6 @@ fun MainAppStructure(vm: MainViewModel) {
         }
     }) { padding ->
         Box(Modifier.padding(padding)) {
-            // Main Tabs
             if (vm.selectedClass == null && !vm.showTranscriptScreen) {
                 when(vm.currentTab) {
                     0 -> HomeScreen(vm)
@@ -134,7 +149,6 @@ fun MainAppStructure(vm: MainViewModel) {
                 }
             }
             
-            // Native Transcript Overlay
             AnimatedVisibility(
                 visible = vm.showTranscriptScreen,
                 enter = slideInHorizontally { it } + fadeIn(),
@@ -144,7 +158,6 @@ fun MainAppStructure(vm: MainViewModel) {
                 TranscriptView(vm) { vm.showTranscriptScreen = false }
             }
 
-            // Class Details Overlay
             AnimatedVisibility(
                 visible = vm.selectedClass != null,
                 enter = slideInVertically { it } + fadeIn(),
@@ -157,7 +170,6 @@ fun MainAppStructure(vm: MainViewModel) {
     }
 }
 
-// --- NATIVE TRANSCRIPT VIEW ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TranscriptView(vm: MainViewModel, onClose: () -> Unit) {
@@ -349,7 +361,6 @@ fun ProfileScreen(vm: MainViewModel) {
         }
 
         InfoSection("Documents")
-        // ONLY TRANSCRIPT BUTTON
         Button(
             onClick = { vm.fetchTranscript() }, 
             modifier = Modifier.fillMaxWidth()

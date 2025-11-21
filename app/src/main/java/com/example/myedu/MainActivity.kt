@@ -20,6 +20,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -386,11 +390,16 @@ fun ProfileScreen(vm: MainViewModel) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(vm: MainViewModel) {
     val user = vm.userData
     val profile = vm.profileData
     
+    // --- STATE FOR NOTIFICATIONS SHEET ---
+    var showNewsSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
+
     // --- 1. DYNAMIC GREETING LOGIC ---
     val currentHour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
     val greetingText = remember(currentHour) {
@@ -423,6 +432,7 @@ fun HomeScreen(vm: MainViewModel) {
         if (g != null) "Group $g" else profile?.studentMovement?.avn_group_name ?: "-" 
     }
 
+    // --- MAIN CONTENT ---
     Column(
         Modifier
             .fillMaxSize()
@@ -431,23 +441,51 @@ fun HomeScreen(vm: MainViewModel) {
     ) {
         Spacer(Modifier.height(48.dp))
         
-        // Dynamic Greeting
-        Text(
-            text = greetingText, 
-            style = MaterialTheme.typography.titleMedium, 
-            color = MaterialTheme.colorScheme.secondary
-        )
+        // --- HEADER ROW (Greeting + Notification Icon) ---
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Left: Text
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = greetingText, 
+                    style = MaterialTheme.typography.titleMedium, 
+                    color = MaterialTheme.colorScheme.secondary
+                )
+                Text(
+                    text = user?.name ?: "Student", 
+                    style = MaterialTheme.typography.displaySmall, 
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Right: Notification Icon with Badge
+            IconButton(onClick = { showNewsSheet = true }) {
+                if (vm.newsList.isNotEmpty()) {
+                    BadgedBox(badge = { Badge { Text("${vm.newsList.size}") } }) {
+                        Icon(
+                            Icons.Outlined.Notifications, 
+                            contentDescription = "Announcements",
+                            modifier = Modifier.size(28.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                } else {
+                    Icon(
+                        Icons.Outlined.Notifications, 
+                        contentDescription = "Announcements",
+                        modifier = Modifier.size(28.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
         
-        // User Name
-        Text(
-            text = user?.name ?: "Student", 
-            style = MaterialTheme.typography.displaySmall, 
-            fontWeight = FontWeight.Bold
-        )
+        Spacer(Modifier.height(16.dp))
         
-        Spacer(Modifier.height(8.dp))
-        
-        // Daily Quote Card
+        // --- DAILY QUOTE CARD ---
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
             shape = RoundedCornerShape(12.dp),
@@ -472,37 +510,7 @@ fun HomeScreen(vm: MainViewModel) {
 
         Spacer(Modifier.height(24.dp))
 
-        // Announcements Section
-        if (vm.newsList.isNotEmpty()) { 
-            Text(
-                "Announcements", 
-                style = MaterialTheme.typography.titleMedium, 
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.height(12.dp))
-            vm.newsList.forEach { news -> 
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer), 
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-                ) { 
-                    Column(Modifier.padding(16.dp)) { 
-                        Text(
-                            news.title ?: "Notice", 
-                            fontWeight = FontWeight.Bold, 
-                            color = MaterialTheme.colorScheme.onTertiaryContainer
-                        )
-                        Text(
-                            news.message ?: "", 
-                            style = MaterialTheme.typography.bodyMedium, 
-                            color = MaterialTheme.colorScheme.onTertiaryContainer
-                        ) 
-                    } 
-                } 
-            }
-            Spacer(Modifier.height(24.dp)) 
-        }
-
-        // Stats Row
+        // --- STATS ROW ---
         Row(
             Modifier.fillMaxWidth(), 
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -525,7 +533,7 @@ fun HomeScreen(vm: MainViewModel) {
         
         Spacer(Modifier.height(32.dp))
         
-        // Today's Classes
+        // --- SCHEDULE ---
         Text(
             "${vm.todayDayName}'s Classes", 
             style = MaterialTheme.typography.titleLarge, 
@@ -556,6 +564,53 @@ fun HomeScreen(vm: MainViewModel) {
         }
         
         Spacer(Modifier.height(80.dp))
+    }
+
+    // --- ANNOUNCEMENTS BOTTOM SHEET ---
+    if (showNewsSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showNewsSheet = false },
+            sheetState = sheetState
+        ) {
+            Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 48.dp)) {
+                Text(
+                    "Announcements", 
+                    style = MaterialTheme.typography.headlineSmall, 
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.height(16.dp))
+                
+                if (vm.newsList.isEmpty()) {
+                    Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                        Text("No new announcements", color = Color.Gray)
+                    }
+                } else {
+                    LazyColumn {
+                        items(vm.newsList) { news ->
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer), 
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                            ) { 
+                                Column(Modifier.padding(16.dp)) { 
+                                    Text(
+                                        news.title ?: "Notice", 
+                                        fontWeight = FontWeight.Bold, 
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                                    )
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        news.message ?: "", 
+                                        style = MaterialTheme.typography.bodyMedium, 
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                                    ) 
+                                } 
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -44,9 +44,7 @@ data class PdsInfo(
     @SerializedName("serial") val serial: String?,
     @SerializedName("birthday") val birthday: String?, 
     @SerializedName("phone") val phone: String?, 
-    @SerializedName("address") val address: String?, 
-    @SerializedName("father_full_name") val father_full_name: String?, 
-    @SerializedName("mother_full_name") val mother_full_name: String?
+    @SerializedName("address") val address: String?
 ) {
     fun getFullPassport(): String {
         val s = (serial ?: "").trim()
@@ -59,6 +57,7 @@ data class PdsInfo(
 }
 
 data class MovementInfo(
+    @SerializedName("id") val id: Long?, // id_movement
     @SerializedName("id_speciality") val id_speciality: Int?, 
     @SerializedName("id_edu_form") val id_edu_form: Int?, 
     @SerializedName("avn_group_name") val avn_group_name: String?, 
@@ -154,11 +153,29 @@ data class MarkList(
     val total: Double?   
 )
 
-// Documents
-data class DocIdRequest(val id: Long)
-data class DocKeyResponse(val key: String?)
-data class DocKeyRequest(val key: String)
-data class DocUrlResponse(val url: String?)
+// --- TRANSCRIPT DATA MODELS ---
+data class TranscriptYear(
+    @SerializedName("edu_year") val eduYear: String?,
+    @SerializedName("semesters") val semesters: List<TranscriptSemester>?
+)
+
+data class TranscriptSemester(
+    @SerializedName("semester") val semesterName: String?,
+    @SerializedName("subjects") val subjects: List<TranscriptSubject>?
+)
+
+data class TranscriptSubject(
+    @SerializedName("subject") val subjectName: String?,
+    @SerializedName("code") val code: String?,
+    @SerializedName("credit") val credit: Double?,
+    @SerializedName("mark_list") val markList: MarkList?,
+    @SerializedName("exam_rule") val examRule: ExamRule?
+)
+
+data class ExamRule(
+    @SerializedName("alphabetic") val alphabetic: String?,
+    @SerializedName("digital") val digital: Double?
+)
 
 // --- API INTERFACE ---
 
@@ -201,25 +218,12 @@ interface OshSuApi {
         @Query("id_semester") semesterId: Int
     ): List<SessionResponse>
 
-    // --- DOCUMENT ENDPOINTS ---
-
-    // Step 1: Get Key
-    @POST("public/api/student/doc/form8link")
-    suspend fun getReferenceLink(@Body req: DocIdRequest): DocKeyResponse
-
-    @POST("public/api/student/doc/form13link")
-    suspend fun getTranscriptLink(@Body req: DocIdRequest): DocKeyResponse
-
-    // Step 2: Trigger Generation (UPDATED TO @POST)
-    @POST("public/api/student/doc/form8")
-    suspend fun generateReference(@Body req: DocIdRequest): ResponseBody
-
-    @POST("public/api/student/doc/form13")
-    suspend fun generateTranscript(@Body req: DocIdRequest): ResponseBody
-
-    // Step 3: Resolve Key to URL
-    @POST("public/api/open/doc/showlink")
-    suspend fun resolveDocLink(@Body req: DocKeyRequest): DocUrlResponse
+    // --- TRANSCRIPT ENDPOINT (NATIVE) ---
+    @GET("public/api/studenttranscript")
+    suspend fun getTranscript(
+        @Query("id_student") studentId: Long,
+        @Query("id_movement") movementId: Long
+    ): List<TranscriptYear>
 }
 
 // --- NETWORK CLIENT ---

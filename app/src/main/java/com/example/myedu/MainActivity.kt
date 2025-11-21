@@ -39,6 +39,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -104,9 +105,16 @@ fun LoginScreen(vm: MainViewModel) {
 
 @Composable
 fun MainAppStructure(vm: MainViewModel) {
-    BackHandler(enabled = vm.selectedClass != null) { vm.selectedClass = null }
+    // Handle Back Press for Transcript
+    BackHandler(enabled = vm.selectedClass != null || vm.showTranscriptScreen) { 
+        when {
+            vm.selectedClass != null -> vm.selectedClass = null
+            vm.showTranscriptScreen -> vm.showTranscriptScreen = false
+        }
+    }
+
     Scaffold(bottomBar = {
-        if (vm.selectedClass == null) {
+        if (vm.selectedClass == null && !vm.showTranscriptScreen) {
             NavigationBar {
                 NavigationBarItem(icon = { Icon(Icons.Default.Home, null) }, label = { Text("Home") }, selected = vm.currentTab == 0, onClick = { vm.currentTab = 0 })
                 NavigationBarItem(icon = { Icon(Icons.Default.DateRange, null) }, label = { Text("Schedule") }, selected = vm.currentTab == 1, onClick = { vm.currentTab = 1 })
@@ -116,7 +124,8 @@ fun MainAppStructure(vm: MainViewModel) {
         }
     }) { padding ->
         Box(Modifier.padding(padding)) {
-            if (vm.selectedClass == null) {
+            // Main Tabs
+            if (vm.selectedClass == null && !vm.showTranscriptScreen) {
                 when(vm.currentTab) {
                     0 -> HomeScreen(vm)
                     1 -> ScheduleScreen(vm)
@@ -124,6 +133,18 @@ fun MainAppStructure(vm: MainViewModel) {
                     3 -> ProfileScreen(vm)
                 }
             }
+            
+            // Native Transcript Overlay
+            AnimatedVisibility(
+                visible = vm.showTranscriptScreen,
+                enter = slideInHorizontally { it } + fadeIn(),
+                exit = slideOutHorizontally { it } + fadeOut(),
+                modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+            ) {
+                TranscriptView(vm) { vm.showTranscriptScreen = false }
+            }
+
+            // Class Details Overlay
             AnimatedVisibility(
                 visible = vm.selectedClass != null,
                 enter = slideInVertically { it } + fadeIn(),
@@ -131,6 +152,79 @@ fun MainAppStructure(vm: MainViewModel) {
                 modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)
             ) {
                 vm.selectedClass?.let { ClassDetailsScreen(it) { vm.selectedClass = null } }
+            }
+        }
+    }
+}
+
+// --- NATIVE TRANSCRIPT VIEW ---
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TranscriptView(vm: MainViewModel, onClose: () -> Unit) {
+    Scaffold(topBar = {
+        TopAppBar(
+            title = { Text("Full Transcript") },
+            navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.Default.ArrowBack, null) } }
+        )
+    }) { padding ->
+        if (vm.isTranscriptLoading) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        } else if (vm.transcriptData.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No transcript data loaded.") }
+        } else {
+            LazyColumn(Modifier.padding(padding).padding(horizontal = 16.dp)) {
+                vm.transcriptData.forEach { yearData ->
+                    item {
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            text = yearData.eduYear ?: "Unknown Year",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    yearData.semesters?.forEach { sem ->
+                        item {
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                text = sem.semesterName ?: "Semester",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                            Spacer(Modifier.height(8.dp))
+                        }
+                        items(sem.subjects ?: emptyList()) { sub ->
+                            Card(
+                                Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                            ) {
+                                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(sub.subjectName ?: "Subject", fontWeight = FontWeight.SemiBold)
+                                        Text(
+                                            "Code: ${sub.code ?: "-"} • Credits: ${sub.credit?.toInt() ?: 0}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.outline
+                                        )
+                                    }
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        val total = sub.markList?.total?.toInt() ?: 0
+                                        val grade = sub.examRule?.alphabetic ?: "-"
+                                        
+                                        Text(
+                                            text = "$total",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (total >= 50) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                                        )
+                                        Text(grade, style = MaterialTheme.typography.bodyMedium)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                item { Spacer(Modifier.height(40.dp)) }
             }
         }
     }
@@ -210,23 +304,6 @@ fun ProfileScreen(vm: MainViewModel) {
     val profile = vm.profileData
     val fullName = "${user?.last_name ?: ""} ${user?.name ?: ""}".trim().ifEmpty { "Student" }
     val pay = vm.payStatus
-    val context = LocalContext.current
-
-    // Handle Document Download
-    LaunchedEffect(vm.docUrl) {
-        vm.docUrl?.let { url ->
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-            context.startActivity(intent)
-            vm.docUrl = null // Reset
-        }
-    }
-    
-    LaunchedEffect(vm.docError) {
-        vm.docError?.let { err ->
-            Toast.makeText(context, err, Toast.LENGTH_LONG).show()
-            vm.docError = null
-        }
-    }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.height(48.dp))
@@ -266,36 +343,21 @@ fun ProfileScreen(vm: MainViewModel) {
                         Spacer(Modifier.height(8.dp))
                         Text("Remaining: ${pay.getDebt().toInt()} KGS", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                     }
-                    pay.access_message?.forEach { msg ->
-                         Text("• $msg", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-                    }
                 }
             }
             Spacer(Modifier.height(24.dp))
         }
 
         InfoSection("Documents")
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(
-                onClick = { vm.downloadDocument("reference") }, 
-                modifier = Modifier.weight(1f),
-                enabled = !vm.docLoading
-            ) {
-                Icon(Icons.Default.Description, null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Reference")
-            }
-            Button(
-                onClick = { vm.downloadDocument("transcript") }, 
-                modifier = Modifier.weight(1f),
-                enabled = !vm.docLoading
-            ) {
-                Icon(Icons.Default.School, null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Transcript")
-            }
+        // ONLY TRANSCRIPT BUTTON
+        Button(
+            onClick = { vm.fetchTranscript() }, 
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.School, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Transcript")
         }
-        if(vm.docLoading) LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 8.dp))
 
         Spacer(Modifier.height(24.dp))
         InfoSection("Academic")

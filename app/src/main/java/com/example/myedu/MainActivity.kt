@@ -71,8 +71,10 @@ class MainViewModel : ViewModel() {
                 
                 if (token != null) {
                     NetworkClient.interceptor.authToken = token
-                    userData = withContext(Dispatchers.IO) { NetworkClient.api.getUser().user }
+                    
+                    val user = withContext(Dispatchers.IO) { NetworkClient.api.getUser().user }
                     val profile = withContext(Dispatchers.IO) { NetworkClient.api.getProfile() }
+                    userData = user
                     profileData = profile
                     
                     fetchSchedule(profile)
@@ -110,9 +112,7 @@ class MainViewModel : ViewModel() {
                 fullSchedule = allItems.sortedBy { it.id_lesson }
                 
                 val cal = Calendar.getInstance()
-                // Java: Sun=1..Sat=7. API: Mon=1..Fri=5.
                 val javaDay = cal.get(Calendar.DAY_OF_WEEK)
-                // Convert: Mon(2)->1, Tue(3)->2... Sun(1)->0
                 val todayApi = if(javaDay == 1) 0 else javaDay - 1 
                 
                 todayClasses = fullSchedule.filter { it.day == todayApi }
@@ -232,7 +232,7 @@ fun HomeScreen(vm: MainViewModel) {
         
         if (vm.todayClasses.isEmpty()) {
             Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(Modifier.padding(24.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -337,7 +337,7 @@ fun StatCard(icon: ImageVector, label: String, value: String, bg: Color, modifie
 fun ClassItem(item: ScheduleItem) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -366,7 +366,7 @@ fun InfoSection(title: String) {
 fun DetailCard(icon: ImageVector, title: String, value: String) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.3f))
     ) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(24.dp))

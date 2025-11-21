@@ -23,7 +23,6 @@ data class LoginRequest(val email: String, val password: String)
 data class LoginResponse(val status: String?, val authorisation: AuthData?)
 data class AuthData(val token: String?, val is_student: Boolean?)
 
-// Profile Response
 data class UserResponse(val user: UserData?)
 data class UserData(val id: Long, val name: String?, val last_name: String?, val email: String?)
 
@@ -31,47 +30,19 @@ data class StudentInfoResponse(
     val pdsstudentinfo: PdsInfo?,
     val studentMovement: MovementInfo?,
     val avatar: String?,
-    val active_semester: Int? // Captured from root object
+    val active_semester: Int?
 )
 
-data class PdsInfo(
-    val passport_number: String?,
-    val birthday: String?,
-    val phone: String?,
-    val address: String?,
-    val father_full_name: String?,
-    val mother_full_name: String?
-)
-
-data class MovementInfo(
-    val id_speciality: Int?,
-    val id_edu_form: Int?,
-    val avn_group_name: String?,
-    val speciality: NameObj?,
-    val faculty: NameObj?,
-    val edu_form: NameObj?
-)
-
+data class PdsInfo(val passport_number: String?, val birthday: String?, val phone: String?, val address: String?, val father_full_name: String?, val mother_full_name: String?)
+data class MovementInfo(val id_speciality: Int?, val id_edu_form: Int?, val avn_group_name: String?, val speciality: NameObj?, val faculty: NameObj?, val edu_form: NameObj?)
 data class NameObj(val name_en: String?, val name_ru: String?, val name_kg: String?) {
     fun get(): String = name_en ?: name_ru ?: name_kg ?: "Unknown"
 }
 
-// Year Response
 data class EduYear(val id: Int, val name_en: String?, val active: Boolean)
-
-// Schedule Response
 data class ScheduleWrapper(val schedule_items: List<ScheduleItem>?)
-data class ScheduleItem(
-    val day: Int, // 1=Mon, 2=Tue...
-    val id_lesson: Int, // 1=1st Pair
-    val subject: NameObj?,
-    val teacher: TeacherObj?,
-    val room: RoomObj?,
-    val subject_type: NameObj?
-)
-data class TeacherObj(val name: String?, val last_name: String?) {
-    fun get(): String = "${last_name ?: ""} ${name ?: ""}".trim()
-}
+data class ScheduleItem(val day: Int, val id_lesson: Int, val subject: NameObj?, val teacher: TeacherObj?, val room: RoomObj?, val subject_type: NameObj?)
+data class TeacherObj(val name: String?, val last_name: String?) { fun get(): String = "${last_name ?: ""} ${name ?: ""}".trim() }
 data class RoomObj(val name_en: String?)
 
 // --- API INTERFACE ---
@@ -98,7 +69,7 @@ interface OshSuApi {
     ): List<ScheduleWrapper>
 }
 
-// --- NETWORK CLIENT (Windows Engine) ---
+// --- WINDOWS ENGINE ---
 
 class WindowsCookieJar : CookieJar {
     private val cookieStore = HashMap<String, List<Cookie>>()
@@ -108,12 +79,31 @@ class WindowsCookieJar : CookieJar {
 
 class WindowsInterceptor : Interceptor {
     var authToken: String? = null
+
     override fun intercept(chain: Interceptor.Chain): Response {
-        val builder = chain.request().newBuilder()
+        val original = chain.request()
+        val builder = original.newBuilder()
+
+        // CRITICAL: Exact Windows Headers (Restored)
         builder.header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         builder.header("Accept", "application/json, text/plain, */*")
+        builder.header("Accept-Language", "en-US,en;q=0.9,ru;q=0.8")
+        builder.header("Accept-Encoding", "gzip, deflate, br")
         builder.header("Referer", "https://myedu.oshsu.kg/")
-        if (authToken != null) builder.header("Authorization", "Bearer $authToken")
+        builder.header("Origin", "https://myedu.oshsu.kg")
+        
+        builder.header("sec-ch-ua", "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"Google Chrome\";v=\"120\"")
+        builder.header("sec-ch-ua-mobile", "?0")
+        builder.header("sec-ch-ua-platform", "\"Windows\"")
+        builder.header("Sec-Fetch-Dest", "empty")
+        builder.header("Sec-Fetch-Mode", "cors")
+        builder.header("Sec-Fetch-Site", "same-site")
+        builder.header("X-Requested-With", "XMLHttpRequest")
+
+        if (authToken != null) {
+            builder.header("Authorization", "Bearer $authToken")
+        }
+
         return chain.proceed(builder.build())
     }
 }
@@ -128,6 +118,7 @@ object NetworkClient {
             .cookieJar(cookieJar)
             .addInterceptor(interceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
             .build())
         .addConverterFactory(GsonConverterFactory.create())
         .build()

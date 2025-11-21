@@ -15,29 +15,23 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Query
 
-// --- JSON DATA MODELS ---
+// --- DATA MODELS ---
 
 data class LoginRequest(val email: String, val password: String)
 data class LoginResponse(val status: String?, val authorisation: AuthData?)
 data class AuthData(val token: String?, val is_student: Boolean?)
 
-// Response from /api/user
-data class UserResponse(
-    val user: UserData?
-)
-data class UserData(
-    val id: Long,
-    val name: String?,
-    val last_name: String?,
-    val email: String?
-)
+// Profile Response
+data class UserResponse(val user: UserData?)
+data class UserData(val id: Long, val name: String?, val last_name: String?, val email: String?)
 
-// Response from /api/studentinfo
 data class StudentInfoResponse(
     val pdsstudentinfo: PdsInfo?,
     val studentMovement: MovementInfo?,
-    val avatar: String?
+    val avatar: String?,
+    val active_semester: Int? // Captured from root object
 )
 
 data class PdsInfo(
@@ -50,20 +44,35 @@ data class PdsInfo(
 )
 
 data class MovementInfo(
-    val avn_group_name: String?, // "ИНл-16-21"
+    val id_speciality: Int?,
+    val id_edu_form: Int?,
+    val avn_group_name: String?,
     val speciality: NameObj?,
     val faculty: NameObj?,
     val edu_form: NameObj?
 )
 
-data class NameObj(
-    val name_en: String?,
-    val name_ru: String?,
-    val name_kg: String?
-) {
-    // Helper to grab the best language available
+data class NameObj(val name_en: String?, val name_ru: String?, val name_kg: String?) {
     fun get(): String = name_en ?: name_ru ?: name_kg ?: "Unknown"
 }
+
+// Year Response
+data class EduYear(val id: Int, val name_en: String?, val active: Boolean)
+
+// Schedule Response
+data class ScheduleWrapper(val schedule_items: List<ScheduleItem>?)
+data class ScheduleItem(
+    val day: Int, // 1=Mon, 2=Tue...
+    val id_lesson: Int, // 1=1st Pair
+    val subject: NameObj?,
+    val teacher: TeacherObj?,
+    val room: RoomObj?,
+    val subject_type: NameObj?
+)
+data class TeacherObj(val name: String?, val last_name: String?) {
+    fun get(): String = "${last_name ?: ""} ${name ?: ""}".trim()
+}
+data class RoomObj(val name_en: String?)
 
 // --- API INTERFACE ---
 
@@ -76,9 +85,20 @@ interface OshSuApi {
 
     @GET("public/api/studentinfo")
     suspend fun getProfile(): StudentInfoResponse
+
+    @GET("public/api/control/regulations/eduyear")
+    suspend fun getYears(): List<EduYear>
+
+    @GET("public/api/studentscheduleitem")
+    suspend fun getSchedule(
+        @Query("id_speciality") specId: Int,
+        @Query("id_edu_form") formId: Int,
+        @Query("id_edu_year") yearId: Int,
+        @Query("id_semester") semId: Int
+    ): List<ScheduleWrapper>
 }
 
-// --- COOKIES & HEADERS (Windows Engine) ---
+// --- NETWORK CLIENT (Windows Engine) ---
 
 class WindowsCookieJar : CookieJar {
     private val cookieStore = HashMap<String, List<Cookie>>()
@@ -90,21 +110,16 @@ class WindowsInterceptor : Interceptor {
     var authToken: String? = null
     override fun intercept(chain: Interceptor.Chain): Response {
         val builder = chain.request().newBuilder()
-        
-        // Headers that worked for you
         builder.header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         builder.header("Accept", "application/json, text/plain, */*")
         builder.header("Referer", "https://myedu.oshsu.kg/")
-        builder.header("Origin", "https://myedu.oshsu.kg")
-        
         if (authToken != null) builder.header("Authorization", "Bearer $authToken")
-        
         return chain.proceed(builder.build())
     }
 }
 
 object NetworkClient {
-    private val cookieJar = WindowsCookieJar()
+    val cookieJar = WindowsCookieJar()
     val interceptor = WindowsInterceptor()
 
     val api: OshSuApi = Retrofit.Builder()

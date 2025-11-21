@@ -32,51 +32,47 @@ interface OshSuApi {
     suspend fun getProfile(): StudentInfoResponse
 }
 
-// 1. COOKIE JAR (Essential for Session)
+// 1. COOKIE JAR
 class WindowsCookieJar : CookieJar {
     private val cookieStore = HashMap<String, List<Cookie>>()
 
     override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
-        cookieStore[url.host()] = cookies
+        // FIX: Used .host instead of .host()
+        cookieStore[url.host] = cookies
     }
 
     override fun loadForRequest(url: HttpUrl): List<Cookie> {
-        return cookieStore[url.host()] ?: ArrayList()
+        // FIX: Used .host instead of .host()
+        return cookieStore[url.host] ?: ArrayList()
     }
 }
 
-// 2. INTERCEPTOR (The Windows Disguise)
+// 2. INTERCEPTOR (Windows Disguise)
 class WindowsInterceptor : Interceptor {
-    // Holds the Bearer token once we get it
     var authToken: String? = null
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val original = chain.request()
         val builder = original.newBuilder()
 
-        // --- THE WINDOWS HEADER SUITE ---
-        // This mimics Chrome 120 on Windows 10 exactly
+        // --- WINDOWS HEADERS ---
         builder.header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         builder.header("Accept", "application/json, text/plain, */*")
         builder.header("Accept-Language", "en-US,en;q=0.9,ru;q=0.8")
-        builder.header("Accept-Encoding", "gzip, deflate, br")
         builder.header("Referer", "https://myedu.oshsu.kg/")
         builder.header("Origin", "https://myedu.oshsu.kg")
         
-        // Modern Browser Security Headers (Crucial for bypassing WAFs)
+        // Security Headers
         builder.header("sec-ch-ua", "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"Google Chrome\";v=\"120\"")
         builder.header("sec-ch-ua-mobile", "?0")
         builder.header("sec-ch-ua-platform", "\"Windows\"")
         builder.header("Sec-Fetch-Dest", "empty")
         builder.header("Sec-Fetch-Mode", "cors")
         builder.header("Sec-Fetch-Site", "same-site")
-        
-        // X-Headers often required by Laravel/Vue apps
         builder.header("X-Requested-With", "XMLHttpRequest")
 
-        // Inject Token if we have it
-        authToken?.let { token ->
-            builder.header("Authorization", "Bearer $token")
+        if (authToken != null) {
+            builder.header("Authorization", "Bearer $authToken")
         }
 
         return chain.proceed(builder.build())
@@ -87,7 +83,7 @@ object NetworkClient {
     private const val BASE_URL = "https://api.myedu.oshsu.kg/" 
     
     private val cookieJar = WindowsCookieJar()
-    val interceptor = WindowsInterceptor() // Accessible so we can set token later
+    val interceptor = WindowsInterceptor()
 
     private val client = OkHttpClient.Builder()
         .cookieJar(cookieJar)

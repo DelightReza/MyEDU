@@ -4,13 +4,11 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -23,7 +21,7 @@ import coil.compose.AsyncImage
 class MainViewModel : ViewModel() {
     var appState by mutableStateOf("LOGIN")
     var isLoading by mutableStateOf(false)
-    var statusMsg by mutableStateOf("Ready to connect.")
+    var statusMsg by mutableStateOf("Ready (Windows Mode)")
     var profileUrl by mutableStateOf<String?>(null)
 
     fun login(email: String, pass: String) {
@@ -32,19 +30,14 @@ class MainViewModel : ViewModel() {
             statusMsg = "Handshaking..."
             
             try {
-                // 1. Perform Login
                 val resp = withContext(Dispatchers.IO) {
                     NetworkClient.api.login(LoginRequest(email, pass))
                 }
                 
-                // 2. Check Token
                 val token = resp.authorisation?.token
                 if (token != null) {
-                    // Set token for future requests
                     NetworkClient.interceptor.authToken = token
                     statusMsg = "Authorized. Fetching Profile..."
-                    
-                    // 3. Fetch Profile to prove session works
                     fetchProfile()
                 } else {
                     statusMsg = "Login Failed: Server rejected credentials."
@@ -53,7 +46,7 @@ class MainViewModel : ViewModel() {
             } catch (e: Exception) {
                 statusMsg = "Error: ${e.message}"
                 if (e.message?.contains("401") == true) {
-                    statusMsg = "401: Headers Rejected. (Still blocked)"
+                    statusMsg = "401: Headers Rejected (Native Blocked)"
                 }
             } finally {
                 isLoading = false
@@ -97,7 +90,7 @@ fun LoginScreen(vm: MainViewModel) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Windows Native", style = MaterialTheme.typography.displaySmall, color = Color(0xFF0078D7))
+        Text("MyEDU Windows Mode", style = MaterialTheme.typography.displaySmall, color = Color(0xFF0078D7))
         Spacer(Modifier.height(32.dp))
         
         var e by remember { mutableStateOf("") }
@@ -136,6 +129,6 @@ fun ProfileScreen(vm: MainViewModel) {
         )
         
         Spacer(Modifier.height(16.dp))
-        Text("Native Login Successful!", color = Color.Green, fontWeight = FontWeight.Bold)
+        Text("Native Login Successful!", color = Color.Green)
     }
 }

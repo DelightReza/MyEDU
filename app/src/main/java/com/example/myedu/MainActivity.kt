@@ -13,6 +13,7 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -265,8 +266,14 @@ fun HomeScreen(vm: MainViewModel) {
                 Text(greetingText, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
                 Text(user?.name ?: "Student", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold) 
             }
-
-            IconButton(onClick = { showNewsSheet = true }) { 
+            
+            // FIX: Replaced IconButton with a Box to avoid clipping the notification badge
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clickable { showNewsSheet = true },
+                contentAlignment = Alignment.Center
+            ) {
                 if (vm.newsList.isNotEmpty()) {
                     BadgedBox(badge = { Badge { Text("${vm.newsList.size}") } }) { 
                         Icon(
@@ -282,7 +289,7 @@ fun HomeScreen(vm: MainViewModel) {
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     ) 
                 }
-            } 
+            }
         }
         
         Spacer(Modifier.height(24.dp))

@@ -222,11 +222,24 @@ fun TranscriptView(vm: MainViewModel, onClose: () -> Unit) {
 fun ProfileScreen(vm: MainViewModel) {
     val user = vm.userData; val profile = vm.profileData; val pay = vm.payStatus
     val fullName = "${user?.last_name ?: ""} ${user?.name ?: ""}".trim().ifEmpty { "Student" }
+    
+    // FIX: Safely get Faculty Name
+    val facultyName = profile?.studentMovement?.faculty?.let { 
+        it.name_en ?: it.name_ru ?: it.name_kg ?: "-" 
+    } ?: "-"
+
+    // FIX: Safely get Speciality Name
+    val specialityName = profile?.studentMovement?.speciality?.let {
+        it.name_en ?: it.name_ru ?: it.name_kg ?: "-"
+    } ?: "-"
+
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.height(48.dp))
         Box(contentAlignment = Alignment.Center, modifier = Modifier.size(128.dp).background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary)), CircleShape).padding(3.dp).clip(CircleShape).background(MaterialTheme.colorScheme.background)) { AsyncImage(model = profile?.avatar, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape)) }
         Spacer(Modifier.height(16.dp)); Text(fullName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold); Text(user?.email ?: "", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
         Spacer(Modifier.height(24.dp))
+        
+        // Tuition Card
         if (pay != null) {
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                 Column(Modifier.padding(16.dp)) {
@@ -239,13 +252,18 @@ fun ProfileScreen(vm: MainViewModel) {
             }
             Spacer(Modifier.height(24.dp))
         }
+
         InfoSection("Documents")
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(onClick = { vm.showReferenceScreen = true }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)) { Icon(Icons.Default.Description, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Reference") }
             Button(onClick = { vm.fetchTranscript() }, modifier = Modifier.weight(1f), enabled = !vm.isTranscriptLoading) { if (vm.isTranscriptLoading) CircularProgressIndicator(Modifier.size(18.dp), color=MaterialTheme.colorScheme.onPrimary, strokeWidth=2.dp) else Icon(Icons.Default.School, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Transcript") }
         }
+        
         Spacer(Modifier.height(24.dp)); InfoSection("Academic")
-        DetailCard(Icons.Outlined.School, "Faculty", profile?.studentMovement?.faculty?.format() ?: "-"); DetailCard(Icons.Outlined.Book, "Speciality", profile?.studentMovement?.speciality?.format() ?: "-")
+        // FIX: Use extracted variables for safe display
+        DetailCard(Icons.Outlined.School, "Faculty", facultyName)
+        DetailCard(Icons.Outlined.Book, "Speciality", specialityName)
+        
         Spacer(Modifier.height(24.dp)); InfoSection("Personal")
         DetailCard(Icons.Outlined.Badge, "Passport", profile?.pdsstudentinfo?.getFullPassport() ?: "-"); DetailCard(Icons.Outlined.Phone, "Phone", profile?.pdsstudentinfo?.phone ?: "-")
         Spacer(Modifier.height(32.dp)); Button(onClick = { vm.logout() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer), modifier = Modifier.fillMaxWidth()) { Text("Log Out") }; Spacer(Modifier.height(80.dp))

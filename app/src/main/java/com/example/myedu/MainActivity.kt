@@ -163,6 +163,9 @@ fun MainAppStructure(vm: MainViewModel) {
 fun ReferenceView(vm: MainViewModel, onClose: () -> Unit) {
     val context = LocalContext.current; val user = vm.userData; val profile = vm.profileData; val mov = profile?.studentMovement
     val activeSemester = profile?.active_semester ?: 1; val course = (activeSemester + 1) / 2
+    // FIX: Get faculty from nested speciality if direct is null
+    val facultyName = mov?.faculty?.name_en ?: mov?.speciality?.faculty?.name_en ?: mov?.faculty?.name_ru ?: "-"
+    
     Scaffold(topBar = { TopAppBar(title = { Text("Reference (Form 8)") }, navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.Default.ArrowBack, null) } }, actions = { IconButton(onClick = { vm.generateAndOpenReference(context) }, enabled = !vm.isPdfGenerating) { if (vm.isPdfGenerating) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp) else Icon(Icons.Default.Print, "Download") } }) }) { padding ->
         Column(Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh), elevation = CardDefaults.cardElevation(defaultElevation = 4.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
@@ -171,7 +174,7 @@ fun ReferenceView(vm: MainViewModel, onClose: () -> Unit) {
                     Spacer(Modifier.height(24.dp)); HorizontalDivider(); Spacer(Modifier.height(24.dp))
                     Text("This is to certify that", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline); Text("${user?.last_name} ${user?.name}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(24.dp))
-                    RefDetailRow("Student ID", "${user?.id}"); RefDetailRow("Faculty", mov?.faculty?.name_en ?: "-"); RefDetailRow("Speciality", mov?.speciality?.name_en ?: "-"); RefDetailRow("Year of Study", "$course ($activeSemester Semester)"); RefDetailRow("Education Form", mov?.edu_form?.name_en ?: "-"); RefDetailRow("Payment", if (mov?.id_payment_form == 2) "Contract" else "Budget")
+                    RefDetailRow("Student ID", "${user?.id}"); RefDetailRow("Faculty", facultyName); RefDetailRow("Speciality", mov?.speciality?.name_en ?: "-"); RefDetailRow("Year of Study", "$course ($activeSemester Semester)"); RefDetailRow("Education Form", mov?.edu_form?.name_en ?: "-"); RefDetailRow("Payment", if (mov?.id_payment_form == 2) "Contract" else "Budget")
                     Spacer(Modifier.height(32.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Verified, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text("Active Student • ${SimpleDateFormat("dd.MM.yyyy", Locale.US).format(Date())}", style = MaterialTheme.typography.labelMedium, color = Color(0xFF4CAF50)) }
                 }
@@ -223,23 +226,18 @@ fun ProfileScreen(vm: MainViewModel) {
     val user = vm.userData; val profile = vm.profileData; val pay = vm.payStatus
     val fullName = "${user?.last_name ?: ""} ${user?.name ?: ""}".trim().ifEmpty { "Student" }
     
-    // FIX: Safely get Faculty Name
-    val facultyName = profile?.studentMovement?.faculty?.let { 
-        it.name_en ?: it.name_ru ?: it.name_kg ?: "-" 
-    } ?: "-"
-
-    // FIX: Safely get Speciality Name
-    val specialityName = profile?.studentMovement?.speciality?.let {
-        it.name_en ?: it.name_ru ?: it.name_kg ?: "-"
-    } ?: "-"
+    // FIX: Correctly resolve nested faculty object
+    val facultyName = profile?.studentMovement?.faculty?.let { it.name_en ?: it.name_ru } 
+        ?: profile?.studentMovement?.speciality?.faculty?.let { it.name_en ?: it.name_ru } 
+        ?: "-"
+        
+    val specialityName = profile?.studentMovement?.speciality?.let { it.name_en ?: it.name_ru } ?: "-"
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.height(48.dp))
         Box(contentAlignment = Alignment.Center, modifier = Modifier.size(128.dp).background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary)), CircleShape).padding(3.dp).clip(CircleShape).background(MaterialTheme.colorScheme.background)) { AsyncImage(model = profile?.avatar, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape)) }
         Spacer(Modifier.height(16.dp)); Text(fullName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold); Text(user?.email ?: "", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
         Spacer(Modifier.height(24.dp))
-        
-        // Tuition Card
         if (pay != null) {
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                 Column(Modifier.padding(16.dp)) {
@@ -252,18 +250,14 @@ fun ProfileScreen(vm: MainViewModel) {
             }
             Spacer(Modifier.height(24.dp))
         }
-
         InfoSection("Documents")
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(onClick = { vm.showReferenceScreen = true }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)) { Icon(Icons.Default.Description, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Reference") }
             Button(onClick = { vm.fetchTranscript() }, modifier = Modifier.weight(1f), enabled = !vm.isTranscriptLoading) { if (vm.isTranscriptLoading) CircularProgressIndicator(Modifier.size(18.dp), color=MaterialTheme.colorScheme.onPrimary, strokeWidth=2.dp) else Icon(Icons.Default.School, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Transcript") }
         }
-        
         Spacer(Modifier.height(24.dp)); InfoSection("Academic")
-        // FIX: Use extracted variables for safe display
         DetailCard(Icons.Outlined.School, "Faculty", facultyName)
         DetailCard(Icons.Outlined.Book, "Speciality", specialityName)
-        
         Spacer(Modifier.height(24.dp)); InfoSection("Personal")
         DetailCard(Icons.Outlined.Badge, "Passport", profile?.pdsstudentinfo?.getFullPassport() ?: "-"); DetailCard(Icons.Outlined.Phone, "Phone", profile?.pdsstudentinfo?.phone ?: "-")
         Spacer(Modifier.height(32.dp)); Button(onClick = { vm.logout() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer), modifier = Modifier.fillMaxWidth()) { Text("Log Out") }; Spacer(Modifier.height(80.dp))
@@ -289,6 +283,7 @@ fun HomeScreen(vm: MainViewModel) {
             Box(
                 modifier = Modifier
                     .size(48.dp)
+                    .clip(CircleShape) // Optional: Makes ripple circular if added
                     .clickable { showNewsSheet = true },
                 contentAlignment = Alignment.Center
             ) {
@@ -307,7 +302,7 @@ fun HomeScreen(vm: MainViewModel) {
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     ) 
                 }
-            }
+            } 
         }
         
         Spacer(Modifier.height(24.dp))

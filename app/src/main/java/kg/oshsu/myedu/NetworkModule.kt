@@ -1,4 +1,4 @@
-package com.example.myedu
+package kg.oshsu.myedu
 
 import com.google.gson.GsonBuilder
 import com.google.gson.annotations.SerializedName
@@ -27,15 +27,14 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
-// --- DATA MODELS ---
+// --- DATA MODELS: AUTH ---
 data class LoginRequest(val email: String, val password: String)
 data class LoginResponse(val status: String?, val authorisation: AuthData?)
 data class AuthData(val token: String?, val is_student: Boolean?)
 data class UserResponse(val user: UserData?)
 data class UserData(val id: Long, val name: String?, val last_name: String?, val email: String?)
-data class DocIdRequest(val id: Long)
-data class DocKeyRequest(val key: String)
 
+// --- DATA MODELS: PROFILE ---
 data class StudentInfoResponse(
     @SerializedName("pdsstudentinfo") val pdsstudentinfo: PdsInfo?,
     @SerializedName("studentMovement") val studentMovement: MovementInfo?,
@@ -64,7 +63,6 @@ data class MovementInfo(
     @SerializedName("id_edu_form") val id_edu_form: Int?, 
     @SerializedName("avn_group_name") val avn_group_name: String?, 
     @SerializedName("speciality") val speciality: NameObj?, 
-    // Faculty is usually inside speciality, but we keep this just in case
     @SerializedName("faculty") val faculty: NameObj?, 
     @SerializedName("edu_form") val edu_form: NameObj?,
     @SerializedName("id_payment_form") val id_payment_form: Int?
@@ -78,7 +76,6 @@ data class NameObj(
     @SerializedName("short_name_ru") val short_name_ru: String?,
     @SerializedName("short_name_kg") val short_name_kg: String?,
     @SerializedName("code") val code: String?,
-    // FIX: Add nested faculty field here because JSON nests it inside speciality
     @SerializedName("faculty") val faculty: NameObj?
 ) {
     fun get(): String {
@@ -89,13 +86,9 @@ data class NameObj(
             else -> text
         }
     }
-    fun format(): String {
-        val main = get()
-        val short = short_name_en ?: short_name_ru ?: short_name_kg
-        return if (!short.isNullOrEmpty() && short != main) "$main ($short)" else main
-    }
 }
 
+// --- DATA MODELS: SCHEDULE ---
 data class EduYear(val id: Int, val name_en: String?, val active: Boolean)
 data class ScheduleWrapper(val schedule_items: List<ScheduleItem>?)
 data class ScheduleItem(val day: Int, val id_lesson: Int, val subject: NameObj?, val teacher: TeacherObj?, val room: RoomObj?, val subject_type: NameObj?, val classroom: ClassroomObj?, val stream: StreamObj?)
@@ -107,15 +100,20 @@ data class BuildingObj(val name_en: String?, val name_ru: String?, val info_en: 
 }
 data class TeacherObj(val name: String?, val last_name: String?) { fun get(): String = "${last_name ?: ""} ${name ?: ""}".trim() }
 data class RoomObj(val name_en: String?)
-data class PayStatusResponse(val paid_summa: Double?, val need_summa: Double?, val access_message: List<String>?) { fun getDebt(): Double = (need_summa ?: 0.0) - (paid_summa ?: 0.0) }
-data class NewsItem(val id: Int, val title: String?, val message: String?, val created_at: String?)
 data class LessonTimeResponse(val id_lesson: Int, val begin_time: String?, val end_time: String?, val lesson: LessonNum?)
 data class LessonNum(val num: Int)
 
+// --- DATA MODELS: GRADES & NEWS ---
+data class PayStatusResponse(val paid_summa: Double?, val need_summa: Double?, val access_message: List<String>?) { fun getDebt(): Double = (need_summa ?: 0.0) - (paid_summa ?: 0.0) }
+data class NewsItem(val id: Int, val title: String?, val message: String?, val created_at: String?)
 data class SessionResponse(val semester: SemesterObj?, val subjects: List<SessionSubjectWrapper>?)
 data class SemesterObj(val id: Int, val name_en: String?)
 data class SessionSubjectWrapper(val subject: NameObj?, val marklist: MarkList?)
 data class MarkList(val point1: Double?, val point2: Double?, val point3: Double?, val finally: Double?, val total: Double?)
+
+// --- DATA MODELS: DOCUMENTS ---
+data class DocIdRequest(val id: Long)
+data class DocKeyRequest(val key: String)
 data class TranscriptYear(@SerializedName("edu_year") val eduYear: String?, @SerializedName("semesters") val semesters: List<TranscriptSemester>?)
 data class TranscriptSemester(@SerializedName("semester") val semesterName: String?, @SerializedName("subjects") val subjects: List<TranscriptSubject>?)
 data class TranscriptSubject(@SerializedName("subject") val subjectName: String?, @SerializedName("code") val code: String?, @SerializedName("credit") val credit: Double?, @SerializedName("mark_list") val markList: MarkList?, @SerializedName("exam_rule") val examRule: ExamRule?)
@@ -146,6 +144,7 @@ interface OshSuApi {
     @POST("public/api/open/doc/showlink") suspend fun resolveDocLink(@Body req: DocKeyRequest): ResponseBody
 }
 
+// --- NETWORK CLIENT SETUP ---
 class UniversalCookieJar : CookieJar {
     private val cookieStore = ArrayList<Cookie>()
     override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) { val names = cookies.map { it.name }; cookieStore.removeAll { it.name in names }; cookieStore.addAll(cookies) }

@@ -1,4 +1,4 @@
-package com.example.myedu
+package kg.oshsu.myedu
 
 import android.content.Context
 import android.content.SharedPreferences

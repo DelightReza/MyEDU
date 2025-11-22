@@ -1,4 +1,4 @@
-package com.example.myedu
+package kg.oshsu.myedu
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -10,6 +10,8 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 
 class NotificationReceiver : BroadcastReceiver() {
+    
+    // --- RECEIVE BROADCAST ---
     override fun onReceive(context: Context, intent: Intent) {
         val title = intent.getStringExtra("TITLE") ?: "MyEDU Alert"
         val message = intent.getStringExtra("MESSAGE") ?: "Check your schedule."
@@ -18,6 +20,7 @@ class NotificationReceiver : BroadcastReceiver() {
         showNotification(context, title, message, id)
     }
 
+    // --- SHOW NOTIFICATION ---
     private fun showNotification(context: Context, title: String, message: String, id: Int) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channelId = "myedu_alerts"

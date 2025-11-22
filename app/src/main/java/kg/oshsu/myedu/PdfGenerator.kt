@@ -1,4 +1,4 @@
-package com.example.myedu
+package kg.oshsu.myedu
 
 import android.content.Context
 import android.graphics.Canvas
@@ -26,6 +26,7 @@ class PdfGenerator(private val context: Context) {
     private val MARGIN_BOTTOM = 40f
     private val CONTENT_WIDTH = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT
 
+    // --- DRAWING PAINTS ---
     private val textPaint = Paint().apply {
         color = Color.BLACK
         textSize = 9f
@@ -56,7 +57,7 @@ class PdfGenerator(private val context: Context) {
     private val colWidths = colWeights.map { (it / totalWeight) * CONTENT_WIDTH }.toFloatArray()
     private val headers = listOf("№", "Б.Ч.", "Дисциплины", "Кредит", "Форма\nконтроля", "Баллы", "Цифр.\nэкв.", "Букв.\nсист.", "Трад.\nсист.")
 
-    // --- TRANSCRIPT (FORM 13) ---
+    // --- GENERATE: TRANSCRIPT (FORM 13) ---
     fun generateTranscriptPdf(transcriptJson: String, studentName: String, studentId: String, infoJson: String): File? {
         val pdfDocument = PdfDocument()
         var pageNumber = 1
@@ -149,7 +150,7 @@ class PdfGenerator(private val context: Context) {
         return file
     }
 
-    // --- REFERENCE (FORM 8) ---
+    // --- GENERATE: REFERENCE (FORM 8) ---
     fun generateReferencePdf(studentName: String, studentId: String, infoJson: String): File? {
         val pdfDocument = PdfDocument()
         val pageInfo = PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, 1).create()
@@ -217,6 +218,7 @@ class PdfGenerator(private val context: Context) {
         return file
     }
 
+    // --- DRAWING HELPERS ---
     private fun drawCommonHeader(canvas: Canvas, subTitle: String?) {
         var hy = MARGIN_TOP
         val headerLines = listOf("МИНИСТЕРСТВО НАУКИ, ВЫСШЕГО ОБРАЗОВАНИЯ И ИННОВАЦИЙ КЫРГЫЗСКОЙ РЕСПУБЛИКИ", "ОШСКИЙ ГОСУДАРСТВЕННЫЙ УНИВЕРСИТЕТ", "Международный медицинский факультет")

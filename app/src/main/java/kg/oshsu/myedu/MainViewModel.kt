@@ -1,4 +1,4 @@
-package com.example.myedu
+package kg.oshsu.myedu
 
 import android.content.Context
 import android.content.Intent
@@ -20,27 +20,32 @@ import java.util.Calendar
 import java.util.Locale
 
 class MainViewModel : ViewModel() {
+    // --- STATE: APP STATUS ---
     var appState by mutableStateOf("STARTUP")
     var currentTab by mutableStateOf(0)
     var isLoading by mutableStateOf(false)
     var errorMsg by mutableStateOf<String?>(null)
     
+    // --- STATE: USER DATA ---
     var userData by mutableStateOf<UserData?>(null)
     var profileData by mutableStateOf<StudentInfoResponse?>(null)
     var payStatus by mutableStateOf<PayStatusResponse?>(null)
     var newsList by mutableStateOf<List<NewsItem>>(emptyList())
+    
+    // --- STATE: SCHEDULE DATA ---
     var fullSchedule by mutableStateOf<List<ScheduleItem>>(emptyList())
     var todayClasses by mutableStateOf<List<ScheduleItem>>(emptyList())
     var timeMap by mutableStateOf<Map<Int, String>>(emptyMap())
     var todayDayName by mutableStateOf("Today")
-    
     var determinedStream by mutableStateOf<Int?>(null)
     var determinedGroup by mutableStateOf<Int?>(null)
     var selectedClass by mutableStateOf<ScheduleItem?>(null)
+    
+    // --- STATE: GRADES DATA ---
     var sessionData by mutableStateOf<List<SessionResponse>>(emptyList())
     var isGradesLoading by mutableStateOf(false)
     
-    // --- DOCUMENT STATES ---
+    // --- STATE: DOCUMENTS & PDF ---
     var transcriptData by mutableStateOf<List<TranscriptYear>>(emptyList())
     var isTranscriptLoading by mutableStateOf(false)
     var showTranscriptScreen by mutableStateOf(false)
@@ -50,6 +55,7 @@ class MainViewModel : ViewModel() {
 
     private var prefs: PrefsManager? = null
 
+    // --- INIT: CHECK SESSION ---
     fun initSession(context: Context) {
         if (prefs == null) {
             prefs = PrefsManager(context)
@@ -77,6 +83,7 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    // --- AUTH: LOGIN LOGIC ---
     fun login(email: String, pass: String) {
         viewModelScope.launch {
             isLoading = true; errorMsg = null; NetworkClient.cookieJar.clear(); NetworkClient.interceptor.authToken = null
@@ -95,11 +102,13 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    // --- AUTH: LOGOUT LOGIC ---
     fun logout() {
         appState = "LOGIN"; currentTab = 0; userData = null; profileData = null; payStatus = null; newsList = emptyList(); fullSchedule = emptyList(); sessionData = emptyList(); transcriptData = emptyList()
         prefs?.clearAll(); NetworkClient.cookieJar.clear(); NetworkClient.interceptor.authToken = null
     }
 
+    // --- DATA: REFRESH ALL ---
     private fun refreshAllData() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -119,6 +128,7 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    // --- SCHEDULE: FETCH ---
     private suspend fun loadScheduleNetwork(profile: StudentInfoResponse) {
         val mov = profile.studentMovement ?: return
         try {
@@ -135,6 +145,7 @@ class MainViewModel : ViewModel() {
         } catch (_: Exception) {}
     }
 
+    // --- SCHEDULE: PROCESS LOCAL ---
     private fun processScheduleLocally() {
         if (fullSchedule.isEmpty()) return
         determinedStream = fullSchedule.asSequence().filter { it.subject_type?.get() == "Lecture" }.mapNotNull { it.stream?.numeric }.firstOrNull()
@@ -145,6 +156,7 @@ class MainViewModel : ViewModel() {
         todayClasses = fullSchedule.filter { it.day == apiDay }
     }
 
+    // --- GRADES: FETCH SESSION ---
     private fun fetchSession(profile: StudentInfoResponse) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -155,6 +167,7 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    // --- DOCUMENTS: TRANSCRIPT FETCH ---
     fun fetchTranscript() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -174,7 +187,7 @@ class MainViewModel : ViewModel() {
     
     fun getTimeString(lessonId: Int) = timeMap[lessonId] ?: "Pair $lessonId"
 
-    // --- PDF GENERATION ---
+    // --- DOCUMENTS: GENERATE TRANSCRIPT PDF ---
     fun generateAndOpenTranscript(context: Context) {
         if (isPdfGenerating || transcriptData.isEmpty()) return
         val studentId = userData?.id ?: return
@@ -193,6 +206,7 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    // --- DOCUMENTS: GENERATE REFERENCE PDF ---
     fun generateAndOpenReference(context: Context) {
         if (isPdfGenerating) return
         val studentId = userData?.id ?: return
@@ -210,6 +224,7 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    // --- DOCUMENTS: UPLOAD & OPEN ---
     private suspend fun uploadAndOpen(context: Context, linkId: Long, studentId: Long, file: java.io.File, filename: String, key: String, isTranscript: Boolean) {
         val plain = "text/plain".toMediaTypeOrNull(); val pdfType = "application/pdf".toMediaTypeOrNull()
         val bodyId = linkId.toString().toRequestBody(plain); val bodyStudent = studentId.toString().toRequestBody(plain)

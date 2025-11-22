@@ -1,4 +1,4 @@
-package com.example.myedu
+package kg.oshsu.myedu
 
 import android.annotation.SuppressLint
 import android.app.AlarmManager
@@ -12,6 +12,7 @@ class ScheduleAlarmManager(private val context: Context) {
 
     private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
+    // --- ALARM: MAIN SCHEDULER ---
     @SuppressLint("ScheduleExactAlarm")
     fun scheduleNotifications(schedule: List<ScheduleItem>, timeMap: Map<Int, String>) {
         // 1. Evening Summary (Next Day)
@@ -21,6 +22,7 @@ class ScheduleAlarmManager(private val context: Context) {
         scheduleClassReminders(schedule, timeMap)
     }
 
+    // --- ALARM: EVENING SUMMARY ---
     @SuppressLint("ScheduleExactAlarm")
     private fun scheduleEveningSummary(schedule: List<ScheduleItem>) {
         val calendar = Calendar.getInstance()
@@ -56,6 +58,7 @@ class ScheduleAlarmManager(private val context: Context) {
         }
     }
 
+    // --- ALARM: CLASS REMINDERS ---
     @SuppressLint("ScheduleExactAlarm")
     private fun scheduleClassReminders(schedule: List<ScheduleItem>, timeMap: Map<Int, String>) {
         val now = System.currentTimeMillis()

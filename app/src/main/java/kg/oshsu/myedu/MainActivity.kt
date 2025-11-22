@@ -1,4 +1,4 @@
-package com.example.myedu
+package kg.oshsu.myedu
 
 import android.Manifest
 import android.app.Activity
@@ -66,7 +66,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-// --- HELPER COMPOSABLE FOR THE LOGO ---
+// --- UI COMPONENT: LOGO ---
 @Composable
 fun OshSuLogo(modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -87,6 +87,7 @@ fun OshSuLogo(modifier: Modifier = Modifier) {
     )
 }
 
+// --- ACTIVITY: MAIN ENTRY POINT ---
 class MainActivity : ComponentActivity() {
     // Permission Request Handler
     private val requestPermissionLauncher = registerForActivityResult(
@@ -97,7 +98,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
-        // Request Notification Permission on Android 13+
+        // Permission: Notifications (Android 13+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -108,10 +109,10 @@ class MainActivity : ComponentActivity() {
             val vm: MainViewModel = viewModel()
             val context = LocalContext.current
             
-            // Init Session
+            // Logic: Init Session
             LaunchedEffect(Unit) { vm.initSession(context) }
             
-            // TRIGGER NOTIFICATIONS WHEN SCHEDULE IS LOADED
+            // Logic: Schedule Notifications
             LaunchedEffect(vm.fullSchedule, vm.timeMap) {
                 if (vm.fullSchedule.isNotEmpty() && vm.timeMap.isNotEmpty()) {
                     ScheduleAlarmManager(context).scheduleNotifications(vm.fullSchedule, vm.timeMap)
@@ -123,6 +124,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+// --- UI: THEME CONFIG ---
 @Composable
 fun MyEduTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     val context = LocalContext.current
@@ -141,6 +143,7 @@ fun MyEduTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable 
     MaterialTheme(colorScheme = colorScheme, content = content)
 }
 
+// --- UI: NAVIGATION HOST ---
 @Composable
 fun AppContent(vm: MainViewModel) {
     AnimatedContent(targetState = vm.appState, label = "Root") { state ->
@@ -152,6 +155,7 @@ fun AppContent(vm: MainViewModel) {
     }
 }
 
+// --- SCREEN: LOGIN ---
 @Composable
 fun LoginScreen(vm: MainViewModel) {
     var email by remember { mutableStateOf("") }
@@ -176,8 +180,10 @@ fun LoginScreen(vm: MainViewModel) {
     }
 }
 
+// --- UI: MAIN SCAFFOLD & BOTTOM NAV ---
 @Composable
 fun MainAppStructure(vm: MainViewModel) {
+    // Logic: Handle Back Press for nested screens
     BackHandler(enabled = vm.selectedClass != null || vm.showTranscriptScreen || vm.showReferenceScreen) { 
         when {
             vm.selectedClass != null -> vm.selectedClass = null
@@ -196,6 +202,7 @@ fun MainAppStructure(vm: MainViewModel) {
         }
     }) { padding ->
         Box(Modifier.padding(padding)) {
+            // Main Tabs
             if (vm.selectedClass == null && !vm.showTranscriptScreen && !vm.showReferenceScreen) {
                 when(vm.currentTab) {
                     0 -> HomeScreen(vm)
@@ -204,6 +211,7 @@ fun MainAppStructure(vm: MainViewModel) {
                     3 -> ProfileScreen(vm)
                 }
             }
+            // Overlays
             AnimatedVisibility(visible = vm.showTranscriptScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) { TranscriptView(vm) { vm.showTranscriptScreen = false } }
             AnimatedVisibility(visible = vm.showReferenceScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) { ReferenceView(vm) { vm.showReferenceScreen = false } }
             AnimatedVisibility(visible = vm.selectedClass != null, enter = slideInVertically{it}, exit = slideOutVertically{it}, modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) { vm.selectedClass?.let { ClassDetailsScreen(it) { vm.selectedClass = null } } }
@@ -211,6 +219,7 @@ fun MainAppStructure(vm: MainViewModel) {
     }
 }
 
+// --- SCREEN: DOCUMENT REFERENCE (FORM 8) ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReferenceView(vm: MainViewModel, onClose: () -> Unit) {
@@ -247,6 +256,7 @@ fun ReferenceView(vm: MainViewModel, onClose: () -> Unit) {
 @Composable
 fun RefDetailRow(label: String, value: String) { Column(Modifier.padding(bottom = 16.dp)) { Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary); Text(value, style = MaterialTheme.typography.bodyLarge) } }
 
+// --- SCREEN: TRANSCRIPT PREVIEW ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TranscriptView(vm: MainViewModel, onClose: () -> Unit) {
@@ -279,6 +289,7 @@ fun TranscriptView(vm: MainViewModel, onClose: () -> Unit) {
     }
 }
 
+// --- SCREEN: PROFILE TAB ---
 @Composable
 fun ProfileScreen(vm: MainViewModel) {
     val user = vm.userData; val profile = vm.profileData; val pay = vm.payStatus
@@ -289,8 +300,11 @@ fun ProfileScreen(vm: MainViewModel) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(Modifier.fillMaxSize().widthIn(max = 840.dp).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.height(48.dp))
+            // Profile Image
             Box(contentAlignment = Alignment.Center, modifier = Modifier.size(128.dp).background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary)), CircleShape).padding(3.dp).clip(CircleShape).background(MaterialTheme.colorScheme.background)) { AsyncImage(model = profile?.avatar, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape)) }
             Spacer(Modifier.height(16.dp)); Text(fullName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold); Text(user?.email ?: "", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+            
+            // Payment Status
             Spacer(Modifier.height(24.dp))
             if (pay != null) {
                 Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
@@ -304,6 +318,8 @@ fun ProfileScreen(vm: MainViewModel) {
                 }
                 Spacer(Modifier.height(24.dp))
             }
+            
+            // Document Buttons
             InfoSection("Documents")
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(onClick = { vm.showReferenceScreen = true }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)) { Icon(Icons.Default.Description, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Reference") }
@@ -319,6 +335,7 @@ fun ProfileScreen(vm: MainViewModel) {
     }
 }
 
+// --- SCREEN: HOME TAB ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(vm: MainViewModel) {
@@ -375,6 +392,7 @@ fun HomeScreen(vm: MainViewModel) {
             Spacer(Modifier.height(80.dp))
         }
     }    
+    // News Sheet
     if (showNewsSheet) {
         ModalBottomSheet(onDismissRequest = { showNewsSheet = false }) { 
             Column(Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) { 
@@ -385,6 +403,7 @@ fun HomeScreen(vm: MainViewModel) {
     }
 }
 
+// --- SCREEN: SCHEDULE TAB ---
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ScheduleScreen(vm: MainViewModel) {
@@ -425,6 +444,7 @@ fun ScheduleScreen(vm: MainViewModel) {
     }
 }
 
+// --- SCREEN: CLASS DETAILS ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClassDetailsScreen(item: ScheduleItem, onClose: () -> Unit) {
@@ -436,17 +456,20 @@ fun ClassDetailsScreen(item: ScheduleItem, onClose: () -> Unit) {
     }
 }
 
+// --- HELPER UI: STAT CARD ---
 @Composable
 fun StatCard(icon: ImageVector, label: String, value: String, bg: Color, modifier: Modifier = Modifier) {
     ElevatedCard(modifier = modifier, colors = CardDefaults.elevatedCardColors(containerColor = bg)) { Column(Modifier.padding(16.dp)) { Icon(icon, null, tint = Color.Black.copy(alpha=0.7f)); Spacer(Modifier.height(8.dp)); Text(label, style = MaterialTheme.typography.labelMedium, color = Color.Black.copy(alpha=0.6f)); Text(text = value, style = if(value.length > 15) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color.Black, maxLines = 2, overflow = TextOverflow.Ellipsis) } }
 }
 
+// --- HELPER UI: CLASS LIST ITEM ---
 @Composable
 fun ClassItem(item: ScheduleItem, timeString: String, onClick: () -> Unit) {
     val streamInfo = if (item.stream?.numeric != null) { val type = item.subject_type?.get(); if (type == "Lecture") "Stream ${item.stream.numeric}" else "Group ${item.stream.numeric}" } else ""
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f))) { Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) { Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(50.dp).background(MaterialTheme.colorScheme.background, RoundedCornerShape(8.dp)).padding(vertical = 8.dp)) { Text("${item.id_lesson}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary); Text(timeString.split("-").firstOrNull()?.trim() ?: "", style = MaterialTheme.typography.labelSmall) }; Spacer(Modifier.width(16.dp)); Column(modifier = Modifier.weight(1f)) { Text(item.subject?.get() ?: "Subject", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold); val metaText = buildString { append(item.room?.name_en ?: "Room ?"); append(" • "); append(item.subject_type?.get() ?: "Lesson"); if (streamInfo.isNotEmpty()) { append(" • "); append(streamInfo) } }; Text(metaText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline); Text(timeString, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary) }; Icon(Icons.Outlined.ChevronRight, null, tint = MaterialTheme.colorScheme.outline) } }
 }
 
+// --- HELPER UI: TEXT SECTION ---
 @Composable
 fun InfoSection(title: String) { Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp, start = 4.dp)) }
 
@@ -455,6 +478,7 @@ fun DetailCard(icon: ImageVector, title: String, value: String) {
     Card(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.3f))) { Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) { Icon(icon, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(24.dp)); Spacer(Modifier.width(16.dp)); Column { Text(title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline); Text(value, style = MaterialTheme.typography.bodyMedium) } } }
 }
 
+// --- SCREEN: GRADES TAB ---
 @Composable
 fun GradesScreen(vm: MainViewModel) {
     val session = vm.sessionData

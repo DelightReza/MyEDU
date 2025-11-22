@@ -11,11 +11,14 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -49,7 +52,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -261,11 +266,79 @@ fun HomeScreen(vm: MainViewModel) {
     if (showNewsSheet) ModalBottomSheet(onDismissRequest = { showNewsSheet = false }) { Column(Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) { Text("Announcements", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold); LazyColumn { items(vm.newsList) { news -> Card(Modifier.padding(top=8.dp).fillMaxWidth()) { Column(Modifier.padding(16.dp)) { Text(news.title?:"", fontWeight=FontWeight.Bold); Text(news.message?:"") } } } } } }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+// --- UPDATED SCHEDULE SCREEN WITH HORIZONTAL PAGER ---
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ScheduleScreen(vm: MainViewModel) {
-    val tabs = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat"); var selectedDay by remember { mutableStateOf(0) } 
-    Scaffold(topBar = { CenterAlignedTopAppBar(title = { Text("Timetable") }) }) { padding -> Column(Modifier.padding(padding)) { ScrollableTabRow(selectedTabIndex = selectedDay, edgePadding = 16.dp) { tabs.forEachIndexed { index, title -> Tab(selected = selectedDay == index, onClick = { selectedDay = index }, text = { Text(title) }) } }; LazyColumn(Modifier.padding(16.dp)) { val dayApi = selectedDay; val classes = vm.fullSchedule.filter { it.day == dayApi }; if (classes.isEmpty()) item { Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) { Text("Free Day", color = Color.Gray) } } else items(classes) { item -> ClassItem(item, vm.getTimeString(item.id_lesson)) { vm.selectedClass = item } }; item { Spacer(Modifier.height(80.dp)) } } } }
+    val tabs = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+    val scope = rememberCoroutineScope()
+    
+    // Logic to calculate today's index (0 for Mon, 5 for Sat). 
+    // If Sunday, default to 0 (Mon) or keep Sunday logic. Here default to Mon.
+    val initialPage = remember {
+        val cal = Calendar.getInstance()
+        val dow = cal.get(Calendar.DAY_OF_WEEK) // Sun=1, Mon=2, ... Sat=7
+        if (dow == Calendar.SUNDAY) 0 else (dow - 2).coerceIn(0, 5)
+    }
+
+    val pagerState = rememberPagerState(initialPage = initialPage) { tabs.size }
+
+    Scaffold(
+        topBar = { CenterAlignedTopAppBar(title = { Text("Timetable") }) }
+    ) { padding ->
+        Column(Modifier.padding(padding)) {
+            ScrollableTabRow(
+                selectedTabIndex = pagerState.currentPage,
+                edgePadding = 16.dp,
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.primary,
+                indicator = { tabPositions ->
+                    if (pagerState.currentPage < tabPositions.size) {
+                        TabRowDefaults.SecondaryIndicator(
+                            Modifier.tabIndicatorOffset(tabPositions[pagerState.currentPage]),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            ) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = pagerState.currentPage == index,
+                        onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
+                        text = { Text(title) }
+                    )
+                }
+            }
+
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize()
+            ) { pageIndex ->
+                val dayClasses = vm.fullSchedule.filter { it.day == pageIndex }
+                if (dayClasses.isEmpty()) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Outlined.Weekend, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.surfaceVariant)
+                            Spacer(Modifier.height(16.dp))
+                            Text("No classes", color = Color.Gray)
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp)
+                    ) {
+                        items(dayClasses) { item ->
+                            ClassItem(item, vm.getTimeString(item.id_lesson)) {
+                                vm.selectedClass = item
+                            }
+                        }
+                        item { Spacer(Modifier.height(80.dp)) }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

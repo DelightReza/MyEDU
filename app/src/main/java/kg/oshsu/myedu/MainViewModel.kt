@@ -59,14 +59,17 @@ class MainViewModel : ViewModel() {
     fun initSession(context: Context) {
         if (prefs == null) {
             prefs = PrefsManager(context)
-            val token = prefs?.getToken()
-            if (token != null) {
-                NetworkClient.interceptor.authToken = token
-                NetworkClient.cookieJar.injectSessionCookies(token)
-                loadOfflineData()
-                appState = "APP"
-                refreshAllData()
-            } else appState = "LOGIN"
+        }
+        val token = prefs?.getToken()
+        if (token != null) {
+            NetworkClient.interceptor.authToken = token
+            NetworkClient.cookieJar.injectSessionCookies(token)
+            loadOfflineData()
+            appState = "APP"
+            // Force refresh from internet every time app starts
+            refreshAllData()
+        } else {
+            appState = "LOGIN"
         }
     }
 
@@ -111,6 +114,9 @@ class MainViewModel : ViewModel() {
     // --- DATA: REFRESH ALL ---
     private fun refreshAllData() {
         viewModelScope.launch(Dispatchers.IO) {
+            // Set loading state to TRUE on the Main thread
+            withContext(Dispatchers.Main) { isLoading = true }
+
             try {
                 val user = NetworkClient.api.getUser().user
                 val profile = NetworkClient.api.getProfile()
@@ -124,7 +130,15 @@ class MainViewModel : ViewModel() {
                     loadScheduleNetwork(profile)
                     fetchSession(profile)
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                // Handle token expiration
+                if (e.message?.contains("401") == true) {
+                    withContext(Dispatchers.Main) { logout() }
+                }
+            } finally {
+                // Set loading state to FALSE on the Main thread
+                withContext(Dispatchers.Main) { isLoading = false }
+            }
         }
     }
 

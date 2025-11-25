@@ -48,6 +48,7 @@ class MainViewModel : ViewModel() {
     // Native Preview Flags
     var showTranscriptScreen by mutableStateOf(false)
     var showReferenceScreen by mutableStateOf(false)
+    var showSettingsScreen by mutableStateOf(false)
     
     // Web Redirect URL (When user clicks Print)
     var webDocumentUrl by mutableStateOf<String?>(null)

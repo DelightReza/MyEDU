@@ -17,6 +17,14 @@ class MainViewModel : ViewModel() {
     var isLoading by mutableStateOf(false)
     var errorMsg by mutableStateOf<String?>(null)
     
+    // --- STATE: THEME ---
+    // Options: "SYSTEM", "LIGHT", "DARK", "GLASS"
+    var themeMode by mutableStateOf("SYSTEM")
+    
+    // Helper to check if we are in Glass mode specifically (for UI logic)
+    val isGlass: Boolean
+        get() = themeMode == "GLASS"
+    
     // --- STATE: USER DATA ---
     var userData by mutableStateOf<UserData?>(null)
     var profileData by mutableStateOf<StudentInfoResponse?>(null)
@@ -61,6 +69,18 @@ class MainViewModel : ViewModel() {
             prefs = PrefsManager(context)
         }
         val token = prefs?.getToken()
+        
+        // Load Theme Preference
+        // Migration: Check if old boolean exists, otherwise load string
+        val oldGlassPref = prefs?.loadData("theme_glass_pref", Boolean::class.java)
+        val savedMode = prefs?.loadData("theme_mode_pref", String::class.java)
+
+        if (savedMode != null) {
+            themeMode = savedMode
+        } else if (oldGlassPref == true) {
+            themeMode = "GLASS"
+        }
+
         if (token != null) {
             NetworkClient.interceptor.authToken = token
             NetworkClient.cookieJar.injectSessionCookies(token)
@@ -83,6 +103,12 @@ class MainViewModel : ViewModel() {
             transcriptData = p.loadList("transcript_list")
             processScheduleLocally()
         }
+    }
+
+    // --- THEME LOGIC ---
+    fun setTheme(mode: String) {
+        themeMode = mode
+        prefs?.saveData("theme_mode_pref", mode)
     }
 
     // --- AUTH: LOGIN LOGIC ---
@@ -108,6 +134,8 @@ class MainViewModel : ViewModel() {
     fun logout() {
         appState = "LOGIN"; currentTab = 0; userData = null; profileData = null; payStatus = null; newsList = emptyList(); fullSchedule = emptyList(); sessionData = emptyList(); transcriptData = emptyList()
         prefs?.clearAll(); NetworkClient.cookieJar.clear(); NetworkClient.interceptor.authToken = null
+        // Re-save theme preference after clearing
+        prefs?.saveData("theme_mode_pref", themeMode)
     }
 
     // --- DATA: REFRESH ALL ---

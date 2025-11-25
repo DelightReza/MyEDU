@@ -76,6 +76,7 @@ fun AppContent(vm: MainViewModel) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainAppStructure(vm: MainViewModel) {
     BackHandler(enabled = vm.selectedClass != null || vm.showTranscriptScreen || vm.showReferenceScreen || vm.showSettingsScreen || vm.webDocumentUrl != null) { 
@@ -127,9 +128,9 @@ fun MainAppStructure(vm: MainViewModel) {
             AnimatedVisibility(visible = vm.showReferenceScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { 
                 ThemedBackground(vm.isGlass) { ReferenceView(vm) { vm.showReferenceScreen = false } } 
             }
-            AnimatedVisibility(visible = vm.selectedClass != null, enter = slideInVertically{it}, exit = slideOutVertically{it}, modifier = Modifier.fillMaxSize()) { 
-                ThemedBackground(vm.isGlass) { vm.selectedClass?.let { ClassDetailsScreen(it, vm) { vm.selectedClass = null } } } 
-            }
+            // Removed old full-screen detail transition in favor of BottomSheet logic below
+            // But keeping logic to nullify selectedClass if back is pressed on sheet (handled by ModalBottomSheet onDismiss)
+            
             AnimatedVisibility(visible = vm.showSettingsScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { 
                 ThemedBackground(vm.isGlass) { SettingsScreen(vm) { vm.showSettingsScreen = false } } 
             }
@@ -141,6 +142,20 @@ fun MainAppStructure(vm: MainViewModel) {
                     authToken = vm.getAuthToken(),
                     onClose = { vm.webDocumentUrl = null }
                 )
+            }
+
+            // --- POPUP: CLASS DETAILS BOTTOM SHEET ---
+            if (vm.selectedClass != null) {
+                val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                ModalBottomSheet(
+                    onDismissRequest = { vm.selectedClass = null },
+                    sheetState = sheetState,
+                    containerColor = if (vm.isGlass) Color(0xFF0F2027) else MaterialTheme.colorScheme.surface,
+                    contentColor = if (vm.isGlass) Color.White else MaterialTheme.colorScheme.onSurface,
+                    dragHandle = { BottomSheetDefaults.DragHandle(color = if(vm.isGlass) Color.White.copy(0.5f) else MaterialTheme.colorScheme.onSurfaceVariant) }
+                ) {
+                    vm.selectedClass?.let { ClassDetailsSheet(vm, it) }
+                }
             }
         }
     }

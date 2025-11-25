@@ -184,15 +184,16 @@ fun LoginScreen(vm: MainViewModel) {
 @Composable
 fun MainAppStructure(vm: MainViewModel) {
     // Logic: Handle Back Press for nested screens
-    BackHandler(enabled = vm.selectedClass != null || vm.showTranscriptScreen || vm.showReferenceScreen) { 
+    BackHandler(enabled = vm.selectedClass != null || vm.showTranscriptScreen || vm.showReferenceScreen || vm.webDocumentUrl != null) { 
         when {
+            vm.webDocumentUrl != null -> vm.webDocumentUrl = null
             vm.selectedClass != null -> vm.selectedClass = null
             vm.showTranscriptScreen -> vm.showTranscriptScreen = false
             vm.showReferenceScreen -> vm.showReferenceScreen = false
         }
     }
     Scaffold(bottomBar = {
-        if (vm.selectedClass == null && !vm.showTranscriptScreen && !vm.showReferenceScreen) {
+        if (vm.selectedClass == null && !vm.showTranscriptScreen && !vm.showReferenceScreen && vm.webDocumentUrl == null) {
             NavigationBar {
                 NavigationBarItem(icon = { Icon(Icons.Default.Home, null) }, label = { Text("Home") }, selected = vm.currentTab == 0, onClick = { vm.currentTab = 0 })
                 NavigationBarItem(icon = { Icon(Icons.Default.DateRange, null) }, label = { Text("Schedule") }, selected = vm.currentTab == 1, onClick = { vm.currentTab = 1 })
@@ -203,7 +204,7 @@ fun MainAppStructure(vm: MainViewModel) {
     }) { padding ->
         Box(Modifier.padding(padding)) {
             // Main Tabs
-            if (vm.selectedClass == null && !vm.showTranscriptScreen && !vm.showReferenceScreen) {
+            if (vm.selectedClass == null && !vm.showTranscriptScreen && !vm.showReferenceScreen && vm.webDocumentUrl == null) {
                 when(vm.currentTab) {
                     0 -> HomeScreen(vm)
                     1 -> ScheduleScreen(vm)
@@ -211,10 +212,20 @@ fun MainAppStructure(vm: MainViewModel) {
                     3 -> ProfileScreen(vm)
                 }
             }
-            // Overlays
+            // Overlays (Native Previews)
             AnimatedVisibility(visible = vm.showTranscriptScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) { TranscriptView(vm) { vm.showTranscriptScreen = false } }
             AnimatedVisibility(visible = vm.showReferenceScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) { ReferenceView(vm) { vm.showReferenceScreen = false } }
             AnimatedVisibility(visible = vm.selectedClass != null, enter = slideInVertically{it}, exit = slideOutVertically{it}, modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) { vm.selectedClass?.let { ClassDetailsScreen(it) { vm.selectedClass = null } } }
+            
+            // Web View Overlay (For Printing)
+            if (vm.webDocumentUrl != null) {
+                WebDocumentScreen(
+                    url = vm.webDocumentUrl!!,
+                    title = "Document",
+                    authToken = vm.getAuthToken(),
+                    onClose = { vm.webDocumentUrl = null }
+                )
+            }
         }
     }
 }
@@ -227,7 +238,20 @@ fun ReferenceView(vm: MainViewModel, onClose: () -> Unit) {
     val activeSemester = profile?.active_semester ?: 1; val course = (activeSemester + 1) / 2
     val facultyName = mov?.faculty?.name_en ?: mov?.speciality?.faculty?.name_en ?: mov?.faculty?.name_ru ?: "-"
     
-    Scaffold(topBar = { TopAppBar(title = { Text("Reference (Form 8)") }, navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.Default.ArrowBack, null) } }, actions = { IconButton(onClick = { vm.generateAndOpenReference(context) }, enabled = !vm.isPdfGenerating) { if (vm.isPdfGenerating) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp) else Icon(Icons.Default.Print, "Download") } }) }) { padding ->
+    Scaffold(
+        topBar = { 
+            TopAppBar(
+                title = { Text("Reference (Form 8)") }, 
+                navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.Default.ArrowBack, null) } }, 
+                actions = { 
+                    // --- PRINT ACTION -> REDIRECT TO WEBVIEW ---
+                    IconButton(onClick = { vm.webDocumentUrl = "https://myedu.oshsu.kg/#/studentCertificate" }) { 
+                        Icon(Icons.Default.Print, "Print / Download") 
+                    } 
+                }
+            ) 
+        }
+    ) { padding ->
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             Column(Modifier.padding(padding).fillMaxSize().widthIn(max = 840.dp).verticalScroll(rememberScrollState()).padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh), elevation = CardDefaults.cardElevation(defaultElevation = 4.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
@@ -246,7 +270,6 @@ fun ReferenceView(vm: MainViewModel, onClose: () -> Unit) {
                     }
                 }
                 Spacer(Modifier.height(24.dp)); Text("This is a preview.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline); Text("Click the printer icon to download official PDF.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-                if (vm.pdfStatusMessage != null) { Spacer(Modifier.height(16.dp)); Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.inverseSurface)) { Text(vm.pdfStatusMessage!!, color = MaterialTheme.colorScheme.inverseOnSurface, modifier = Modifier.padding(16.dp)) } }
                 Spacer(Modifier.height(80.dp))
             }
         }
@@ -261,7 +284,20 @@ fun RefDetailRow(label: String, value: String) { Column(Modifier.padding(bottom 
 @Composable
 fun TranscriptView(vm: MainViewModel, onClose: () -> Unit) {
     val context = LocalContext.current
-    Scaffold(topBar = { TopAppBar(title = { Text("Full Transcript") }, navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.Default.ArrowBack, null) } }, actions = { IconButton(onClick = { vm.generateAndOpenTranscript(context) }, enabled = !vm.isPdfGenerating && vm.transcriptData.isNotEmpty()) { if (vm.isPdfGenerating) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp) else Icon(Icons.Default.Print, "Print") } }) }) { padding ->
+    Scaffold(
+        topBar = { 
+            TopAppBar(
+                title = { Text("Full Transcript") }, 
+                navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.Default.ArrowBack, null) } }, 
+                actions = { 
+                    // --- PRINT ACTION -> REDIRECT TO WEBVIEW ---
+                    IconButton(onClick = { vm.webDocumentUrl = "https://myedu.oshsu.kg/#/Transcript" }) { 
+                        Icon(Icons.Default.Print, "Print / Download") 
+                    } 
+                }
+            ) 
+        }
+    ) { padding ->
         Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             if (vm.isTranscriptLoading) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             else if (vm.transcriptData.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No transcript data.") }
@@ -284,7 +320,6 @@ fun TranscriptView(vm: MainViewModel, onClose: () -> Unit) {
                     item { Spacer(Modifier.height(80.dp)) }
                 }
             }
-            if (vm.pdfStatusMessage != null) Card(modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.inverseSurface)) { Text(vm.pdfStatusMessage!!, color = MaterialTheme.colorScheme.inverseOnSurface, modifier = Modifier.padding(16.dp)) }
         }
     }
 }

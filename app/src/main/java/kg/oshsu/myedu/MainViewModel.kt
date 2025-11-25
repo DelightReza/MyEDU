@@ -1,21 +1,12 @@
 package kg.oshsu.myedu
 
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.asRequestBody
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONObject
 import java.util.Calendar
 import java.util.Locale
 
@@ -45,15 +36,24 @@ class MainViewModel : ViewModel() {
     var sessionData by mutableStateOf<List<SessionResponse>>(emptyList())
     var isGradesLoading by mutableStateOf(false)
     
-    // --- STATE: DOCUMENTS & PDF ---
-    var transcriptData by mutableStateOf<List<TranscriptYear>>(emptyList())
-    var isTranscriptLoading by mutableStateOf(false)
+    // --- STATE: DOCUMENTS & NAVIGATION ---
+    // Native Preview Flags
     var showTranscriptScreen by mutableStateOf(false)
     var showReferenceScreen by mutableStateOf(false)
-    var isPdfGenerating by mutableStateOf(false)
-    var pdfStatusMessage by mutableStateOf<String?>(null)
+    
+    // Web Redirect URL (When user clicks Print)
+    var webDocumentUrl by mutableStateOf<String?>(null)
+    
+    // Native Preview Data
+    var transcriptData by mutableStateOf<List<TranscriptYear>>(emptyList())
+    var isTranscriptLoading by mutableStateOf(false)
 
     private var prefs: PrefsManager? = null
+
+    // --- HELPER: Get Token for WebView ---
+    fun getAuthToken(): String? {
+        return prefs?.getToken()
+    }
 
     // --- INIT: CHECK SESSION ---
     fun initSession(context: Context) {
@@ -66,7 +66,6 @@ class MainViewModel : ViewModel() {
             NetworkClient.cookieJar.injectSessionCookies(token)
             loadOfflineData()
             appState = "APP"
-            // Force refresh from internet every time app starts
             refreshAllData()
         } else {
             appState = "LOGIN"
@@ -81,7 +80,7 @@ class MainViewModel : ViewModel() {
             newsList = p.loadList("news_list")
             fullSchedule = p.loadList("schedule_list")
             sessionData = p.loadList("session_list")
-            transcriptData = p.loadList<TranscriptYear>("transcript_list")
+            transcriptData = p.loadList("transcript_list")
             processScheduleLocally()
         }
     }
@@ -114,9 +113,7 @@ class MainViewModel : ViewModel() {
     // --- DATA: REFRESH ALL ---
     private fun refreshAllData() {
         viewModelScope.launch(Dispatchers.IO) {
-            // Set loading state to TRUE on the Main thread
             withContext(Dispatchers.Main) { isLoading = true }
-
             try {
                 val user = NetworkClient.api.getUser().user
                 val profile = NetworkClient.api.getProfile()
@@ -131,12 +128,8 @@ class MainViewModel : ViewModel() {
                     fetchSession(profile)
                 }
             } catch (e: Exception) {
-                // Handle token expiration
-                if (e.message?.contains("401") == true) {
-                    withContext(Dispatchers.Main) { logout() }
-                }
+                if (e.message?.contains("401") == true) { withContext(Dispatchers.Main) { logout() } }
             } finally {
-                // Set loading state to FALSE on the Main thread
                 withContext(Dispatchers.Main) { isLoading = false }
             }
         }
@@ -181,72 +174,26 @@ class MainViewModel : ViewModel() {
         }
     }
 
-    // --- DOCUMENTS: TRANSCRIPT FETCH ---
+    // --- DOCUMENTS: TRANSCRIPT FETCH (FOR NATIVE PREVIEW) ---
     fun fetchTranscript() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 withContext(Dispatchers.Main) { 
                     isTranscriptLoading = true
                     showTranscriptScreen = true
-                    // Explicit type call here for safety
+                    // Load cache first
                     transcriptData = prefs?.loadList<TranscriptYear>("transcript_list") ?: emptyList() 
                 }
                 val uid = userData?.id ?: return@launch
                 val movId = profileData?.studentMovement?.id ?: return@launch 
                 val transcript = NetworkClient.api.getTranscript(uid, movId)
-                withContext(Dispatchers.Main) { transcriptData = transcript; prefs?.saveList("transcript_list", transcript) }
+                withContext(Dispatchers.Main) { 
+                    transcriptData = transcript
+                    prefs?.saveList("transcript_list", transcript) 
+                }
             } catch (_: Exception) {} finally { withContext(Dispatchers.Main) { isTranscriptLoading = false } }
         }
     }
     
     fun getTimeString(lessonId: Int) = timeMap[lessonId] ?: "Pair $lessonId"
-
-    // --- DOCUMENTS: GENERATE TRANSCRIPT PDF ---
-    fun generateAndOpenTranscript(context: Context) {
-        if (isPdfGenerating || transcriptData.isEmpty()) return
-        val studentId = userData?.id ?: return
-        val fullName = "${userData?.last_name ?: ""} ${userData?.name ?: ""}"
-        viewModelScope.launch {
-            isPdfGenerating = true; pdfStatusMessage = "Preparing Transcript..."
-            try {
-                val keyRaw = withContext(Dispatchers.IO) { NetworkClient.api.getTranscriptLink(DocIdRequest(studentId)).string() }
-                val keyObj = JSONObject(keyRaw); val key = keyObj.optString("key"); val linkId = keyObj.optLong("id")
-                val transcriptJson = Gson().toJson(transcriptData)
-                val pds = profileData?.pdsstudentinfo; val mov = profileData?.studentMovement
-                val infoMap = mapOf("birthday" to (pds?.birthday?:""), "speciality" to (mov?.speciality?.name_ru?:""), "direction" to (mov?.speciality?.name_ru?:""), "edu_form" to (mov?.edu_form?.name_ru?:""))
-                val file = withContext(Dispatchers.Default) { PdfGenerator(context).generateTranscriptPdf(transcriptJson, fullName, studentId.toString(), Gson().toJson(infoMap)) }
-                if (file != null) { pdfStatusMessage = "Uploading..."; uploadAndOpen(context, linkId, studentId, file, "transcript.pdf", key, true) } else pdfStatusMessage = "Generation Failed"
-            } catch (e: Exception) { pdfStatusMessage = "Error: ${e.message}" } finally { isPdfGenerating = false; delay(3000); pdfStatusMessage = null }
-        }
-    }
-
-    // --- DOCUMENTS: GENERATE REFERENCE PDF ---
-    fun generateAndOpenReference(context: Context) {
-        if (isPdfGenerating) return
-        val studentId = userData?.id ?: return
-        val fullName = "${userData?.last_name ?: ""} ${userData?.name ?: ""}"
-        viewModelScope.launch {
-            isPdfGenerating = true; pdfStatusMessage = "Preparing Reference..."
-            try {
-                val keyRaw = withContext(Dispatchers.IO) { NetworkClient.api.getReferenceLink(DocIdRequest(studentId)).string() }
-                val keyObj = JSONObject(keyRaw); val key = keyObj.optString("key"); val linkId = keyObj.optLong("id")
-                val mov = profileData?.studentMovement
-                val infoMap = mapOf("speciality_ru" to (mov?.speciality?.name_ru?:""), "spec_code" to (mov?.speciality?.code?:""), "edu_form_ru" to (mov?.edu_form?.name_ru?:""), "payment_form_ru" to (if (mov?.id_payment_form == 2) "Контракт" else "Бюджет"), "active_semester" to (profileData?.active_semester ?: 1), "second_id" to "1713914806")
-                val file = withContext(Dispatchers.Default) { PdfGenerator(context).generateReferencePdf(fullName, studentId.toString(), Gson().toJson(infoMap)) }
-                if (file != null) { pdfStatusMessage = "Uploading..."; uploadAndOpen(context, linkId, studentId, file, "reference.pdf", key, false) } else pdfStatusMessage = "Generation Failed"
-            } catch (e: Exception) { pdfStatusMessage = "Error: ${e.message}" } finally { isPdfGenerating = false; delay(3000); pdfStatusMessage = null }
-        }
-    }
-
-    // --- DOCUMENTS: UPLOAD & OPEN ---
-    private suspend fun uploadAndOpen(context: Context, linkId: Long, studentId: Long, file: java.io.File, filename: String, key: String, isTranscript: Boolean) {
-        val plain = "text/plain".toMediaTypeOrNull(); val pdfType = "application/pdf".toMediaTypeOrNull()
-        val bodyId = linkId.toString().toRequestBody(plain); val bodyStudent = studentId.toString().toRequestBody(plain)
-        val filePart = MultipartBody.Part.createFormData("pdf", filename, file.asRequestBody(pdfType))
-        withContext(Dispatchers.IO) { if (isTranscript) NetworkClient.api.uploadPdf(bodyId, bodyStudent, filePart).string() else NetworkClient.api.uploadReferencePdf(bodyId, bodyStudent, filePart).string() }
-        delay(1000)
-        val resRaw = withContext(Dispatchers.IO) { NetworkClient.api.resolveDocLink(DocKeyRequest(key)).string() }
-        val url = JSONObject(resRaw).optString("url")
-        if (url.isNotEmpty()) { val i = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }; context.startActivity(i); pdfStatusMessage = null } else pdfStatusMessage = "URL not found"
-    }
 }

@@ -14,7 +14,7 @@ import androidx.compose.material.icons.outlined.Weekend
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,19 +27,20 @@ import kg.oshsu.myedu.ui.components.OshSuLogo
 import kg.oshsu.myedu.ui.components.ThemedCard
 import kg.oshsu.myedu.ui.theme.GlassWhite
 import kotlinx.coroutines.launch
-import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ScheduleScreen(vm: MainViewModel) {
     val tabs = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
     val scope = rememberCoroutineScope()
-    val initialPage = remember {
-        val cal = Calendar.getInstance()
-        val dow = cal.get(Calendar.DAY_OF_WEEK)
-        if (dow == Calendar.SUNDAY) 0 else (dow - 2).coerceIn(0, 5)
+    
+    // FIXED: Use vm.selectedScheduleDay as initialPage to restore previous selection
+    val pagerState = rememberPagerState(initialPage = vm.selectedScheduleDay) { tabs.size }
+
+    // FIXED: Sync Pager state back to ViewModel
+    LaunchedEffect(pagerState.currentPage) {
+        vm.selectedScheduleDay = pagerState.currentPage
     }
-    val pagerState = rememberPagerState(initialPage = initialPage) { tabs.size }
 
     Scaffold(
         containerColor = Color.Transparent,

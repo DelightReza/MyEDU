@@ -49,6 +49,14 @@ class MainViewModel : ViewModel() {
     var determinedGroup by mutableStateOf<Int?>(null)
     var selectedClass by mutableStateOf<ScheduleItem?>(null)
     
+    // NEW: Persist the selected day index (0=Mon, 5=Sat) so it doesn't reset on back press
+    var selectedScheduleDay by mutableStateOf(run {
+        val cal = Calendar.getInstance()
+        val dow = cal.get(Calendar.DAY_OF_WEEK)
+        // Convert Sunday(1)..Saturday(7) to Mon(0)..Sat(5). Sunday defaults to Mon.
+        if (dow == Calendar.SUNDAY) 0 else (dow - 2).coerceIn(0, 5)
+    })
+    
     // --- STATE: GRADES ---
     var sessionData by mutableStateOf<List<SessionResponse>>(emptyList())
     var isGradesLoading by mutableStateOf(false)

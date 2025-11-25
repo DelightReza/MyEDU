@@ -16,6 +16,31 @@ android {
         versionName = "1.0"
     }
 
+    // --- SIGNING CONFIGURATION ---
+    signingConfigs {
+        create("release") {
+            // The keystore will be decoded by GitHub Actions to this path
+            val keystorePath = System.getenv("KEYSTORE_PATH") ?: "release-key.jks"
+            
+            // Only configure if the file exists (prevents local build errors if keys are missing)
+            if (file(keystorePath).exists()) {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
+        }
+    }
+
+    // --- BUILD TYPES ---
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false // Set to true if you have configured ProGuard rules
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+
     // --- BUILD FEATURES ---
     buildFeatures { compose = true }
     

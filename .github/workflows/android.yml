@@ -1,9 +1,9 @@
-name: Build APK
+name: Build Signed APK
 
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch:      # <--- This adds the manual "Run" button
+  workflow_dispatch:      # Allows manual trigger
 
 jobs:
   build:
@@ -17,16 +17,31 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # Explicitly using Gradle 8.5 to prevent version errors
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
       with:
         gradle-version: '8.5'
 
-    - name: Build Debug APK
-      run: gradle assembleDebug --no-daemon --stacktrace
+    # 1. Decode the Keystore from Secrets
+    - name: Decode Keystore
+      env:
+        ENCODED_STRING: ${{ secrets.KEYSTORE_BASE64 }}
+      run: |
+        # Creates the file inside the app folder
+        echo $ENCODED_STRING | base64 -di > app/release-key.jks
 
+    # 2. Build Release with Secrets injected
+    - name: Build Signed Release APK
+      env:
+        # These match the variables we set in build.gradle.kts
+        KEYSTORE_PATH: release-key.jks 
+        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      run: gradle assembleRelease --no-daemon --stacktrace
+
+    # 3. Upload the Signed APK
     - uses: actions/upload-artifact@v4
       with:
-        name: app-debug
-        path: app/build/outputs/apk/debug/app-debug.apk
+        name: app-release
+        path: app/build/outputs/apk/release/app-release.apk

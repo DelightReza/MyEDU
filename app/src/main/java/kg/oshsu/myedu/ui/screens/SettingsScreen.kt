@@ -25,31 +25,18 @@ fun SettingsScreen(vm: MainViewModel, onClose: () -> Unit) {
         topBar = {
             TopAppBar(
                 title = { Text("Settings") },
-                navigationIcon = {
-                    IconButton(onClick = onClose) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
+                navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.Default.ArrowBack, contentDescription = "Back") } },
                 colors = if (vm.isGlass) 
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                        titleContentColor = Color.White,
-                        navigationIconContentColor = Color.White
-                    )
+                    TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, titleContentColor = Color.White, navigationIconContentColor = Color.White)
                 else TopAppBarDefaults.topAppBarColors()
             )
         }
     ) { padding ->
         Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+            modifier = Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)
         ) {
-            // --- APPEARANCE SECTION ---
+            // --- APPEARANCE ---
             InfoSection("Appearance", vm.isGlass)
-            
             ThemedCard(modifier = Modifier.fillMaxWidth(), isGlass = vm.isGlass) {
                 Column {
                     ThemeOptionItem("Follow System", vm.themeMode == "SYSTEM", vm.isGlass) { vm.setTheme("SYSTEM") }
@@ -61,21 +48,29 @@ fun SettingsScreen(vm: MainViewModel, onClose: () -> Unit) {
                     ThemeOptionItem("Liquid Glass", vm.themeMode == "GLASS", vm.isGlass) { vm.setTheme("GLASS") }
                 }
             }
-
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- LANGUAGE SECTION (Placeholder) ---
+            // --- DOCUMENTS DOWNLOAD PREFERENCE ---
+            InfoSection("Documents", vm.isGlass)
+            ThemedCard(modifier = Modifier.fillMaxWidth(), isGlass = vm.isGlass) {
+                Column {
+                    ThemeOptionItem("In-App (PDF Generator)", vm.downloadMode == "IN_APP", vm.isGlass) { vm.setDocMode("IN_APP") }
+                    HorizontalDivider(color = if (vm.isGlass) Color.White.copy(0.2f) else MaterialTheme.colorScheme.outlineVariant)
+                    ThemeOptionItem("Website (Official Portal)", vm.downloadMode == "WEBSITE", vm.isGlass) { vm.setDocMode("WEBSITE") }
+                }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // --- LANGUAGE (Placeholder) ---
             InfoSection("Language", vm.isGlass)
             ThemedCard(modifier = Modifier.fillMaxWidth(), isGlass = vm.isGlass) {
                 Column {
                     ThemeOptionItem("English", true, vm.isGlass) { }
-                    // Add more languages here later
                 }
             }
-            
             Spacer(modifier = Modifier.height(24.dp))
             
-            // --- APP INFO ---
+            // --- ABOUT ---
             InfoSection("About", vm.isGlass)
             ThemedCard(modifier = Modifier.fillMaxWidth(), isGlass = vm.isGlass) {
                 Column {
@@ -90,10 +85,7 @@ fun SettingsScreen(vm: MainViewModel, onClose: () -> Unit) {
 @Composable
 fun ThemeOptionItem(text: String, selected: Boolean, isGlass: Boolean, onClick: () -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         RadioButton(
@@ -105,10 +97,6 @@ fun ThemeOptionItem(text: String, selected: Boolean, isGlass: Boolean, onClick: 
             )
         )
         Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyLarge,
-            color = if (isGlass) Color.White else MaterialTheme.colorScheme.onSurface
-        )
+        Text(text = text, style = MaterialTheme.typography.bodyLarge, color = if (isGlass) Color.White else MaterialTheme.colorScheme.onSurface)
     }
 }

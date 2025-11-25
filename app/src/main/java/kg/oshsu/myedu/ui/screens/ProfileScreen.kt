@@ -67,6 +67,7 @@ fun ProfileScreen(vm: MainViewModel) {
             
             InfoSection("Documents", vm.isGlass)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                // Logic Update: Always open Preview. The Preview handles the download mode.
                 BeautifulDocButton(
                     text = "Reference",
                     icon = Icons.Default.Description,

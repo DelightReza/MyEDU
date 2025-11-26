@@ -30,7 +30,11 @@ fun HomeScreen(vm: MainViewModel) {
     
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(Modifier.fillMaxSize().widthIn(max = 840.dp).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
+            
+            // --- FIX: Push content down below the Status Bar ---
+            Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
             Spacer(Modifier.height(16.dp))
+            
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -91,7 +95,6 @@ fun StatCard(icon: ImageVector, label: String, value: String, isGlass: Boolean, 
     if (isGlass) {
         ThemedCard(modifier = modifier, isGlass = true) { Column { Icon(icon, null, tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.height(8.dp)); Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant); Text(text = value, style = if(value.length > 15) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis) } }
     } else {
-        // Material Mode: White Card with Primary Icon/Text
         ElevatedCard(modifier = modifier, colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)) { 
             Column(Modifier.padding(16.dp)) { 
                 Icon(icon, null, tint = MaterialTheme.colorScheme.primary)

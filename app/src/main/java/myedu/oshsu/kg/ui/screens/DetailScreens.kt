@@ -3,6 +3,7 @@ package myedu.oshsu.kg.ui.screens
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -200,6 +201,80 @@ fun ClassDetailsSheet(vm: MainViewModel, item: ScheduleItem) {
     }
 }
 
+// --- HELPER COMPONENT: FLOATING PDF BUTTONS ---
+@Composable
+fun FloatingPdfBar(vm: MainViewModel, onGenerateRu: () -> Unit, onGenerateEn: () -> Unit) {
+    if (vm.downloadMode == "WEBSITE") return
+
+    val containerColor = if (vm.isGlass) Color(0xFF0F2027).copy(alpha = 0.90f) else MaterialTheme.colorScheme.surface
+    val border = if (vm.isGlass) BorderStroke(1.dp, GlassWhite) else null
+    val elevation = if (vm.isGlass) 0.dp else 12.dp
+
+    Surface(
+        modifier = Modifier
+            .padding(bottom = 24.dp, start = 16.dp, end = 16.dp)
+            .height(72.dp)
+            .widthIn(max = 400.dp)
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(36.dp),
+        color = containerColor,
+        border = border,
+        shadowElevation = elevation
+    ) {
+        if (vm.isPdfGenerating) {
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp), 
+                    strokeWidth = 2.dp,
+                    color = if(vm.isGlass) Color.White else MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.width(16.dp))
+                Text(
+                    "Generating PDF...", 
+                    color = if(vm.isGlass) Color.White else MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Shared Button Style
+                val buttonColors = ButtonDefaults.buttonColors(
+                    containerColor = if(vm.isGlass) Color.White.copy(0.1f) else MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = if(vm.isGlass) Color.White else MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                
+                Button(
+                    onClick = onGenerateRu, 
+                    colors = buttonColors,
+                    modifier = Modifier.weight(1f).padding(horizontal = 4.dp).height(48.dp)
+                ) {
+                    Icon(Icons.Default.Download, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("PDF (RU)")
+                }
+                
+                Button(
+                    onClick = onGenerateEn, 
+                    colors = buttonColors,
+                    modifier = Modifier.weight(1f).padding(horizontal = 4.dp).height(48.dp)
+                ) {
+                    Icon(Icons.Default.Download, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("PDF (EN)")
+                }
+            }
+        }
+    }
+}
+
 // --- REFERENCE VIEW ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -223,26 +298,19 @@ fun ReferenceView(vm: MainViewModel, onClose: () -> Unit) {
                 actions = { if (isWebsiteMode) { IconButton(onClick = { vm.webDocumentUrl = "https://myedu.oshsu.kg/#/studentCertificate" }) { Icon(Icons.Default.Print, "Print / Download") } } },
                 colors = if (vm.isGlass) TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, titleContentColor = Color.White, navigationIconContentColor = Color.White, actionIconContentColor = Color.White) else TopAppBarDefaults.topAppBarColors()
             ) 
-        },
-        bottomBar = {
-            if (!isWebsiteMode) {
-                Surface(color = if(vm.isGlass) Color(0xFF0F2027).copy(alpha=0.9f) else MaterialTheme.colorScheme.surface, tonalElevation = 3.dp, shadowElevation = 8.dp) {
-                    Column(Modifier.padding(16.dp)) {
-                        if (vm.isPdfGenerating) {
-                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp); Spacer(Modifier.width(16.dp)); Text("Generating PDF...", color = MaterialTheme.colorScheme.primary) }
-                        } else {
-                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                Button(onClick = { vm.generateReferencePdf(context, "ru") }, modifier = Modifier.weight(1f), colors = if(vm.isGlass) ButtonDefaults.buttonColors(containerColor = GlassWhite) else ButtonDefaults.buttonColors()) { Icon(Icons.Default.Download, null); Spacer(Modifier.width(8.dp)); Text("PDF (RU)") }
-                                Button(onClick = { vm.generateReferencePdf(context, "en") }, modifier = Modifier.weight(1f), colors = if(vm.isGlass) ButtonDefaults.buttonColors(containerColor = GlassWhite) else ButtonDefaults.buttonColors()) { Icon(Icons.Default.Download, null); Spacer(Modifier.width(8.dp)); Text("PDF (EN)") }
-                            }
-                        }
-                    }
-                }
-            }
         }
     ) { padding ->
-        Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-            Column(Modifier.fillMaxSize().widthIn(max = 840.dp).verticalScroll(rememberScrollState()).padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.padding(padding).fillMaxSize()) {
+            // Scrollable Content
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .widthIn(max = 840.dp)
+                    .align(Alignment.TopCenter)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 ThemedCard(Modifier.fillMaxWidth(), vm.isGlass, materialColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
                     Column(Modifier.padding(8.dp)) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) { OshSuLogo(modifier = Modifier.width(180.dp).height(60.dp)); Spacer(Modifier.height(16.dp)); Text("CERTIFICATE OF STUDY", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center) }
@@ -260,9 +328,20 @@ fun ReferenceView(vm: MainViewModel, onClose: () -> Unit) {
                         Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Verified, null, tint = Color(0xFF00FF88), modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text("Active Student • ${SimpleDateFormat("dd.MM.yyyy", Locale.US).format(Date())}", style = MaterialTheme.typography.labelMedium, color = Color(0xFF00FF88)) }
                     }
                 }
-                Spacer(Modifier.height(24.dp)); Text("This is a preview.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant); Text("Click the printer icon to download official PDF.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(24.dp)); Text("This is a preview.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant); Text("Click the download button below for official PDF.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (vm.pdfStatusMessage != null) { Spacer(Modifier.height(16.dp)); Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.inverseSurface)) { Text(vm.pdfStatusMessage!!, color = MaterialTheme.colorScheme.inverseOnSurface, modifier = Modifier.padding(16.dp)) } }
-                Spacer(Modifier.height(80.dp))
+                
+                // Extra space for floating bar
+                Spacer(Modifier.height(100.dp))
+            }
+            
+            // Floating Action Bar (Bottom Center)
+            Box(modifier = Modifier.align(Alignment.BottomCenter)) {
+                 FloatingPdfBar(
+                    vm = vm,
+                    onGenerateRu = { vm.generateReferencePdf(context, "ru") },
+                    onGenerateEn = { vm.generateReferencePdf(context, "en") }
+                )
             }
         }
     }
@@ -273,25 +352,19 @@ fun ReferenceView(vm: MainViewModel, onClose: () -> Unit) {
 @Composable
 fun TranscriptView(vm: MainViewModel, onClose: () -> Unit) {
     val context = LocalContext.current; val isWebsiteMode = vm.downloadMode == "WEBSITE"
+    
     Scaffold(
         containerColor = Color.Transparent,
-        topBar = { TopAppBar(title = { Text("Full Transcript") }, navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.Default.ArrowBack, null) } }, actions = { if (isWebsiteMode) { IconButton(onClick = { vm.webDocumentUrl = "https://myedu.oshsu.kg/#/Transcript" }) { Icon(Icons.Default.Print, "Print / Download") } } }, colors = if (vm.isGlass) TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, titleContentColor = Color.White, navigationIconContentColor = Color.White, actionIconContentColor = Color.White) else TopAppBarDefaults.topAppBarColors()) },
-        bottomBar = {
-            if (!isWebsiteMode) {
-                Surface(color = if(vm.isGlass) Color(0xFF0F2027).copy(alpha=0.9f) else MaterialTheme.colorScheme.surface, tonalElevation = 3.dp, shadowElevation = 8.dp) {
-                    Column(Modifier.padding(16.dp)) {
-                         if (vm.isPdfGenerating) { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp); Spacer(Modifier.width(16.dp)); Text("Generating PDF...", color = MaterialTheme.colorScheme.primary) } } 
-                         else { Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) { Button(onClick = { vm.generateTranscriptPdf(context, "ru") }, modifier = Modifier.weight(1f), colors = if(vm.isGlass) ButtonDefaults.buttonColors(containerColor = GlassWhite) else ButtonDefaults.buttonColors()) { Icon(Icons.Default.Download, null); Spacer(Modifier.width(8.dp)); Text("PDF (RU)") }; Button(onClick = { vm.generateTranscriptPdf(context, "en") }, modifier = Modifier.weight(1f), colors = if(vm.isGlass) ButtonDefaults.buttonColors(containerColor = GlassWhite) else ButtonDefaults.buttonColors()) { Icon(Icons.Default.Download, null); Spacer(Modifier.width(8.dp)); Text("PDF (EN)") } } }
-                    }
-                }
-            }
-        }
+        topBar = { TopAppBar(title = { Text("Full Transcript") }, navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.Default.ArrowBack, null) } }, actions = { if (isWebsiteMode) { IconButton(onClick = { vm.webDocumentUrl = "https://myedu.oshsu.kg/#/Transcript" }) { Icon(Icons.Default.Print, "Print / Download") } } }, colors = if (vm.isGlass) TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, titleContentColor = Color.White, navigationIconContentColor = Color.White, actionIconContentColor = Color.White) else TopAppBarDefaults.topAppBarColors()) }
     ) { padding ->
-        Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Box(Modifier.padding(padding).fillMaxSize()) {
             if (vm.isTranscriptLoading) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             else if (vm.transcriptData.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No transcript data.") }
             else {
-                LazyColumn(Modifier.widthIn(max = 840.dp).padding(horizontal = 16.dp)) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().align(Alignment.TopCenter).widthIn(max = 840.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 100.dp) // Bottom padding for floating bar
+                ) {
                     vm.transcriptData.forEach { yearData ->
                         item { Spacer(Modifier.height(16.dp)); Text(yearData.eduYear ?: "Unknown Year", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary) }
                         yearData.semesters?.forEach { sem ->
@@ -306,10 +379,19 @@ fun TranscriptView(vm: MainViewModel, onClose: () -> Unit) {
                             }
                         }
                     }
-                    item { Spacer(Modifier.height(80.dp)) }
                 }
             }
-            if (vm.pdfStatusMessage != null) Card(modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.inverseSurface)) { Text(vm.pdfStatusMessage!!, color = MaterialTheme.colorScheme.inverseOnSurface, modifier = Modifier.padding(16.dp)) }
+            
+            if (vm.pdfStatusMessage != null) Card(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 100.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.inverseSurface)) { Text(vm.pdfStatusMessage!!, color = MaterialTheme.colorScheme.inverseOnSurface, modifier = Modifier.padding(16.dp)) }
+            
+            // Floating Action Bar (Bottom Center)
+            Box(modifier = Modifier.align(Alignment.BottomCenter)) {
+                FloatingPdfBar(
+                    vm = vm,
+                    onGenerateRu = { vm.generateTranscriptPdf(context, "ru") },
+                    onGenerateEn = { vm.generateTranscriptPdf(context, "en") }
+                )
+            }
         }
     }
 }

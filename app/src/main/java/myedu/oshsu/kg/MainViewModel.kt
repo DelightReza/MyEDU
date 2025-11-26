@@ -243,6 +243,15 @@ class MainViewModel : ViewModel() {
             cachedDictionary = dictUtils.fetchDictionary(dictionaryUrl)
         }
     }
+    
+    // --- HELPER: FORMAT FILENAME ---
+    private fun getFormattedFileName(docType: String, lang: String? = null): String {
+        val last = userData?.last_name ?: ""
+        val first = userData?.name ?: ""
+        val cleanName = "$last $first".trim().replace(" ", "_").replace(".", "")
+        val suffix = if (lang != null) "_$lang" else ""
+        return "${cleanName}_${docType}${suffix}.pdf"
+    }
 
     fun generateTranscriptPdf(context: Context, language: String) {
         if (isPdfGenerating) return
@@ -270,8 +279,10 @@ class MainViewModel : ViewModel() {
                 pdfStatusMessage = "Generating PDF..."
                 val bytes = WebPdfGenerator(context).generatePdf(infoJson.toString(), transcriptRaw, keyObj.optLong("id"), keyObj.optString("url"), resources!!, language, cachedDictionary) { println(it) }
                 
-                // --- NEW LOGIC: Save directly to Downloads ---
-                saveToDownloads(context, bytes, "transcript_$language.pdf")
+                // --- SAVE DIRECTLY TO DOWNLOADS ---
+                val filename = getFormattedFileName("Transcript", language)
+                saveToDownloads(context, bytes, filename)
+                
                 pdfStatusMessage = null
             } catch (e: Exception) {
                 pdfStatusMessage = "Error: ${e.message}"; e.printStackTrace(); delay(3000); pdfStatusMessage = null
@@ -308,8 +319,10 @@ class MainViewModel : ViewModel() {
                 pdfStatusMessage = "Generating PDF..."
                 val bytes = ReferencePdfGenerator(context).generatePdf(infoJson.toString(), licenseRaw, univRaw, linkObj.optLong("id"), linkObj.optString("url"), resources!!, prefs?.getToken() ?: "", language, cachedDictionary) { println(it) }
                 
-                // --- NEW LOGIC: Save directly to Downloads ---
-                saveToDownloads(context, bytes, "reference_$language.pdf")
+                // --- SAVE DIRECTLY TO DOWNLOADS ---
+                val filename = getFormattedFileName("Reference", language)
+                saveToDownloads(context, bytes, filename)
+                
                 pdfStatusMessage = null
             } catch (e: Exception) {
                 pdfStatusMessage = "Error: ${e.message}"; e.printStackTrace(); delay(3000); pdfStatusMessage = null

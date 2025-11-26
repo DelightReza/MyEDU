@@ -92,7 +92,6 @@ fun MainAppStructure(vm: MainViewModel) {
     Scaffold(
         containerColor = Color.Transparent, 
         bottomBar = {
-            // HIDE Bottom Bar when Popup/Sheet/Overlay is active to prevent visual glitches
             if (vm.selectedClass == null && !vm.showTranscriptScreen && !vm.showReferenceScreen && !vm.showSettingsScreen && vm.webDocumentUrl == null) {
                 if (vm.isGlass) {
                     NavigationBar(
@@ -115,16 +114,12 @@ fun MainAppStructure(vm: MainViewModel) {
         }
     ) { padding ->
         Box(Modifier.padding(padding)) {
-            // The main content (Schedule, Home, etc.) is always here
-            // This ensures the "Days" are visible in the background when the BottomSheet opens
             when(vm.currentTab) {
                 0 -> HomeScreen(vm)
                 1 -> ScheduleScreen(vm)
                 2 -> GradesScreen(vm)
                 3 -> ProfileScreen(vm)
             }
-
-            // Full Screen Overlays
             AnimatedVisibility(visible = vm.showTranscriptScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { 
                 ThemedBackground(vm.isGlass) { TranscriptView(vm) { vm.showTranscriptScreen = false } } 
             }
@@ -136,15 +131,22 @@ fun MainAppStructure(vm: MainViewModel) {
             }
             
             if (vm.webDocumentUrl != null) {
+                // --- CUSTOM FILE NAMING FOR WEBSITE DOWNLOADS ---
+                val docType = if (vm.webDocumentUrl!!.contains("Transcript", true)) "Transcript" else "Reference"
+                val lastName = vm.userData?.last_name ?: ""
+                val name = vm.userData?.name ?: ""
+                val cleanName = "$lastName $name".trim().replace(" ", "_").replace(".", "")
+                val filePrefix = "${cleanName}_$docType.pdf"
+                
                 WebDocumentScreen(
                     url = vm.webDocumentUrl!!,
-                    title = "Document",
+                    title = docType,
+                    fileName = filePrefix,
                     authToken = vm.getAuthToken(),
                     onClose = { vm.webDocumentUrl = null }
                 )
             }
 
-            // --- POPUP: CLASS DETAILS BOTTOM SHEET ---
             if (vm.selectedClass != null) {
                 val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
                 ModalBottomSheet(

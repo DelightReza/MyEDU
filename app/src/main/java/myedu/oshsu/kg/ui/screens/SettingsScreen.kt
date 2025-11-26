@@ -1,14 +1,14 @@
 package myedu.oshsu.kg.ui.screens
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -33,70 +33,142 @@ fun SettingsScreen(vm: MainViewModel, onClose: () -> Unit) {
         }
     ) { padding ->
         Column(
-            modifier = Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
         ) {
-            // --- APPEARANCE ---
-            InfoSection("Appearance", vm.isGlass)
-            ThemedCard(modifier = Modifier.fillMaxWidth(), isGlass = vm.isGlass) {
-                Column {
-                    ThemeOptionItem("Follow System", vm.themeMode == "SYSTEM", vm.isGlass) { vm.setTheme("SYSTEM") }
-                    HorizontalDivider(color = if (vm.isGlass) Color.White.copy(0.2f) else MaterialTheme.colorScheme.outlineVariant)
-                    ThemeOptionItem("Light Mode", vm.themeMode == "LIGHT", vm.isGlass) { vm.setTheme("LIGHT") }
-                    HorizontalDivider(color = if (vm.isGlass) Color.White.copy(0.2f) else MaterialTheme.colorScheme.outlineVariant)
-                    ThemeOptionItem("Dark Mode", vm.themeMode == "DARK", vm.isGlass) { vm.setTheme("DARK") }
-                    HorizontalDivider(color = if (vm.isGlass) Color.White.copy(0.2f) else MaterialTheme.colorScheme.outlineVariant)
-                    ThemeOptionItem("Liquid Glass", vm.themeMode == "GLASS", vm.isGlass) { vm.setTheme("GLASS") }
-                }
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // --- DOCUMENTS DOWNLOAD PREFERENCE ---
-            InfoSection("Documents", vm.isGlass)
-            ThemedCard(modifier = Modifier.fillMaxWidth(), isGlass = vm.isGlass) {
-                Column {
-                    ThemeOptionItem("In-App (PDF Generator)", vm.downloadMode == "IN_APP", vm.isGlass) { vm.setDocMode("IN_APP") }
-                    HorizontalDivider(color = if (vm.isGlass) Color.White.copy(0.2f) else MaterialTheme.colorScheme.outlineVariant)
-                    ThemeOptionItem("Website (Official Portal)", vm.downloadMode == "WEBSITE", vm.isGlass) { vm.setDocMode("WEBSITE") }
-                }
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // --- LANGUAGE (Placeholder) ---
-            InfoSection("Language", vm.isGlass)
-            ThemedCard(modifier = Modifier.fillMaxWidth(), isGlass = vm.isGlass) {
-                Column {
-                    ThemeOptionItem("English", true, vm.isGlass) { }
-                }
-            }
-            Spacer(modifier = Modifier.height(24.dp))
+            // --- APPEARANCE DROPDOWN ---
+            SettingsDropdown(
+                label = "Appearance",
+                options = listOf(
+                    "Follow System" to "SYSTEM",
+                    "Light Mode" to "LIGHT",
+                    "Dark Mode" to "DARK",
+                    "Liquid Glass" to "GLASS"
+                ),
+                currentValue = vm.themeMode,
+                onOptionSelected = { vm.setTheme(it) },
+                isGlass = vm.isGlass
+            )
             
-            // --- ABOUT ---
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // --- DOCUMENTS DROPDOWN ---
+            SettingsDropdown(
+                label = "Documents Download",
+                options = listOf(
+                    "In-App (PDF Generator)" to "IN_APP",
+                    "Website (Official Portal)" to "WEBSITE"
+                ),
+                currentValue = vm.downloadMode,
+                onOptionSelected = { vm.setDocMode(it) },
+                isGlass = vm.isGlass
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // --- LANGUAGE DROPDOWN ---
+            SettingsDropdown(
+                label = "Language",
+                options = listOf("English" to "en"), // Placeholder for future languages
+                currentValue = "en",
+                onOptionSelected = { },
+                isGlass = vm.isGlass
+            )
+            
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // --- ABOUT SECTION ---
             InfoSection("About", vm.isGlass)
             ThemedCard(modifier = Modifier.fillMaxWidth(), isGlass = vm.isGlass) {
                 Column {
-                    Text("MyEDU Mobile", fontWeight = FontWeight.Bold, color = if(vm.isGlass) Color.White else MaterialTheme.colorScheme.onSurface)
-                    Text("Version 1.0.0", style = MaterialTheme.typography.bodySmall, color = if(vm.isGlass) Color.White.copy(0.7f) else MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        "MyEDU Mobile", 
+                        fontWeight = FontWeight.Bold, 
+                        color = if(vm.isGlass) Color.White else MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        "Version 1.0.1", 
+                        style = MaterialTheme.typography.bodySmall, 
+                        color = if(vm.isGlass) Color.White.copy(0.7f) else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ThemeOptionItem(text: String, selected: Boolean, isGlass: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        RadioButton(
-            selected = selected, 
-            onClick = onClick,
-            colors = RadioButtonDefaults.colors(
-                selectedColor = if(isGlass) Color(0xFF00C6FF) else MaterialTheme.colorScheme.primary,
-                unselectedColor = if(isGlass) Color.White.copy(0.7f) else MaterialTheme.colorScheme.onSurfaceVariant
+fun SettingsDropdown(
+    label: String,
+    options: List<Pair<String, String>>, // Pair(DisplayName, InternalValue)
+    currentValue: String,
+    onOptionSelected: (String) -> Unit,
+    isGlass: Boolean
+) {
+    var expanded by remember { mutableStateOf(false) }
+    
+    // Find display name for current value
+    val displayValue = options.find { it.second == currentValue }?.first ?: options.first().first
+
+    val containerColor = if (isGlass) Color(0xFF0F2027).copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface
+    val textColor = if (isGlass) Color.White else MaterialTheme.colorScheme.onSurface
+    val menuColor = if (isGlass) Color(0xFF0F2027) else MaterialTheme.colorScheme.surfaceContainer
+
+    Column {
+        InfoSection(label, isGlass)
+        
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = displayValue,
+                onValueChange = {},
+                readOnly = true,
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = containerColor,
+                    unfocusedContainerColor = containerColor,
+                    focusedTextColor = textColor,
+                    unfocusedTextColor = textColor,
+                    focusedBorderColor = if(isGlass) Color.White.copy(0.5f) else MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = if(isGlass) Color.White.copy(0.2f) else MaterialTheme.colorScheme.outline,
+                    focusedTrailingIconColor = if(isGlass) Color.White else MaterialTheme.colorScheme.primary,
+                    unfocusedTrailingIconColor = if(isGlass) Color.White.copy(0.7f) else MaterialTheme.colorScheme.onSurfaceVariant
+                ),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
             )
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(text = text, style = MaterialTheme.typography.bodyLarge, color = if (isGlass) Color.White else MaterialTheme.colorScheme.onSurface)
+
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.background(menuColor)
+            ) {
+                options.forEach { (name, value) ->
+                    DropdownMenuItem(
+                        text = { 
+                            Text(
+                                text = name, 
+                                color = textColor,
+                                fontWeight = if(value == currentValue) FontWeight.Bold else FontWeight.Normal
+                            ) 
+                        },
+                        onClick = {
+                            onOptionSelected(value)
+                            expanded = false
+                        },
+                        contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                    )
+                }
+            }
+        }
     }
 }

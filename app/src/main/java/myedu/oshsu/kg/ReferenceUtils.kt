@@ -1,4 +1,4 @@
-package kg.oshsu.myedu
+package myedu.oshsu.kg
 
 import android.annotation.SuppressLint
 import android.content.Context

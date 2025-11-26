@@ -1,4 +1,4 @@
-package kg.oshsu.myedu.ui.components
+package myedu.oshsu.kg.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.decode.SvgDecoder
-import kg.oshsu.myedu.ui.theme.*
+import myedu.oshsu.kg.ui.theme.*
 
 // --- UI COMPONENT: LOGO ---
 @Composable

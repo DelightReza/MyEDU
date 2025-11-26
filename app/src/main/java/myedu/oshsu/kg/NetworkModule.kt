@@ -1,4 +1,4 @@
-package kg.oshsu.myedu
+package myedu.oshsu.kg
 
 import com.google.gson.GsonBuilder
 import com.google.gson.annotations.SerializedName

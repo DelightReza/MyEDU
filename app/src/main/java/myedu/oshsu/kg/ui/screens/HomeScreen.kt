@@ -1,4 +1,4 @@
-package kg.oshsu.myedu.ui.screens
+package myedu.oshsu.kg.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,8 +17,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import kg.oshsu.myedu.MainViewModel
-import kg.oshsu.myedu.ui.components.*
+import myedu.oshsu.kg.MainViewModel
+import myedu.oshsu.kg.ui.components.*
 import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)

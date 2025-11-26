@@ -1,4 +1,4 @@
-package kg.oshsu.myedu
+package myedu.oshsu.kg
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -24,10 +24,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
-import kg.oshsu.myedu.ui.components.ThemedBackground
-import kg.oshsu.myedu.ui.screens.*
-import kg.oshsu.myedu.ui.theme.GlassWhite
-import kg.oshsu.myedu.ui.theme.MyEduTheme
+import myedu.oshsu.kg.ui.components.ThemedBackground
+import myedu.oshsu.kg.ui.screens.*
+import myedu.oshsu.kg.ui.theme.GlassWhite
+import myedu.oshsu.kg.ui.theme.MyEduTheme
 
 class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(

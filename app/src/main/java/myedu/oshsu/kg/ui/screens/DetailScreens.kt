@@ -1,4 +1,4 @@
-package kg.oshsu.myedu.ui.screens
+package myedu.oshsu.kg.ui.screens
 
 import android.content.Intent
 import android.net.Uri
@@ -24,11 +24,11 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import kg.oshsu.myedu.MainViewModel
-import kg.oshsu.myedu.ScheduleItem
-import kg.oshsu.myedu.ui.components.OshSuLogo
-import kg.oshsu.myedu.ui.components.ThemedCard
-import kg.oshsu.myedu.ui.theme.*
+import myedu.oshsu.kg.MainViewModel
+import myedu.oshsu.kg.ScheduleItem
+import myedu.oshsu.kg.ui.components.OshSuLogo
+import myedu.oshsu.kg.ui.components.ThemedCard
+import myedu.oshsu.kg.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

@@ -1,4 +1,4 @@
-package kg.oshsu.myedu.ui.screens
+package myedu.oshsu.kg.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,9 +10,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import kg.oshsu.myedu.MainViewModel
-import kg.oshsu.myedu.ui.components.ThemedCard
-import kg.oshsu.myedu.ui.theme.GlassBorder
+import myedu.oshsu.kg.MainViewModel
+import myedu.oshsu.kg.ui.components.ThemedCard
+import myedu.oshsu.kg.ui.theme.GlassBorder
 
 @Composable
 fun GradesScreen(vm: MainViewModel) {

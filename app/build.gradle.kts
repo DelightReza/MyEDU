@@ -5,11 +5,11 @@ plugins {
 
 android {
     // --- APP IDENTITY ---
-    namespace = "kg.oshsu.myedu"
+    namespace = "myedu.oshsu.kg"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "kg.oshsu.myedu"
+        applicationId = "myedu.oshsu.kg"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

@@ -1,4 +1,4 @@
-package kg.oshsu.myedu.ui.theme
+package myedu.oshsu.kg.ui.theme
 
 import android.app.Activity
 import android.os.Build

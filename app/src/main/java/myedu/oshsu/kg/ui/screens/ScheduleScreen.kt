@@ -1,4 +1,4 @@
-package kg.oshsu.myedu.ui.screens
+package myedu.oshsu.kg.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -21,11 +21,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import kg.oshsu.myedu.MainViewModel
-import kg.oshsu.myedu.ScheduleItem
-import kg.oshsu.myedu.ui.components.OshSuLogo
-import kg.oshsu.myedu.ui.components.ThemedCard
-import kg.oshsu.myedu.ui.theme.GlassWhite
+import myedu.oshsu.kg.MainViewModel
+import myedu.oshsu.kg.ScheduleItem
+import myedu.oshsu.kg.ui.components.OshSuLogo
+import myedu.oshsu.kg.ui.components.ThemedCard
+import myedu.oshsu.kg.ui.theme.GlassWhite
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)

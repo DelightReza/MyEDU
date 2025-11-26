@@ -1,4 +1,4 @@
-package kg.oshsu.myedu
+package myedu.oshsu.kg
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

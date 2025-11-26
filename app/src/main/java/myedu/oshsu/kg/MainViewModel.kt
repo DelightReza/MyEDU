@@ -1,8 +1,8 @@
 package myedu.oshsu.kg
 
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
+import android.os.Environment
+import android.widget.Toast
 import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,10 +10,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.asRequestBody
-import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
@@ -274,11 +270,9 @@ class MainViewModel : ViewModel() {
                 pdfStatusMessage = "Generating PDF..."
                 val bytes = WebPdfGenerator(context).generatePdf(infoJson.toString(), transcriptRaw, keyObj.optLong("id"), keyObj.optString("url"), resources!!, language, cachedDictionary) { println(it) }
                 
-                val file = File(context.getExternalFilesDir(null), "transcript_$language.pdf")
-                withContext(Dispatchers.IO) { FileOutputStream(file).use { it.write(bytes) } }
-                
-                pdfStatusMessage = "Uploading..."
-                uploadAndOpen(context, keyObj.optLong("id"), studentId, file, "transcript_$language.pdf", keyObj.optString("key"), true)
+                // --- NEW LOGIC: Save directly to Downloads ---
+                saveToDownloads(context, bytes, "transcript_$language.pdf")
+                pdfStatusMessage = null
             } catch (e: Exception) {
                 pdfStatusMessage = "Error: ${e.message}"; e.printStackTrace(); delay(3000); pdfStatusMessage = null
             } finally { isPdfGenerating = false }
@@ -314,33 +308,39 @@ class MainViewModel : ViewModel() {
                 pdfStatusMessage = "Generating PDF..."
                 val bytes = ReferencePdfGenerator(context).generatePdf(infoJson.toString(), licenseRaw, univRaw, linkObj.optLong("id"), linkObj.optString("url"), resources!!, prefs?.getToken() ?: "", language, cachedDictionary) { println(it) }
                 
-                val file = File(context.getExternalFilesDir(null), "reference_$language.pdf")
-                withContext(Dispatchers.IO) { FileOutputStream(file).use { it.write(bytes) } }
-                
-                pdfStatusMessage = "Uploading..."
-                uploadAndOpen(context, linkObj.optLong("id"), studentId, file, "reference_$language.pdf", linkObj.optString("key"), false)
+                // --- NEW LOGIC: Save directly to Downloads ---
+                saveToDownloads(context, bytes, "reference_$language.pdf")
+                pdfStatusMessage = null
             } catch (e: Exception) {
                 pdfStatusMessage = "Error: ${e.message}"; e.printStackTrace(); delay(3000); pdfStatusMessage = null
             } finally { isPdfGenerating = false }
         }
     }
 
-    private suspend fun uploadAndOpen(context: Context, linkId: Long, studentId: Long, file: File, filename: String, key: String, isTranscript: Boolean) {
+    private suspend fun saveToDownloads(context: Context, bytes: ByteArray, filename: String) {
         try {
-            val plain = "text/plain".toMediaTypeOrNull()
-            val pdfType = "application/pdf".toMediaTypeOrNull()
-            val filePart = MultipartBody.Part.createFormData("pdf", filename, file.asRequestBody(pdfType))
-            withContext(Dispatchers.IO) { 
-                if (isTranscript) NetworkClient.api.uploadPdf(linkId.toString().toRequestBody(plain), studentId.toString().toRequestBody(plain), filePart).string()
-                else NetworkClient.api.uploadReferencePdf(linkId.toString().toRequestBody(plain), studentId.toString().toRequestBody(plain), filePart).string()
+            pdfStatusMessage = "Saving to Downloads..."
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            // Handle duplicate filenames
+            var file = File(downloadsDir, filename)
+            var counter = 1
+            while (file.exists()) {
+                val name = filename.substringBeforeLast(".")
+                val ext = filename.substringAfterLast(".")
+                file = File(downloadsDir, "$name ($counter).$ext")
+                counter++
             }
-            delay(1000)
-            val resRaw = withContext(Dispatchers.IO) { NetworkClient.api.resolveDocLink(DocKeyRequest(key)).string() }
-            val url = JSONObject(resRaw).optString("url")
-            if (url.isNotEmpty()) { 
-                val i = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
-                context.startActivity(i); pdfStatusMessage = null 
-            } else pdfStatusMessage = "URL not found"
-        } catch (e: Exception) { pdfStatusMessage = "Upload failed: ${e.message}" }
+
+            withContext(Dispatchers.IO) {
+                FileOutputStream(file).use { it.write(bytes) }
+            }
+
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, "Saved: ${file.name}", Toast.LENGTH_LONG).show()
+            }
+        } catch (e: Exception) {
+            pdfStatusMessage = "Save Failed: ${e.message}"
+            delay(2000)
+        }
     }
 }

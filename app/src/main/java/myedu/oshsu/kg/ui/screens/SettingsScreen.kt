@@ -1,16 +1,24 @@
 package myedu.oshsu.kg.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import myedu.oshsu.kg.MainViewModel
@@ -100,57 +108,72 @@ fun SettingsScreen(vm: MainViewModel, onClose: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsDropdown(
     label: String,
-    options: List<Pair<String, String>>, // Pair(DisplayName, InternalValue)
+    options: List<Pair<String, String>>,
     currentValue: String,
     onOptionSelected: (String) -> Unit,
     isGlass: Boolean
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var dropdownWidth by remember { mutableStateOf(0) }
     
-    // Find display name for current value
     val displayValue = options.find { it.second == currentValue }?.first ?: options.first().first
 
     val containerColor = if (isGlass) Color(0xFF0F2027).copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface
     val textColor = if (isGlass) Color.White else MaterialTheme.colorScheme.onSurface
     val menuColor = if (isGlass) Color(0xFF0F2027) else MaterialTheme.colorScheme.surfaceContainer
+    val borderColor = if (isGlass) Color.White.copy(0.2f) else MaterialTheme.colorScheme.outline
 
     Column {
         InfoSection(label, isGlass)
         
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = !expanded },
-            modifier = Modifier.fillMaxWidth()
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
+                .onSizeChanged { size ->
+                    dropdownWidth = size.width
+                }
         ) {
-            OutlinedTextField(
-                value = displayValue,
-                onValueChange = {},
-                readOnly = true,
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = containerColor,
-                    unfocusedContainerColor = containerColor,
-                    focusedTextColor = textColor,
-                    unfocusedTextColor = textColor,
-                    focusedBorderColor = if(isGlass) Color.White.copy(0.5f) else MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = if(isGlass) Color.White.copy(0.2f) else MaterialTheme.colorScheme.outline,
-                    focusedTrailingIconColor = if(isGlass) Color.White else MaterialTheme.colorScheme.primary,
-                    unfocusedTrailingIconColor = if(isGlass) Color.White.copy(0.7f) else MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                shape = RoundedCornerShape(12.dp),
+            // Custom dropdown trigger
+            Surface(
                 modifier = Modifier
-                    .menuAnchor()
                     .fillMaxWidth()
-            )
+                    .clickable { expanded = true },
+                shape = RoundedCornerShape(12.dp),
+                color = containerColor,
+                border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = displayValue,
+                        color = textColor,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                        contentDescription = "Dropdown",
+                        tint = textColor.copy(alpha = 0.7f)
+                    )
+                }
+            }
 
-            ExposedDropdownMenu(
+            // Dropdown menu - use exact measured width
+            val density = LocalDensity.current
+            DropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
-                modifier = Modifier.background(menuColor)
+                modifier = Modifier
+                    .width(with(density) { dropdownWidth.toDp() })
+                    .background(menuColor)
             ) {
                 options.forEach { (name, value) ->
                     DropdownMenuItem(
@@ -164,8 +187,7 @@ fun SettingsDropdown(
                         onClick = {
                             onOptionSelected(value)
                             expanded = false
-                        },
-                        contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                        }
                     )
                 }
             }

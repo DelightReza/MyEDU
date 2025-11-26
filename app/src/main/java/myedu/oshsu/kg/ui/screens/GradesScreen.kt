@@ -27,8 +27,7 @@ fun GradesScreen(vm: MainViewModel) {
             LazyColumn(
                 // FIXED: Removed .padding(16.dp) from here to prevent the gap at the bottom
                 modifier = Modifier.fillMaxSize().widthIn(max = 840.dp),
-                // FIXED: Added contentPadding instead. This pads the items inside, but keeps the list full-size.
-                contentPadding = PaddingValues(16.dp)
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 120.dp)
             ) {
                 item { 
                     Spacer(Modifier.height(16.dp)) // Adjusted top spacing to account for contentPadding

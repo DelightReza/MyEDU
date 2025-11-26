@@ -7,6 +7,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -32,7 +33,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import myedu.oshsu.kg.ui.components.ThemedBackground
 import myedu.oshsu.kg.ui.screens.*
@@ -46,7 +46,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+        
+        // --- EDGE TO EDGE ENABLED ---
+        enableEdgeToEdge()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -68,6 +70,8 @@ class MainActivity : ComponentActivity() {
 
             MyEduTheme(themeMode = vm.themeMode) { 
                 ThemedBackground(isGlass = vm.isGlass) {
+                    // Pass paddings down or handle via statusBarsPadding in screens
+                    // Since AppContent handles navigation, standard systemBarsPadding might be needed inside screens
                     AppContent(vm) 
                 }
             } 
@@ -105,6 +109,7 @@ fun MainAppStructure(vm: MainViewModel) {
         }
     }
     
+    // Scaffold provides padding for the navigation bar automatically
     Scaffold(
         containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
@@ -116,7 +121,6 @@ fun MainAppStructure(vm: MainViewModel) {
                 targetState = vm.currentTab,
                 label = "TabContent",
                 transitionSpec = {
-                    // Smooth scaling fade transition
                     (fadeIn(animationSpec = tween(400, easing = LinearEasing)) + 
                      scaleIn(initialScale = 0.96f, animationSpec = tween(400, easing = EaseOutExpo)))
                         .togetherWith(fadeOut(animationSpec = tween(200)))
@@ -140,12 +144,15 @@ fun MainAppStructure(vm: MainViewModel) {
                 exit = slideOutVertically { it } + fadeOut(),
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
+                    // Add system navigation bar padding to bottom
                     .padding(bottom = 24.dp, start = 16.dp, end = 16.dp)
+                    .windowInsetsPadding(WindowInsets.navigationBars)
             ) {
                 FloatingNavBar(vm)
             }
 
             // --- 3. OVERLAYS ---
+            // These overlays now handle their own insets padding internally or via Scaffold
             AnimatedVisibility(visible = vm.showTranscriptScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { 
                 ThemedBackground(vm.isGlass) { TranscriptView(vm) { vm.showTranscriptScreen = false } } 
             }
@@ -179,7 +186,8 @@ fun MainAppStructure(vm: MainViewModel) {
                     sheetState = sheetState,
                     containerColor = if (vm.isGlass) Color(0xFF0F2027) else MaterialTheme.colorScheme.surface,
                     contentColor = if (vm.isGlass) Color.White else MaterialTheme.colorScheme.onSurface,
-                    dragHandle = { BottomSheetDefaults.DragHandle(color = if(vm.isGlass) Color.White.copy(0.5f) else MaterialTheme.colorScheme.onSurfaceVariant) }
+                    dragHandle = { BottomSheetDefaults.DragHandle(color = if(vm.isGlass) Color.White.copy(0.5f) else MaterialTheme.colorScheme.onSurfaceVariant) },
+                    windowInsets = WindowInsets.statusBars // Respect status bars in sheet
                 ) {
                     vm.selectedClass?.let { ClassDetailsSheet(vm, it) }
                 }
@@ -190,13 +198,13 @@ fun MainAppStructure(vm: MainViewModel) {
 
 @Composable
 fun FloatingNavBar(vm: MainViewModel) {
-    val containerColor = if (vm.isGlass) Color(0xFF0F2027).copy(alpha = 0.90f) else MaterialTheme.colorScheme.surface
+    val containerColor = if (vm.isGlass) Color(0xFF0F2027).copy(alpha = 0.90f) else MaterialTheme.colorScheme.surfaceContainer
     val border = if (vm.isGlass) BorderStroke(1.dp, GlassWhite) else null
-    val elevation = if (vm.isGlass) 0.dp else 12.dp
+    val elevation = if (vm.isGlass) 0.dp else 4.dp // Lower elevation for MD3
     
     Surface(
         modifier = Modifier
-            .height(72.dp) // Increased height for text
+            .height(72.dp)
             .widthIn(max = 400.dp)
             .fillMaxWidth(),
         shape = RoundedCornerShape(36.dp),
@@ -221,16 +229,14 @@ fun FloatingNavBar(vm: MainViewModel) {
 fun RowScope.FloatingNavItem(vm: MainViewModel, index: Int, icon: ImageVector, label: String) {
     val selected = vm.currentTab == index
     val selectedColor = if(vm.isGlass) Color(0xFF00C6FF) else MaterialTheme.colorScheme.primary
-    val unselectedColor = if(vm.isGlass) Color.White.copy(0.5f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+    val unselectedColor = if(vm.isGlass) Color.White.copy(0.5f) else MaterialTheme.colorScheme.onSurfaceVariant
     
-    // Smooth color animation
     val color by animateColorAsState(
         targetValue = if (selected) selectedColor else unselectedColor, 
         animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
         label = "ColorAnim"
     )
 
-    // Bounce animation for Icon size
     val scale by animateFloatAsState(
         targetValue = if (selected) 1.1f else 1.0f,
         animationSpec = spring(
@@ -248,7 +254,7 @@ fun RowScope.FloatingNavItem(vm: MainViewModel, index: Int, icon: ImageVector, l
             .fillMaxHeight()
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null // Ripple removed for cleaner floating look
+                indication = null
             ) { vm.currentTab = index }
     ) {
         Icon(
@@ -264,7 +270,7 @@ fun RowScope.FloatingNavItem(vm: MainViewModel, index: Int, icon: ImageVector, l
         
         Text(
             text = label,
-            fontSize = 10.sp,
+            fontSize = 11.sp, // Material 3 Label Small size
             fontWeight = if(selected) FontWeight.Bold else FontWeight.Medium,
             color = color,
             style = MaterialTheme.typography.labelSmall

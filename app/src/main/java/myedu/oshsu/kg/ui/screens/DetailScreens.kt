@@ -40,6 +40,9 @@ fun ClassDetailsSheet(vm: MainViewModel, item: ScheduleItem) {
     val context = LocalContext.current
     val groupLabel = if (item.subject_type?.get() == "Lecture") "Stream" else "Group"
     val groupValue = item.stream?.numeric?.toString() ?: "?"
+    
+    // FETCH TIME
+    val timeString = vm.getTimeString(item.id_lesson)
 
     // GRADES LOGIC
     val activeSemester = vm.profileData?.active_semester
@@ -52,12 +55,19 @@ fun ClassDetailsSheet(vm: MainViewModel, item: ScheduleItem) {
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         Column(Modifier.fillMaxWidth().widthIn(max = 840.dp).verticalScroll(rememberScrollState()).padding(16.dp)) {
             
-            // 1. HEADER CARD
+            // 1. HEADER CARD (Subject, Time, Type)
             if (vm.isGlass) {
                 ThemedCard(Modifier.fillMaxWidth().background(brush = AccentGradient, shape = RoundedCornerShape(24.dp), alpha = 0.2f), true) { 
                     Column { 
                         Text(item.subject?.get() ?: "Subject", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = TextWhite)
                         Spacer(Modifier.height(8.dp))
+                        // Time Row
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.AccessTime, contentDescription = null, tint = TextWhite.copy(alpha=0.8f), modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(timeString, style = MaterialTheme.typography.titleMedium, color = TextWhite.copy(alpha=0.9f))
+                        }
+                        Spacer(Modifier.height(16.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { 
                             AssistChip(onClick = {}, label = { Text(item.subject_type?.get() ?: "Lesson", color = TextWhite) }, colors = AssistChipDefaults.assistChipColors(containerColor = GlassWhite))
                             if (item.stream?.numeric != null) { AssistChip(onClick = {}, label = { Text("$groupLabel $groupValue", color = TextWhite) }, colors = AssistChipDefaults.assistChipColors(containerColor = GlassWhite)) } 
@@ -65,24 +75,45 @@ fun ClassDetailsSheet(vm: MainViewModel, item: ScheduleItem) {
                     } 
                 }
             } else {
+                // MATERIAL / DARK MODE STYLE
                 Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) { 
                      Column(Modifier.padding(24.dp)) { 
                         Text(item.subject?.get() ?: "Subject", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
                         Spacer(Modifier.height(8.dp))
+                        
+                        // ADDED TIME ROW WITH ICON
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.AccessTime, 
+                                contentDescription = "Time", 
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = timeString, 
+                                style = MaterialTheme.typography.titleMedium, 
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.9f)
+                            )
+                        }
+                        
+                        Spacer(Modifier.height(16.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { 
                             AssistChip(onClick = {}, label = { Text(item.subject_type?.get() ?: "Lesson") })
-                            if (item.stream?.numeric != null) { AssistChip(onClick = {}, label = { Text("$groupLabel $groupValue") }, colors = AssistChipDefaults.assistChipColors(containerColor = MaterialTheme.colorScheme.surface)) } 
+                            if (item.stream?.numeric != null) { 
+                                AssistChip(onClick = {}, label = { Text("$groupLabel $groupValue") }, colors = AssistChipDefaults.assistChipColors(containerColor = MaterialTheme.colorScheme.surface)) 
+                            } 
                         } 
                     } 
                 }
             }
             
             // 2. GRADES SECTION
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(16.dp)) // Reduced spacing
             Text("Current Performance", style = MaterialTheme.typography.labelLarge, color = if(vm.isGlass) Color(0xFF00C6FF) else MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(8.dp))
             
-            ThemedCard(modifier = Modifier.fillMaxWidth(), vm.isGlass) {
+            ThemedCard(modifier = Modifier.fillMaxWidth(), vm.isGlass, materialColor = MaterialTheme.colorScheme.surfaceContainerLow) {
                 if (subjectGrades != null) {
                     Column {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -102,11 +133,11 @@ fun ClassDetailsSheet(vm: MainViewModel, item: ScheduleItem) {
             }
 
             // 3. TEACHER SECTION
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(16.dp)) // Reduced spacing
             Text("Teacher", style = MaterialTheme.typography.labelLarge, color = if(vm.isGlass) Color(0xFF00C6FF) else MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(8.dp))
             
-            ThemedCard(modifier = Modifier.fillMaxWidth(), vm.isGlass) { 
+            ThemedCard(modifier = Modifier.fillMaxWidth(), vm.isGlass, materialColor = MaterialTheme.colorScheme.surfaceContainerLow) { 
                 Row(verticalAlignment = Alignment.CenterVertically) { 
                     Icon(Icons.Outlined.Person, null, tint = if(vm.isGlass) Color(0xFF00C6FF) else MaterialTheme.colorScheme.secondary)
                     Spacer(Modifier.width(16.dp))
@@ -121,11 +152,11 @@ fun ClassDetailsSheet(vm: MainViewModel, item: ScheduleItem) {
             }
 
             // 4. LOCATION SECTION
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(16.dp)) // Reduced spacing
             Text("Location", style = MaterialTheme.typography.labelLarge, color = if(vm.isGlass) Color(0xFF00C6FF) else MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(8.dp))
             
-            ThemedCard(modifier = Modifier.fillMaxWidth(), vm.isGlass) { 
+            ThemedCard(modifier = Modifier.fillMaxWidth(), vm.isGlass, materialColor = MaterialTheme.colorScheme.surfaceContainerLow) { 
                 Column { 
                     Row(verticalAlignment = Alignment.CenterVertically) { 
                         Icon(Icons.Outlined.MeetingRoom, null, tint = if(vm.isGlass) Color(0xFF00C6FF) else MaterialTheme.colorScheme.secondary)
@@ -135,13 +166,22 @@ fun ClassDetailsSheet(vm: MainViewModel, item: ScheduleItem) {
                             Text(item.room?.name_en ?: "Unknown", style = MaterialTheme.typography.bodyLarge, color = if(vm.isGlass) TextWhite else Color.Unspecified) 
                         } 
                     }
-                    if(vm.isGlass) HorizontalDivider(color = GlassBorder, modifier = Modifier.padding(vertical = 12.dp)) else HorizontalDivider(modifier = Modifier.padding(vertical=12.dp))
+                    if(vm.isGlass) HorizontalDivider(color = GlassBorder, modifier = Modifier.padding(vertical = 12.dp)) else HorizontalDivider(modifier = Modifier.padding(vertical=12.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     Row(verticalAlignment = Alignment.CenterVertically) { 
                         Icon(Icons.Outlined.Business, null, tint = if(vm.isGlass) Color(0xFF00C6FF) else MaterialTheme.colorScheme.secondary)
                         Spacer(Modifier.width(16.dp))
                         Column(Modifier.weight(1f)) { 
-                            Text(item.classroom?.building?.getAddress() ?: "", style = MaterialTheme.typography.bodyMedium, color = if(vm.isGlass) TextWhite.copy(0.7f) else MaterialTheme.colorScheme.outline)
+                            val address = item.classroom?.building?.getAddress()
+                            val displayAddress = if (address.isNullOrBlank()) "Building" else address
+                            
+                            Text(displayAddress, style = MaterialTheme.typography.bodyMedium, color = if(vm.isGlass) TextWhite.copy(0.7f) else MaterialTheme.colorScheme.outline)
                             Text(item.classroom?.building?.getName() ?: "Campus", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = if(vm.isGlass) TextWhite else MaterialTheme.colorScheme.primary) 
+                        }
+                        IconButton(onClick = { 
+                            clipboardManager.setText(AnnotatedString(item.classroom?.building?.getName() ?: ""))
+                            Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show() 
+                        }) { 
+                            Icon(Icons.Default.ContentCopy, "Copy", tint = if(vm.isGlass) TextWhite.copy(0.7f) else MaterialTheme.colorScheme.outline) 
                         }
                         IconButton(onClick = { 
                             val locationName = item.classroom?.building?.getName() ?: ""
@@ -166,7 +206,12 @@ fun ClassDetailsSheet(vm: MainViewModel, item: ScheduleItem) {
 fun ReferenceView(vm: MainViewModel, onClose: () -> Unit) {
     val context = LocalContext.current; val user = vm.userData; val profile = vm.profileData; val mov = profile?.studentMovement
     val activeSemester = profile?.active_semester ?: 1; val course = (activeSemester + 1) / 2
-    val facultyName = mov?.faculty?.name_en ?: mov?.speciality?.faculty?.name_en ?: mov?.faculty?.name_ru ?: "-"
+    
+    // Logic: Correct Faculty Name Extraction
+    val facultyName = mov?.faculty?.let { it.name_en ?: it.name_ru } 
+        ?: mov?.speciality?.faculty?.let { it.name_en ?: it.name_ru } 
+        ?: "-"
+        
     val isWebsiteMode = vm.downloadMode == "WEBSITE"
 
     Scaffold(
@@ -198,13 +243,12 @@ fun ReferenceView(vm: MainViewModel, onClose: () -> Unit) {
     ) { padding ->
         Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             Column(Modifier.fillMaxSize().widthIn(max = 840.dp).verticalScroll(rememberScrollState()).padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                ThemedCard(Modifier.fillMaxWidth(), vm.isGlass) {
+                ThemedCard(Modifier.fillMaxWidth(), vm.isGlass, materialColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
                     Column(Modifier.padding(8.dp)) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) { OshSuLogo(modifier = Modifier.width(180.dp).height(60.dp)); Spacer(Modifier.height(16.dp)); Text("CERTIFICATE OF STUDY", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center) }
                         Spacer(Modifier.height(24.dp)); if (vm.isGlass) HorizontalDivider(color = GlassBorder) else HorizontalDivider(); Spacer(Modifier.height(24.dp))
                         Text("This is to certify that", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant); Text("${user?.last_name} ${user?.name}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(24.dp))
-                        // FIXED: RefDetailRow is now defined below
                         RefDetailRow("Student ID", "${user?.id}")
                         RefDetailRow("Faculty", facultyName)
                         RefDetailRow("Speciality", mov?.speciality?.name_en ?: "-")
@@ -253,7 +297,7 @@ fun TranscriptView(vm: MainViewModel, onClose: () -> Unit) {
                         yearData.semesters?.forEach { sem ->
                             item { Spacer(Modifier.height(12.dp)); Text(sem.semesterName ?: "Semester", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant); Spacer(Modifier.height(8.dp)) }
                             items(sem.subjects ?: emptyList()) { sub ->
-                                ThemedCard(Modifier.fillMaxWidth().padding(bottom = 8.dp), vm.isGlass) {
+                                ThemedCard(Modifier.fillMaxWidth().padding(bottom = 8.dp), vm.isGlass, materialColor = MaterialTheme.colorScheme.surfaceContainer) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Column(Modifier.weight(1f)) { Text(sub.subjectName ?: "Subject", fontWeight = FontWeight.SemiBold); Text("Code: ${sub.code ?: "-"} • Credits: ${sub.credit?.toInt() ?: 0}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                                         Column(horizontalAlignment = Alignment.End) { val total = sub.markList?.total?.toInt() ?: 0; Text("$total", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = if (total >= 50) Color(0xFF00FF88) else MaterialTheme.colorScheme.error); Text(sub.examRule?.alphabetic ?: "-", style = MaterialTheme.typography.bodyMedium) }

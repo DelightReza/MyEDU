@@ -92,6 +92,7 @@ fun MainAppStructure(vm: MainViewModel) {
     Scaffold(
         containerColor = Color.Transparent, 
         bottomBar = {
+            // HIDE Bottom Bar when Popup/Sheet/Overlay is active to prevent visual glitches
             if (vm.selectedClass == null && !vm.showTranscriptScreen && !vm.showReferenceScreen && !vm.showSettingsScreen && vm.webDocumentUrl == null) {
                 if (vm.isGlass) {
                     NavigationBar(
@@ -114,23 +115,22 @@ fun MainAppStructure(vm: MainViewModel) {
         }
     ) { padding ->
         Box(Modifier.padding(padding)) {
-            if (vm.selectedClass == null && !vm.showTranscriptScreen && !vm.showReferenceScreen && !vm.showSettingsScreen && vm.webDocumentUrl == null) {
-                when(vm.currentTab) {
-                    0 -> HomeScreen(vm)
-                    1 -> ScheduleScreen(vm)
-                    2 -> GradesScreen(vm)
-                    3 -> ProfileScreen(vm)
-                }
+            // The main content (Schedule, Home, etc.) is always here
+            // This ensures the "Days" are visible in the background when the BottomSheet opens
+            when(vm.currentTab) {
+                0 -> HomeScreen(vm)
+                1 -> ScheduleScreen(vm)
+                2 -> GradesScreen(vm)
+                3 -> ProfileScreen(vm)
             }
+
+            // Full Screen Overlays
             AnimatedVisibility(visible = vm.showTranscriptScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { 
                 ThemedBackground(vm.isGlass) { TranscriptView(vm) { vm.showTranscriptScreen = false } } 
             }
             AnimatedVisibility(visible = vm.showReferenceScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { 
                 ThemedBackground(vm.isGlass) { ReferenceView(vm) { vm.showReferenceScreen = false } } 
             }
-            // Removed old full-screen detail transition in favor of BottomSheet logic below
-            // But keeping logic to nullify selectedClass if back is pressed on sheet (handled by ModalBottomSheet onDismiss)
-            
             AnimatedVisibility(visible = vm.showSettingsScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { 
                 ThemedBackground(vm.isGlass) { SettingsScreen(vm) { vm.showSettingsScreen = false } } 
             }

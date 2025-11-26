@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Allows access to external storage (where Downloads are) -->
+    <external-path name="external_files" path="." />
+</paths>

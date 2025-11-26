@@ -1,9 +1,11 @@
 package myedu.oshsu.kg
 
 import android.content.Context
+import android.content.Intent
 import android.os.Environment
 import android.widget.Toast
 import androidx.compose.runtime.*
+import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -244,7 +246,6 @@ class MainViewModel : ViewModel() {
         }
     }
     
-    // --- HELPER: FORMAT FILENAME ---
     private fun getFormattedFileName(docType: String, lang: String? = null): String {
         val last = userData?.last_name ?: ""
         val first = userData?.name ?: ""
@@ -279,7 +280,7 @@ class MainViewModel : ViewModel() {
                 pdfStatusMessage = "Generating PDF..."
                 val bytes = WebPdfGenerator(context).generatePdf(infoJson.toString(), transcriptRaw, keyObj.optLong("id"), keyObj.optString("url"), resources!!, language, cachedDictionary) { println(it) }
                 
-                // --- SAVE DIRECTLY TO DOWNLOADS ---
+                // SAVE AND OPEN
                 val filename = getFormattedFileName("Transcript", language)
                 saveToDownloads(context, bytes, filename)
                 
@@ -319,7 +320,7 @@ class MainViewModel : ViewModel() {
                 pdfStatusMessage = "Generating PDF..."
                 val bytes = ReferencePdfGenerator(context).generatePdf(infoJson.toString(), licenseRaw, univRaw, linkObj.optLong("id"), linkObj.optString("url"), resources!!, prefs?.getToken() ?: "", language, cachedDictionary) { println(it) }
                 
-                // --- SAVE DIRECTLY TO DOWNLOADS ---
+                // SAVE AND OPEN
                 val filename = getFormattedFileName("Reference", language)
                 saveToDownloads(context, bytes, filename)
                 
@@ -348,8 +349,22 @@ class MainViewModel : ViewModel() {
                 FileOutputStream(file).use { it.write(bytes) }
             }
 
+            // --- OPEN PDF AUTOMATICALLY ---
             withContext(Dispatchers.Main) {
-                Toast.makeText(context, "Saved: ${file.name}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Saved: ${file.name}", Toast.LENGTH_SHORT).show()
+                try {
+                    // SECURELY GET URI via FileProvider
+                    val authority = "${context.packageName}.provider"
+                    val uri = FileProvider.getUriForFile(context, authority, file)
+                    
+                    val intent = Intent(Intent.ACTION_VIEW)
+                    intent.setDataAndType(uri, "application/pdf")
+                    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(intent)
+                } catch (e: Exception) {
+                    Toast.makeText(context, "No PDF viewer installed", Toast.LENGTH_LONG).show()
+                }
             }
         } catch (e: Exception) {
             pdfStatusMessage = "Save Failed: ${e.message}"

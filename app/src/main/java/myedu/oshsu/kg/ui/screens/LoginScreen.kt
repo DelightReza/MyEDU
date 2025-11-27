@@ -10,10 +10,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import myedu.oshsu.kg.MainActivity
 import myedu.oshsu.kg.MainViewModel
+import myedu.oshsu.kg.R
 import myedu.oshsu.kg.ui.components.OshSuLogo
 import myedu.oshsu.kg.ui.theme.AccentGradient
 import myedu.oshsu.kg.ui.theme.GlassBorder
@@ -25,8 +29,8 @@ fun LoginScreen(vm: MainViewModel) {
     var email by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
     var showSettingsSheet by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     
-    // Input styling: Aqua uses Primary (Teal) colors, Glass uses White/Accent
     val inputColors = if (vm.isGlass) {
         OutlinedTextFieldDefaults.colors(
             focusedBorderColor = MaterialTheme.colorScheme.primary,
@@ -43,7 +47,6 @@ fun LoginScreen(vm: MainViewModel) {
 
     Box(modifier = Modifier.fillMaxSize()) {
         
-        // --- SETTINGS BUTTON ---
         IconButton(
             onClick = { showSettingsSheet = true },
             modifier = Modifier
@@ -54,13 +57,11 @@ fun LoginScreen(vm: MainViewModel) {
             Icon(
                 imageVector = Icons.Default.Settings, 
                 contentDescription = "Settings", 
-                // Aqua -> Dark Icon, Glass -> White Icon
                 tint = if (vm.themeMode == "GLASS") Color.White else MaterialTheme.colorScheme.onSurface, 
                 modifier = Modifier.size(28.dp)
             )
         }
 
-        // --- LOGIN FORM ---
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(
                 modifier = Modifier
@@ -77,7 +78,7 @@ fun LoginScreen(vm: MainViewModel) {
                 OutlinedTextField(
                     value = email, 
                     onValueChange = { email = it }, 
-                    label = { Text("Email") }, 
+                    label = { Text(stringResource(R.string.email)) }, 
                     modifier = Modifier.fillMaxWidth(), 
                     singleLine = true, 
                     colors = inputColors, 
@@ -88,7 +89,7 @@ fun LoginScreen(vm: MainViewModel) {
                 OutlinedTextField(
                     value = pass, 
                     onValueChange = { pass = it }, 
-                    label = { Text("Password") }, 
+                    label = { Text(stringResource(R.string.password)) }, 
                     modifier = Modifier.fillMaxWidth(), 
                     singleLine = true, 
                     visualTransformation = PasswordVisualTransformation(), 
@@ -102,9 +103,7 @@ fun LoginScreen(vm: MainViewModel) {
                 }
                 Spacer(Modifier.height(32.dp))
                 
-                // Button styling
                 val btnModifier = Modifier.fillMaxWidth().height(56.dp)
-                // In Aqua, we want a solid Primary color. In Glass, we use the Gradient.
                 val finalBtnMod = if (vm.themeMode == "GLASS") btnModifier.background(AccentGradient, RoundedCornerShape(16.dp)) else btnModifier
                 
                 val btnColors = if (vm.themeMode == "GLASS") {
@@ -126,15 +125,13 @@ fun LoginScreen(vm: MainViewModel) {
                     if (vm.isLoading) {
                         CircularProgressIndicator(color = if(vm.themeMode == "GLASS") Color.White else MaterialTheme.colorScheme.onPrimary) 
                     } else {
-                        Text("Sign In", fontWeight = FontWeight.Bold) 
+                        Text(stringResource(R.string.sign_in), fontWeight = FontWeight.Bold) 
                     }
                 }
             }
         }
         
-        // --- SETTINGS SHEET ---
         if (showSettingsSheet) {
-            // FIX: Explicit color logic to ensure Aqua gets MilkyGlass (Light) and Glass gets Dark
             val sheetColor = when(vm.themeMode) {
                 "AQUA" -> MilkyGlass
                 "GLASS" -> Color(0xFF0F2027).copy(alpha = 0.95f)
@@ -156,7 +153,7 @@ fun LoginScreen(vm: MainViewModel) {
                         .padding(bottom = 48.dp)
                 ) {
                     Text(
-                        "Settings", 
+                        stringResource(R.string.settings), 
                         style = MaterialTheme.typography.headlineSmall, 
                         fontWeight = FontWeight.Bold, 
                         modifier = Modifier.padding(bottom = 24.dp),
@@ -164,13 +161,13 @@ fun LoginScreen(vm: MainViewModel) {
                     )
 
                     SettingsDropdown(
-                        label = "Appearance",
+                        label = stringResource(R.string.appearance),
                         options = listOf(
-                            "Follow System" to "SYSTEM",
-                            "Light Mode" to "LIGHT",
-                            "Dark Mode" to "DARK",
-                            "Liquid Glass (Dark)" to "GLASS",
-                            "Aqua Flow (Light)" to "AQUA"
+                            stringResource(R.string.follow_system) to "SYSTEM",
+                            stringResource(R.string.light_mode) to "LIGHT",
+                            stringResource(R.string.dark_mode) to "DARK",
+                            stringResource(R.string.liquid_glass) to "GLASS",
+                            stringResource(R.string.aqua_flow) to "AQUA"
                         ),
                         currentValue = vm.themeMode,
                         onOptionSelected = { vm.setTheme(it) },
@@ -180,10 +177,10 @@ fun LoginScreen(vm: MainViewModel) {
                     Spacer(modifier = Modifier.height(24.dp))
 
                     SettingsDropdown(
-                        label = "Documents Download",
+                        label = stringResource(R.string.docs_download),
                         options = listOf(
-                            "In-App (PDF Generator)" to "IN_APP",
-                            "Website (Official Portal)" to "WEBSITE"
+                            stringResource(R.string.in_app_pdf) to "IN_APP",
+                            stringResource(R.string.website_official) to "WEBSITE"
                         ),
                         currentValue = vm.downloadMode,
                         onOptionSelected = { vm.setDocMode(it) },
@@ -193,10 +190,15 @@ fun LoginScreen(vm: MainViewModel) {
                     Spacer(modifier = Modifier.height(24.dp))
 
                     SettingsDropdown(
-                        label = "Language",
-                        options = listOf("English" to "en"),
-                        currentValue = "en",
-                        onOptionSelected = { },
+                        label = stringResource(R.string.language),
+                        options = listOf("English" to "en", "Русский" to "ru"),
+                        currentValue = vm.language,
+                        onOptionSelected = { selectedLang ->
+                            if (vm.language != selectedLang) {
+                                vm.setAppLanguage(selectedLang)
+                                (context as? MainActivity)?.restartApp()
+                            }
+                        },
                         themeMode = vm.themeMode
                     )
                 }

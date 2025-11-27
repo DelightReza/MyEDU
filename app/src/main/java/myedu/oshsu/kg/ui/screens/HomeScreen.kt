@@ -14,10 +14,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import myedu.oshsu.kg.MainViewModel
+import myedu.oshsu.kg.R
 import myedu.oshsu.kg.ui.components.*
 import java.util.Calendar
 
@@ -26,7 +28,12 @@ import java.util.Calendar
 fun HomeScreen(vm: MainViewModel) {
     val user = vm.userData; val profile = vm.profileData; var showNewsSheet by remember { mutableStateOf(false) }
     val currentHour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
-    val greetingText = remember(currentHour) { if(currentHour in 4..11) "Good Morning," else if(currentHour in 12..16) "Good Afternoon," else "Good Evening," }
+    
+    val greetingText = remember(currentHour) { 
+        if(currentHour in 4..11) R.string.good_morning 
+        else if(currentHour in 12..16) R.string.good_afternoon 
+        else R.string.good_evening 
+    }
     
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(Modifier.fillMaxSize().widthIn(max = 840.dp).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
@@ -35,7 +42,7 @@ fun HomeScreen(vm: MainViewModel) {
             
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) { 
-                    Text(greetingText, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(greetingText), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(text = user?.name ?: "Student", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface) 
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -52,16 +59,18 @@ fun HomeScreen(vm: MainViewModel) {
             }
             Spacer(Modifier.height(24.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) { 
-                StatCard(Icons.Outlined.CalendarToday, "Semester", profile?.active_semester?.toString() ?: "-", vm.themeMode, Modifier.weight(1f))
-                StatCard(Icons.Outlined.Groups, "Group", if (vm.determinedGroup != null) "Group ${vm.determinedGroup}" else profile?.studentMovement?.avn_group_name ?: "-", vm.themeMode, Modifier.weight(1f)) 
+                StatCard(Icons.Outlined.CalendarToday, stringResource(R.string.semester), profile?.active_semester?.toString() ?: "-", vm.themeMode, Modifier.weight(1f))
+                StatCard(Icons.Outlined.Groups, stringResource(R.string.group), if (vm.determinedGroup != null) "${stringResource(R.string.group_short)} ${vm.determinedGroup}" else profile?.studentMovement?.avn_group_name ?: "-", vm.themeMode, Modifier.weight(1f)) 
             }
             Spacer(Modifier.height(32.dp))
-            Text("${vm.todayDayName}'s Classes", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+            
+            // Note: vm.todayDayName is computed via Java Calendar, which matches the App Locale set in MainActivity
+            Text("${vm.todayDayName}: ${stringResource(R.string.todays_classes)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(16.dp))
             if (vm.todayClasses.isEmpty()) {
-                ThemedCard(modifier = Modifier.fillMaxWidth(), themeMode = vm.themeMode) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Outlined.Weekend, null, tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(16.dp)); Text("No classes today!", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface) } } 
+                ThemedCard(modifier = Modifier.fillMaxWidth(), themeMode = vm.themeMode) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Outlined.Weekend, null, tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(16.dp)); Text(stringResource(R.string.no_classes_today), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface) } } 
             } else {
-                vm.todayClasses.forEach { item -> ClassItem(item, vm.getTimeString(item.id_lesson), vm.themeMode) { vm.selectedClass = item } } 
+                vm.todayClasses.forEach { item -> ClassItem(item, vm.getTimeString(item.id_lesson), vm.language, vm.themeMode) { vm.selectedClass = item } } 
             }
             Spacer(Modifier.height(80.dp))
         }
@@ -70,7 +79,7 @@ fun HomeScreen(vm: MainViewModel) {
         val containerColor = if(vm.isGlass) Color(0xFF16213E) else BottomSheetDefaults.ContainerColor
         ModalBottomSheet(onDismissRequest = { showNewsSheet = false }, containerColor = containerColor) { 
             Column(Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) { 
-                Text("Announcements", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                Text(stringResource(R.string.announcements), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 LazyColumn { items(vm.newsList) { news -> ThemedCard(Modifier.padding(top=8.dp).fillMaxWidth(), themeMode = vm.themeMode, materialColor = MaterialTheme.colorScheme.surfaceVariant) { Column { Text(news.title?:"", fontWeight=FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface); Text(news.message?:"", color = MaterialTheme.colorScheme.onSurfaceVariant) } } } } 
             } 
         } 

@@ -24,9 +24,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import myedu.oshsu.kg.MainViewModel
+import myedu.oshsu.kg.R
 import myedu.oshsu.kg.ScheduleItem
 import myedu.oshsu.kg.ui.components.OshSuLogo
 import myedu.oshsu.kg.ui.components.ThemedCard
@@ -37,7 +39,15 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ScheduleScreen(vm: MainViewModel) {
-    val tabs = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+    val tabs = listOf(
+        stringResource(R.string.mon),
+        stringResource(R.string.tue),
+        stringResource(R.string.wed),
+        stringResource(R.string.thu),
+        stringResource(R.string.fri),
+        stringResource(R.string.sat)
+    )
+    
     val scope = rememberCoroutineScope()
     val pagerState = rememberPagerState(initialPage = vm.selectedScheduleDay) { tabs.size }
 
@@ -56,12 +66,12 @@ fun ScheduleScreen(vm: MainViewModel) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) { 
                                 Icon(Icons.Outlined.Weekend, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.surfaceVariant)
                                 Spacer(Modifier.height(16.dp))
-                                Text("No classes", color = MaterialTheme.colorScheme.onSurfaceVariant) 
+                                Text(stringResource(R.string.no_classes), color = MaterialTheme.colorScheme.onSurfaceVariant) 
                             } 
                         }
                     } else {
                         LazyColumn(modifier = Modifier.fillMaxSize().widthIn(max = 840.dp), contentPadding = PaddingValues(horizontal = 16.dp)) { 
-                            items(dayClasses) { item -> ClassItem(item, vm.getTimeString(item.id_lesson), vm.themeMode) { vm.selectedClass = item } } 
+                            items(dayClasses) { item -> ClassItem(item, vm.getTimeString(item.id_lesson), vm.language, vm.themeMode) { vm.selectedClass = item } } 
                             item { Spacer(Modifier.height(80.dp)) } 
                         }
                     }
@@ -107,16 +117,24 @@ fun FloatingDayTabs(tabs: List<String>, selectedIndex: Int, themeMode: String, o
 }
 
 @Composable
-fun ClassItem(item: ScheduleItem, timeString: String, themeMode: String, onClick: () -> Unit) {
-    val streamInfo = if (item.stream?.numeric != null) { val type = item.subject_type?.get(); if (type == "Lecture") "Stream ${item.stream.numeric}" else "Group ${item.stream.numeric}" } else ""
+fun ClassItem(item: ScheduleItem, timeString: String, language: String, themeMode: String, onClick: () -> Unit) {
+    val streamLabel = stringResource(R.string.stream)
+    val groupLabel = stringResource(R.string.group_short)
+    val roomLabel = stringResource(R.string.auditorium)
+
+    val typeName = item.subject_type?.get(language) ?: "Lesson"
+    val streamInfo = if (item.stream?.numeric != null) { 
+        if (typeName == "Lecture" || typeName == "Лекция") "$streamLabel ${item.stream.numeric}" else "$groupLabel ${item.stream.numeric}" 
+    } else ""
     
+    val fullTime = if (!timeString.contains(":") && !timeString.contains("-")) stringResource(R.string.pair) + " $timeString" else timeString
+
     ThemedCard(onClick = onClick, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp), themeMode = themeMode) { 
         Row(verticalAlignment = Alignment.CenterVertically) { 
             val timeBg = if (themeMode == "AQUA") Color.White.copy(alpha = 0.5f) 
                          else if (themeMode == "GLASS") GlassWhite 
                          else MaterialTheme.colorScheme.surfaceContainerHigh
             
-            // COLOR LOGIC: If Aqua, use Primary color (Teal) for Subject and Time to make it pop. Otherwise standard OnSurface.
             val contentColor = if (themeMode == "AQUA") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
             
             Column(
@@ -128,9 +146,9 @@ fun ClassItem(item: ScheduleItem, timeString: String, themeMode: String, onClick
             ) { 
                 Text("${item.id_lesson}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 Text(
-                    timeString.split("-").firstOrNull()?.trim() ?: "", 
+                    fullTime.split("-").firstOrNull()?.trim() ?: "", 
                     style = MaterialTheme.typography.labelSmall, 
-                    color = contentColor // Applied to Start Time
+                    color = contentColor 
                 ) 
             }
             
@@ -138,23 +156,23 @@ fun ClassItem(item: ScheduleItem, timeString: String, themeMode: String, onClick
             
             Column(modifier = Modifier.weight(1f)) { 
                 Text(
-                    item.subject?.get() ?: "Subject", 
+                    item.subject?.get(language) ?: "Subject", 
                     style = MaterialTheme.typography.titleMedium, 
                     fontWeight = FontWeight.SemiBold, 
-                    color = contentColor // Applied to Subject
+                    color = contentColor 
                 )
                 
                 val metaText = buildString { 
-                    append(item.room?.name_en ?: "Room ?")
+                    append(item.room?.name_en ?: "$roomLabel ?")
                     append(" • ")
-                    append(item.subject_type?.get() ?: "Lesson")
+                    append(typeName)
                     if (streamInfo.isNotEmpty()) { 
                         append(" • ")
                         append(streamInfo) 
                     } 
                 }
                 Text(metaText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(timeString, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary) 
+                Text(fullTime, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary) 
             }
             Icon(Icons.Outlined.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) 
         } 

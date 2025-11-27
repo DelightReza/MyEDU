@@ -12,23 +12,16 @@ class ScheduleAlarmManager(private val context: Context) {
 
     private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
-    // --- ALARM: MAIN SCHEDULER ---
     @SuppressLint("ScheduleExactAlarm")
-    fun scheduleNotifications(schedule: List<ScheduleItem>, timeMap: Map<Int, String>) {
-        // 1. CLEAR OLD ALARMS (Fixes the issue of removed classes still notifying)
+    fun scheduleNotifications(schedule: List<ScheduleItem>, timeMap: Map<Int, String>, language: String) {
         cancelAllAlarms()
-
-        // 2. Evening Summary (Next Day)
-        scheduleEveningSummary(schedule)
-
-        // 3. Class Reminders (1 Hour Before)
-        scheduleClassReminders(schedule, timeMap)
+        scheduleEveningSummary(schedule, language)
+        scheduleClassReminders(schedule, timeMap, language)
     }
 
     private fun cancelAllAlarms() {
         val intent = Intent(context, NotificationReceiver::class.java)
         
-        // Cancel Summary Alarm
         val summaryPending = PendingIntent.getBroadcast(
             context, 9999, intent, 
             PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
@@ -38,8 +31,6 @@ class ScheduleAlarmManager(private val context: Context) {
             summaryPending.cancel()
         }
 
-        // Cancel Class Alarms (Brute force clear all possible slots)
-        // Days 0-6, Lessons 1-15 (IDs are Day * 100 + LessonID)
         for (day in 0..6) {
             for (lesson in 1..15) {
                 val id = day * 100 + lesson
@@ -55,20 +46,15 @@ class ScheduleAlarmManager(private val context: Context) {
         }
     }
 
-    // --- ALARM: EVENING SUMMARY ---
     @SuppressLint("ScheduleExactAlarm")
-    private fun scheduleEveningSummary(schedule: List<ScheduleItem>) {
+    private fun scheduleEveningSummary(schedule: List<ScheduleItem>, language: String) {
         val calendar = Calendar.getInstance()
-        
-        // Target: Tonight at 8:00 PM
         calendar.set(Calendar.HOUR_OF_DAY, 20)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
 
-        // If it's already past 8 PM, skip summary for today
         if (calendar.timeInMillis < System.currentTimeMillis()) return
 
-        // Calculate "Tomorrow's" API Day (Mon=0 ... Sun=6)
         val tomorrowCal = Calendar.getInstance()
         tomorrowCal.add(Calendar.DAY_OF_YEAR, 1)
         val javaDay = tomorrowCal.get(Calendar.DAY_OF_WEEK)
@@ -78,11 +64,11 @@ class ScheduleAlarmManager(private val context: Context) {
         
         if (nextDayClasses.isNotEmpty()) {
             val count = nextDayClasses.size
-            val firstClass = nextDayClasses.first().subject?.get() ?: "Class"
+            val firstClass = nextDayClasses.first().subject?.get(language) ?: "Class"
             
             val intent = Intent(context, NotificationReceiver::class.java).apply {
-                putExtra("TITLE", "Tomorrow's Schedule")
-                putExtra("MESSAGE", "You have $count classes tomorrow. First up: $firstClass.")
+                putExtra("TITLE", context.getString(R.string.notif_tomorrow_title))
+                putExtra("MESSAGE", context.getString(R.string.notif_tomorrow_msg, count, firstClass))
                 putExtra("ID", 9999) 
             }
 
@@ -90,9 +76,8 @@ class ScheduleAlarmManager(private val context: Context) {
         }
     }
 
-    // --- ALARM: CLASS REMINDERS ---
     @SuppressLint("ScheduleExactAlarm")
-    private fun scheduleClassReminders(schedule: List<ScheduleItem>, timeMap: Map<Int, String>) {
+    private fun scheduleClassReminders(schedule: List<ScheduleItem>, timeMap: Map<Int, String>, language: String) {
         val now = System.currentTimeMillis()
 
         schedule.forEach { item ->
@@ -114,23 +99,21 @@ class ScheduleAlarmManager(private val context: Context) {
             classCal.set(Calendar.MINUTE, minute)
             classCal.set(Calendar.SECOND, 0)
 
-            // Subtract 1 Hour for the notification
             classCal.add(Calendar.HOUR_OF_DAY, -1)
 
-            // Logic: 
-            // If the calculated time is in the past, add 7 days (next week)
             if (classCal.timeInMillis < now) {
                 classCal.add(Calendar.DAY_OF_YEAR, 7)
             }
 
-            val subjectName = item.subject?.get() ?: "Class"
-            val roomName = item.room?.name_en ?: "Unknown Room"
-            val msg = "$subjectName\nTime: $startTime • Room: $roomName"
+            val subjectName = item.subject?.get(language) ?: "Class"
+            val roomName = item.room?.name_en ?: "Unknown"
+            
+            val msg = context.getString(R.string.notif_class_msg, subjectName, startTime, roomName)
 
             val id = item.day * 100 + item.id_lesson
 
             val intent = Intent(context, NotificationReceiver::class.java).apply {
-                putExtra("TITLE", "Upcoming Class in 1 hr")
+                putExtra("TITLE", context.getString(R.string.notif_class_title))
                 putExtra("MESSAGE", msg)
                 putExtra("ID", id)
             }

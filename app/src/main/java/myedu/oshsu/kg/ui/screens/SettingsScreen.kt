@@ -15,13 +15,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import myedu.oshsu.kg.MainActivity
 import myedu.oshsu.kg.MainViewModel
+import myedu.oshsu.kg.R
 import myedu.oshsu.kg.ui.components.InfoSection
 import myedu.oshsu.kg.ui.components.ThemedCard
 import myedu.oshsu.kg.ui.theme.MilkyGlass
@@ -29,11 +32,12 @@ import myedu.oshsu.kg.ui.theme.MilkyGlass
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(vm: MainViewModel, onClose: () -> Unit) {
+    val context = LocalContext.current
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings)) },
                 navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.Default.ArrowBack, contentDescription = "Back") } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
@@ -43,30 +47,45 @@ fun SettingsScreen(vm: MainViewModel, onClose: () -> Unit) {
             modifier = Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)
         ) {
             SettingsDropdown(
-                label = "Appearance",
-                options = listOf("Follow System" to "SYSTEM", "Light Mode" to "LIGHT", "Dark Mode" to "DARK", "Liquid Glass" to "GLASS", "Aqua Flow" to "AQUA"),
+                label = stringResource(R.string.appearance),
+                options = listOf(
+                    stringResource(R.string.follow_system) to "SYSTEM", 
+                    stringResource(R.string.light_mode) to "LIGHT", 
+                    stringResource(R.string.dark_mode) to "DARK", 
+                    stringResource(R.string.liquid_glass) to "GLASS", 
+                    stringResource(R.string.aqua_flow) to "AQUA"
+                ),
                 currentValue = vm.themeMode,
                 onOptionSelected = { vm.setTheme(it) },
                 themeMode = vm.themeMode
             )
             Spacer(modifier = Modifier.height(24.dp))
             SettingsDropdown(
-                label = "Documents Download",
-                options = listOf("In-App (PDF Generator)" to "IN_APP", "Website (Official Portal)" to "WEBSITE"),
+                label = stringResource(R.string.docs_download),
+                options = listOf(
+                    stringResource(R.string.in_app_pdf) to "IN_APP", 
+                    stringResource(R.string.website_official) to "WEBSITE"
+                ),
                 currentValue = vm.downloadMode,
                 onOptionSelected = { vm.setDocMode(it) },
                 themeMode = vm.themeMode
             )
             Spacer(modifier = Modifier.height(24.dp))
             SettingsDropdown(
-                label = "Language",
-                options = listOf("English" to "en"),
-                currentValue = "en",
-                onOptionSelected = { },
+                label = stringResource(R.string.language),
+                options = listOf("English" to "en", "Русский" to "ru"),
+                currentValue = vm.language,
+                onOptionSelected = { selectedLang ->
+                    if (vm.language != selectedLang) {
+                        vm.setAppLanguage(selectedLang)
+                        // Trigger activity restart to apply new strings.xml locale
+                        (context as? MainActivity)?.restartApp()
+                    }
+                },
                 themeMode = vm.themeMode
             )
             Spacer(modifier = Modifier.height(32.dp))
-            InfoSection("About", vm.themeMode)
+            InfoSection(stringResource(R.string.about), vm.themeMode)
             ThemedCard(modifier = Modifier.fillMaxWidth(), themeMode = vm.themeMode) {
                 Column {
                     Text("MyEDU Mobile", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)

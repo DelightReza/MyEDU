@@ -28,16 +28,17 @@ class MainViewModel : ViewModel() {
     
     // --- REFRESH LOGIC ---
     private var lastRefreshTime: Long = 0
-    private val refreshCooldownMs = TimeUnit.MINUTES.toMillis(5) // 5 Minute cooldown for auto-triggers
+    private val refreshCooldownMs = TimeUnit.MINUTES.toMillis(5)
 
     // --- STATE: THEME ---
     var themeMode by mutableStateOf("SYSTEM")
     val isGlass: Boolean get() = themeMode == "GLASS" || themeMode == "AQUA"
 
-    // --- STATE: SETTINGS (DOCS) ---
-    var downloadMode by mutableStateOf("IN_APP") // "IN_APP" or "WEBSITE"
+    // --- STATE: SETTINGS ---
+    var downloadMode by mutableStateOf("IN_APP") 
+    var language by mutableStateOf("en") // Controls API Data Priority
     
-    // --- STATE: USER DATA ---
+    // --- STATE: DATA ---
     var userData by mutableStateOf<UserData?>(null)
     var profileData by mutableStateOf<StudentInfoResponse?>(null)
     var payStatus by mutableStateOf<PayStatusResponse?>(null)
@@ -47,7 +48,10 @@ class MainViewModel : ViewModel() {
     var fullSchedule by mutableStateOf<List<ScheduleItem>>(emptyList())
     var todayClasses by mutableStateOf<List<ScheduleItem>>(emptyList())
     var timeMap by mutableStateOf<Map<Int, String>>(emptyMap())
+    
+    // Calculated day name (e.g. "Monday" or "Понедельник")
     var todayDayName by mutableStateOf("Today")
+
     var determinedStream by mutableStateOf<Int?>(null)
     var determinedGroup by mutableStateOf<Int?>(null)
     var selectedClass by mutableStateOf<ScheduleItem?>(null)
@@ -70,17 +74,13 @@ class MainViewModel : ViewModel() {
     var showSettingsScreen by mutableStateOf(false)
     var webDocumentUrl by mutableStateOf<String?>(null)
     
-    // --- STATE: PDF GENERATION ---
     var isPdfGenerating by mutableStateOf(false)
     var pdfStatusMessage by mutableStateOf<String?>(null)
 
-    // --- SETTINGS: DICTIONARY ---
     var dictionaryUrl by mutableStateOf("https://gist.githubusercontent.com/Placeholder6/71c6a6638faf26c7858d55a1e73b7aef/raw/myedudictionary.json")
     private var cachedDictionary: Map<String, String> = emptyMap()
 
     private var prefs: PrefsManager? = null
-    
-    // --- RESOURCES ---
     private val jsFetcher = JsResourceFetcher()
     private val refFetcher = ReferenceJsFetcher()
     private val dictUtils = DictionaryUtils()
@@ -89,47 +89,42 @@ class MainViewModel : ViewModel() {
     private var cachedRefResourcesRu: ReferenceResources? = null
     private var cachedRefResourcesEn: ReferenceResources? = null
 
-    // --- HELPER ---
     fun getAuthToken(): String? = prefs?.getToken()
 
-    // --- INIT ---
     fun initSession(context: Context) {
         if (prefs == null) prefs = PrefsManager(context)
         val token = prefs?.getToken()
         
-        // Load Settings
         val savedTheme = prefs?.loadData("theme_mode_pref", String::class.java)
         if (savedTheme != null) themeMode = savedTheme
         
         val savedDocMode = prefs?.loadData("doc_download_mode", String::class.java)
         if (savedDocMode != null) downloadMode = savedDocMode
+        
+        // Load language and strip Gson quotes if present
+        val savedLang = prefs?.loadData("language_pref", String::class.java)
+        if (savedLang != null) language = savedLang.replace("\"", "")
 
         if (token != null) {
             NetworkClient.interceptor.authToken = token
             NetworkClient.cookieJar.injectSessionCookies(token)
             loadOfflineData()
             appState = "APP"
-            // Force refresh on cold boot
             refreshAllData(force = true)
         } else {
             appState = "LOGIN"
         }
     }
 
-    // --- DATA REFRESH ACTIONS ---
-
-    // 1. Manual Pull-to-Refresh (Bypasses cooldown)
     fun refresh() {
         if (isLoading) return
         refreshAllData(force = true)
     }
 
-    // 2. Lifecycle: On App Resume
     fun onAppResume() {
         attemptAutoRefresh()
     }
 
-    // 3. Network: On Connectivity Restored
     fun onNetworkAvailable() {
         attemptAutoRefresh()
     }
@@ -137,7 +132,6 @@ class MainViewModel : ViewModel() {
     private fun attemptAutoRefresh() {
         if (appState != "APP" || isLoading) return
         val currentTime = System.currentTimeMillis()
-        // Only refresh if cooldown period has passed
         if (currentTime - lastRefreshTime > refreshCooldownMs) {
             refreshAllData(force = false)
         }
@@ -165,6 +159,12 @@ class MainViewModel : ViewModel() {
         downloadMode = mode
         prefs?.saveData("doc_download_mode", mode)
     }
+    
+    fun setAppLanguage(lang: String) {
+        language = lang
+        prefs?.saveData("language_pref", lang)
+        processScheduleLocally()
+    }
 
     fun login(email: String, pass: String) {
         viewModelScope.launch {
@@ -188,9 +188,9 @@ class MainViewModel : ViewModel() {
         appState = "LOGIN"; currentTab = 0; userData = null; profileData = null; payStatus = null
         newsList = emptyList(); fullSchedule = emptyList(); sessionData = emptyList(); transcriptData = emptyList()
         prefs?.clearAll(); NetworkClient.cookieJar.clear(); NetworkClient.interceptor.authToken = null
-        // Restore settings
         prefs?.saveData("theme_mode_pref", themeMode)
         prefs?.saveData("doc_download_mode", downloadMode)
+        prefs?.saveData("language_pref", language)
     }
 
     private fun refreshAllData(force: Boolean) {
@@ -209,11 +209,9 @@ class MainViewModel : ViewModel() {
                     loadScheduleNetwork(profile)
                     fetchSession(profile)
                 }
-                // Update timestamp on success
                 lastRefreshTime = System.currentTimeMillis()
             } catch (e: Exception) {
                 if (e.message?.contains("401") == true) { withContext(Dispatchers.Main) { logout() } }
-                // Don't reset timestamp on failure to avoid loops, but allow manual retry
             } finally {
                 withContext(Dispatchers.Main) { isLoading = false }
             }
@@ -238,10 +236,28 @@ class MainViewModel : ViewModel() {
 
     private fun processScheduleLocally() {
         if (fullSchedule.isEmpty()) return
-        determinedStream = fullSchedule.asSequence().filter { it.subject_type?.get() == "Lecture" }.mapNotNull { it.stream?.numeric }.firstOrNull()
-        determinedGroup = fullSchedule.asSequence().filter { it.subject_type?.get() == "Practical Class" }.mapNotNull { it.stream?.numeric }.firstOrNull()
+        
+        fun NameObj?.g(): String = this?.get(language) ?: ""
+        
+        determinedStream = fullSchedule.asSequence()
+            .filter { it.subject_type?.g() == "Lecture" || it.subject_type?.g() == "Лекция" }
+            .mapNotNull { it.stream?.numeric }
+            .firstOrNull()
+            
+        determinedGroup = fullSchedule.asSequence()
+            .filter { it.subject_type?.g() == "Practical Class" || it.subject_type?.g() == "Практика" }
+            .mapNotNull { it.stream?.numeric }
+            .firstOrNull()
+            
         val cal = Calendar.getInstance()
-        todayDayName = cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.LONG, Locale.getDefault()) ?: "Today"
+        // Respect standard Java Locale which was set in MainActivity based on preference
+        val loc = Locale.getDefault() 
+        var dayName = cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.LONG, loc) ?: "Today"
+        if (dayName.isNotEmpty()) {
+            dayName = dayName.replaceFirstChar { if (it.isLowerCase()) it.titlecase(loc) else it.toString() }
+        }
+        todayDayName = dayName
+
         val apiDay = if (cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) 6 else cal.get(Calendar.DAY_OF_WEEK) - 2
         todayClasses = fullSchedule.filter { it.day == apiDay }
     }
@@ -272,7 +288,9 @@ class MainViewModel : ViewModel() {
         }
     }
     
-    fun getTimeString(lessonId: Int) = timeMap[lessonId] ?: "Pair $lessonId"
+    fun getTimeString(lessonId: Int): String {
+        return timeMap[lessonId] ?: "$lessonId"
+    }
 
     private suspend fun fetchDictionaryIfNeeded() {
         if (cachedDictionary.isEmpty() && dictionaryUrl.isNotBlank()) {
@@ -288,19 +306,19 @@ class MainViewModel : ViewModel() {
         return "${cleanName}_${docType}${suffix}.pdf"
     }
 
-    fun generateTranscriptPdf(context: Context, language: String) {
+    fun generateTranscriptPdf(context: Context, lang: String) {
         if (isPdfGenerating) return
         val studentId = userData?.id ?: return
         viewModelScope.launch {
             isPdfGenerating = true
-            pdfStatusMessage = "Preparing Transcript ($language)..."
+            pdfStatusMessage = context.getString(R.string.status_preparing_transcript)
             try {
                 fetchDictionaryIfNeeded()
-                var resources = if (language == "en") cachedResourcesEn else cachedResourcesRu
+                var resources = if (lang == "en") cachedResourcesEn else cachedResourcesRu
                 if (resources == null) {
-                    pdfStatusMessage = "Fetching Scripts..."
-                    resources = jsFetcher.fetchResources({ println(it) }, language, cachedDictionary)
-                    if (language == "en") cachedResourcesEn = resources else cachedResourcesRu = resources
+                    pdfStatusMessage = context.getString(R.string.status_fetching_scripts)
+                    resources = jsFetcher.fetchResources({ println(it) }, lang, cachedDictionary)
+                    if (lang == "en") cachedResourcesEn = resources else cachedResourcesRu = resources
                 }
                 val infoRaw = withContext(Dispatchers.IO) { NetworkClient.api.getStudentInfoRaw(studentId).string() }
                 val infoJson = JSONObject(infoRaw)
@@ -311,32 +329,35 @@ class MainViewModel : ViewModel() {
                 val keyRaw = withContext(Dispatchers.IO) { NetworkClient.api.getTranscriptLink(DocIdRequest(studentId)).string() }
                 val keyObj = JSONObject(keyRaw)
                 
-                pdfStatusMessage = "Generating PDF..."
-                val bytes = WebPdfGenerator(context).generatePdf(infoJson.toString(), transcriptRaw, keyObj.optLong("id"), keyObj.optString("url"), resources!!, language, cachedDictionary) { println(it) }
+                pdfStatusMessage = context.getString(R.string.generating_pdf)
+                val bytes = WebPdfGenerator(context).generatePdf(infoJson.toString(), transcriptRaw, keyObj.optLong("id"), keyObj.optString("url"), resources!!, lang, cachedDictionary) { println(it) }
                 
-                val filename = getFormattedFileName("Transcript", language)
+                val filename = getFormattedFileName("Transcript", lang)
                 saveToDownloads(context, bytes, filename)
                 
                 pdfStatusMessage = null
             } catch (e: Exception) {
-                pdfStatusMessage = "Error: ${e.message}"; e.printStackTrace(); delay(3000); pdfStatusMessage = null
+                pdfStatusMessage = context.getString(R.string.error_generic, e.message)
+                e.printStackTrace()
+                delay(3000)
+                pdfStatusMessage = null
             } finally { isPdfGenerating = false }
         }
     }
 
-    fun generateReferencePdf(context: Context, language: String) {
+    fun generateReferencePdf(context: Context, lang: String) {
         if (isPdfGenerating) return
         val studentId = userData?.id ?: return
         viewModelScope.launch {
             isPdfGenerating = true
-            pdfStatusMessage = "Preparing Reference ($language)..."
+            pdfStatusMessage = context.getString(R.string.status_preparing_reference)
             try {
                 fetchDictionaryIfNeeded()
-                var resources = if (language == "en") cachedRefResourcesEn else cachedRefResourcesRu
+                var resources = if (lang == "en") cachedRefResourcesEn else cachedRefResourcesRu
                 if (resources == null) {
-                    pdfStatusMessage = "Fetching Scripts..."
-                    resources = refFetcher.fetchResources({ println(it) }, language, cachedDictionary)
-                    if (language == "en") cachedRefResourcesEn = resources else cachedRefResourcesRu = resources
+                    pdfStatusMessage = context.getString(R.string.status_fetching_scripts)
+                    resources = refFetcher.fetchResources({ println(it) }, lang, cachedDictionary)
+                    if (lang == "en") cachedRefResourcesEn = resources else cachedRefResourcesRu = resources
                 }
                 val infoRaw = withContext(Dispatchers.IO) { NetworkClient.api.getStudentInfoRaw(studentId).string() }
                 val infoJson = JSONObject(infoRaw)
@@ -350,22 +371,25 @@ class MainViewModel : ViewModel() {
                 val linkRaw = withContext(Dispatchers.IO) { NetworkClient.api.getReferenceLink(DocIdRequest(studentId)).string() }
                 val linkObj = JSONObject(linkRaw)
                 
-                pdfStatusMessage = "Generating PDF..."
-                val bytes = ReferencePdfGenerator(context).generatePdf(infoJson.toString(), licenseRaw, univRaw, linkObj.optLong("id"), linkObj.optString("url"), resources!!, prefs?.getToken() ?: "", language, cachedDictionary) { println(it) }
+                pdfStatusMessage = context.getString(R.string.generating_pdf)
+                val bytes = ReferencePdfGenerator(context).generatePdf(infoJson.toString(), licenseRaw, univRaw, linkObj.optLong("id"), linkObj.optString("url"), resources!!, prefs?.getToken() ?: "", lang, cachedDictionary) { println(it) }
                 
-                val filename = getFormattedFileName("Reference", language)
+                val filename = getFormattedFileName("Reference", lang)
                 saveToDownloads(context, bytes, filename)
                 
                 pdfStatusMessage = null
             } catch (e: Exception) {
-                pdfStatusMessage = "Error: ${e.message}"; e.printStackTrace(); delay(3000); pdfStatusMessage = null
+                pdfStatusMessage = context.getString(R.string.error_generic, e.message)
+                e.printStackTrace()
+                delay(3000)
+                pdfStatusMessage = null
             } finally { isPdfGenerating = false }
         }
     }
 
     private suspend fun saveToDownloads(context: Context, bytes: ByteArray, filename: String) {
         try {
-            pdfStatusMessage = "Saving to Downloads..."
+            pdfStatusMessage = context.getString(R.string.status_saving)
             val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
             var file = File(downloadsDir, filename)
             var counter = 1
@@ -381,7 +405,7 @@ class MainViewModel : ViewModel() {
             }
 
             withContext(Dispatchers.Main) {
-                Toast.makeText(context, "Saved: ${file.name}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.status_saved, file.name), Toast.LENGTH_SHORT).show()
                 try {
                     val authority = "${context.packageName}.provider"
                     val uri = FileProvider.getUriForFile(context, authority, file)
@@ -391,11 +415,11 @@ class MainViewModel : ViewModel() {
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     context.startActivity(intent)
                 } catch (e: Exception) {
-                    Toast.makeText(context, "No PDF viewer installed", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, context.getString(R.string.error_no_pdf_viewer), Toast.LENGTH_LONG).show()
                 }
             }
         } catch (e: Exception) {
-            pdfStatusMessage = "Save Failed: ${e.message}"
+            pdfStatusMessage = context.getString(R.string.status_save_failed, e.message)
             delay(2000)
         }
     }

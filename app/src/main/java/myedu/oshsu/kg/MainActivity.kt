@@ -2,7 +2,9 @@ package myedu.oshsu.kg
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkRequest
@@ -34,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,6 +55,7 @@ import myedu.oshsu.kg.ui.screens.*
 import myedu.oshsu.kg.ui.theme.GlassWhite
 import myedu.oshsu.kg.ui.theme.MilkyGlass
 import myedu.oshsu.kg.ui.theme.MyEduTheme
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
@@ -59,36 +63,40 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { }
     
-    // --- NETWORK MONITORING ---
     private var connectivityManager: ConnectivityManager? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var mainViewModel: MainViewModel? = null
+
+    override fun attachBaseContext(newBase: Context) {
+        val prefs = newBase.getSharedPreferences("myedu_offline_cache", Context.MODE_PRIVATE)
+        val rawLang = prefs.getString("language_pref", "en") ?: "en"
+        val lang = rawLang.replace("\"", "")
+        val locale = Locale(lang)
+        val config = Configuration(newBase.resources.configuration)
+        Locale.setDefault(locale)
+        config.setLocale(locale)
+        super.attachBaseContext(newBase.createConfigurationContext(config))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         
-        // Notification Permissions
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
         
-        // Setup Network Monitoring
         setupNetworkMonitoring()
-
-        // --- SETUP BACKGROUND WORK ---
         setupBackgroundWork()
 
         setContent { 
             val vm: MainViewModel = viewModel()
-            // Store reference for network callback
             mainViewModel = vm
             
             val context = LocalContext.current
             
-            // --- 1. HANDLE APP RESUME (AUTO REFRESH) ---
             val lifecycleOwner = LocalLifecycleOwner.current
             DisposableEffect(lifecycleOwner) {
                 val observer = LifecycleEventObserver { _, event ->
@@ -97,21 +105,29 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 lifecycleOwner.lifecycle.addObserver(observer)
-                onDispose {
-                    lifecycleOwner.lifecycle.removeObserver(observer)
-                }
+                onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
             }
             
             LaunchedEffect(Unit) { vm.initSession(context) }
-            LaunchedEffect(vm.fullSchedule, vm.timeMap) {
+            
+            // FIX: Added vm.language to key and parameter to fix compilation error
+            LaunchedEffect(vm.fullSchedule, vm.timeMap, vm.language) {
                 if (vm.fullSchedule.isNotEmpty() && vm.timeMap.isNotEmpty()) {
-                    ScheduleAlarmManager(context).scheduleNotifications(vm.fullSchedule, vm.timeMap)
+                    ScheduleAlarmManager(context).scheduleNotifications(vm.fullSchedule, vm.timeMap, vm.language)
                 }
             }
+            
             MyEduTheme(themeMode = vm.themeMode) { 
                 ThemedBackground(themeMode = vm.themeMode) { AppContent(vm) }
             } 
         }
+    }
+
+    fun restartApp() {
+        val intent = Intent(this, MainActivity::class.java)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        startActivity(intent)
+        finish()
     }
 
     private fun setupNetworkMonitoring() {
@@ -119,7 +135,6 @@ class MainActivity : ComponentActivity() {
         networkCallback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 super.onAvailable(network)
-                // --- 2. HANDLE NETWORK RECONNECT (AUTO REFRESH) ---
                 mainViewModel?.onNetworkAvailable()
             }
         }
@@ -128,18 +143,15 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun setupBackgroundWork() {
-        // Constraints: Requires Battery Not Low + Network Connected
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .setRequiresBatteryNotLow(true)
             .build()
 
-        // Repeat every 4 hours
         val syncRequest = PeriodicWorkRequestBuilder<BackgroundSyncWorker>(4, TimeUnit.HOURS)
             .setConstraints(constraints)
             .build()
 
-        // Enqueue Unique Work (Keeps existing one if already scheduled)
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             "MyEduGradeSync",
             ExistingPeriodicWorkPolicy.KEEP,
@@ -149,9 +161,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        networkCallback?.let {
-            connectivityManager?.unregisterNetworkCallback(it)
-        }
+        networkCallback?.let { connectivityManager?.unregisterNetworkCallback(it) }
     }
 }
 
@@ -186,7 +196,6 @@ fun MainAppStructure(vm: MainViewModel) {
     Scaffold(containerColor = Color.Transparent, contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
         Box(Modifier.padding(padding).fillMaxSize()) {
             
-            // --- 3. PULL TO REFRESH WRAPPER ---
             MyEduPullToRefreshBox(
                 isRefreshing = vm.isLoading,
                 onRefresh = { vm.refresh() },
@@ -226,16 +235,21 @@ fun MainAppStructure(vm: MainViewModel) {
             }
             
             if (vm.webDocumentUrl != null) {
-                val docType = if (vm.webDocumentUrl!!.contains("Transcript", true)) "Transcript" else "Reference"
+                val isTranscript = vm.webDocumentUrl!!.contains("Transcript", true)
+                // Use stringResource to localize the Title
+                val docTitle = if (isTranscript) stringResource(R.string.transcript) else stringResource(R.string.reference)
+                // Use English/Standard for file naming to ensure file system compatibility
+                val docTypeFile = if (isTranscript) "Transcript" else "Reference"
+                
                 val lastName = vm.userData?.last_name ?: ""
                 val name = vm.userData?.name ?: ""
                 val cleanName = "$lastName $name".trim().replace(" ", "_").replace(".", "")
-                val filePrefix = "${cleanName}_$docType.pdf"
+                val filePrefix = "${cleanName}_$docTypeFile.pdf"
                 
                 ThemedBackground(themeMode = vm.themeMode) {
                     WebDocumentScreen(
                         url = vm.webDocumentUrl!!, 
-                        title = docType, 
+                        title = docTitle, 
                         fileName = filePrefix, 
                         authToken = vm.getAuthToken(),
                         themeMode = vm.themeMode, 
@@ -280,10 +294,10 @@ fun FloatingNavBar(vm: MainViewModel) {
         shadowElevation = elevation
     ) {
         Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.CenterVertically) {
-            FloatingNavItem(vm, 0, Icons.Default.Home, "Home")
-            FloatingNavItem(vm, 1, Icons.Default.DateRange, "Schedule")
-            FloatingNavItem(vm, 2, Icons.Default.Description, "Grades")
-            FloatingNavItem(vm, 3, Icons.Default.Person, "Profile")
+            FloatingNavItem(vm, 0, Icons.Default.Home, stringResource(R.string.nav_home))
+            FloatingNavItem(vm, 1, Icons.Default.DateRange, stringResource(R.string.nav_schedule))
+            FloatingNavItem(vm, 2, Icons.Default.Description, stringResource(R.string.nav_grades))
+            FloatingNavItem(vm, 3, Icons.Default.Person, stringResource(R.string.nav_profile))
         }
     }
 }

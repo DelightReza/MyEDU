@@ -11,24 +11,23 @@ import androidx.core.app.NotificationCompat
 
 class NotificationReceiver : BroadcastReceiver() {
     
-    // --- RECEIVE BROADCAST ---
     override fun onReceive(context: Context, intent: Intent) {
-        val title = intent.getStringExtra("TITLE") ?: "MyEDU Alert"
-        val message = intent.getStringExtra("MESSAGE") ?: "Check your schedule."
+        val title = intent.getStringExtra("TITLE") ?: context.getString(R.string.notif_default_title)
+        val message = intent.getStringExtra("MESSAGE") ?: context.getString(R.string.notif_default_msg)
         val id = intent.getIntExtra("ID", 0)
 
         showNotification(context, title, message, id)
     }
 
-    // --- SHOW NOTIFICATION ---
     private fun showNotification(context: Context, title: String, message: String, id: Int) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channelId = "myedu_alerts"
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Channel name is visible to user, so use resource
             val channel = NotificationChannel(
                 channelId,
-                "Class Reminders",
+                context.getString(R.string.notif_channel_name),
                 NotificationManager.IMPORTANCE_HIGH
             )
             manager.createNotificationChannel(channel)
@@ -42,14 +41,13 @@ class NotificationReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        // Using standard icon if custom one isn't ready
         val icon = android.R.drawable.ic_dialog_info
 
         val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(icon)
             .setContentTitle(title)
             .setContentText(message)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(message)) // Expandable text
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)

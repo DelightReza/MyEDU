@@ -7,8 +7,6 @@ import android.net.Uri
 import android.os.Environment
 import android.view.ViewGroup
 import android.webkit.CookieManager
-import android.webkit.MimeTypeMap
-import android.webkit.URLUtil
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -48,7 +46,7 @@ fun WebDocumentScreen(
     }
 
     Scaffold(
-        containerColor = Color.Transparent, // Allow the ThemedBackground (passed from MainActivity) to show through
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(title) },
@@ -59,8 +57,6 @@ fun WebDocumentScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent,
-                    // Ensure text is visible on the gradient background. 
-                    // Glass (Dark) -> White text. Aqua (Light) -> Dark Text (onSurface).
                     titleContentColor = if (themeMode == "GLASS") Color.White else MaterialTheme.colorScheme.onSurface,
                     navigationIconContentColor = if (themeMode == "GLASS") Color.White else MaterialTheme.colorScheme.onSurface,
                     actionIconContentColor = if (themeMode == "GLASS") Color.White else MaterialTheme.colorScheme.onSurface
@@ -84,7 +80,7 @@ fun WebDocumentScreen(
                         settings.builtInZoomControls = true
                         settings.displayZoomControls = false
 
-                        setDownloadListener { url, userAgent, contentDisposition, mimetype, _ ->
+                        setDownloadListener { url, userAgent, _, mimetype, _ ->
                             try {
                                 val request = DownloadManager.Request(Uri.parse(url))
                                 request.setMimeType(mimetype)
@@ -93,7 +89,7 @@ fun WebDocumentScreen(
                                 request.addRequestHeader("cookie", cookies)
                                 request.addRequestHeader("User-Agent", userAgent)
                                 
-                                request.setDescription("Downloading $title...")
+                                request.setDescription(ctx.getString(R.string.status_download_desc, title))
                                 request.setTitle(fileName)
                                 request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                                 request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
@@ -101,9 +97,9 @@ fun WebDocumentScreen(
                                 val dm = ctx.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
                                 dm.enqueue(request)
                                 
-                                Toast.makeText(ctx, "Downloading: $fileName", Toast.LENGTH_LONG).show()
+                                Toast.makeText(ctx, ctx.getString(R.string.status_downloading, fileName), Toast.LENGTH_LONG).show()
                             } catch (e: Exception) {
-                                Toast.makeText(ctx, "Download failed: ${e.message}", Toast.LENGTH_LONG).show()
+                                Toast.makeText(ctx, ctx.getString(R.string.status_download_failed, e.message), Toast.LENGTH_LONG).show()
                             }
                         }
 

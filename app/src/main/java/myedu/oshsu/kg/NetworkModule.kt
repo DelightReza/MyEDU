@@ -66,6 +66,8 @@ data class MovementInfo(
     @SerializedName("edu_form") val edu_form: NameObj?,
     @SerializedName("id_payment_form") val id_payment_form: Int?
 )
+
+// --- NAME OBJECT WITH PRIORITY LOGIC ---
 data class NameObj(
     @SerializedName("name_en") val name_en: String?, 
     @SerializedName("name_ru") val name_ru: String?, 
@@ -76,11 +78,17 @@ data class NameObj(
     @SerializedName("code") val code: String?,
     @SerializedName("faculty") val faculty: NameObj?
 ) {
-    fun get(): String {
-        val text = name_en ?: name_ru ?: name_kg ?: "Unknown"
+    fun get(lang: String = "en"): String {
+        // Fallback Logic:
+        val text = if (lang == "ru") {
+            name_ru ?: name_kg ?: name_en ?: "Unknown"
+        } else {
+            name_en ?: name_ru ?: name_kg ?: "Unknown"
+        }
+
         return when (text) {
-            "Lection" -> "Lecture"
-            "Practical lessons" -> "Practical Class"
+            "Lection", "Лекция" -> if (lang == "ru") "Лекция" else "Lecture"
+            "Practical lessons", "Практические занятия" -> if (lang == "ru") "Практика" else "Practical Class"
             else -> text
         }
     }
@@ -92,10 +100,25 @@ data class ScheduleWrapper(val schedule_items: List<ScheduleItem>?)
 data class ScheduleItem(val day: Int, val id_lesson: Int, val subject: NameObj?, val teacher: TeacherObj?, val room: RoomObj?, val subject_type: NameObj?, val classroom: ClassroomObj?, val stream: StreamObj?)
 data class StreamObj(val id: Int, val numeric: Int?)
 data class ClassroomObj(val building: BuildingObj?)
+
+// --- BUILDING OBJECT WITH PRIORITY LOGIC ---
 data class BuildingObj(val name_en: String?, val name_ru: String?, val info_en: String?, val info_ru: String?) {
-    fun getName(): String = name_en ?: name_ru ?: "Campus"
-    fun getAddress(): String = info_en ?: info_ru ?: ""
+    fun getName(lang: String = "en"): String {
+        return if (lang == "ru") {
+            name_ru ?: name_en ?: "Корпус"
+        } else {
+            name_en ?: name_ru ?: "Campus"
+        }
+    }
+    fun getAddress(lang: String = "en"): String {
+        return if (lang == "ru") {
+            info_ru ?: info_en ?: ""
+        } else {
+            info_en ?: info_ru ?: ""
+        }
+    }
 }
+
 data class TeacherObj(val name: String?, val last_name: String?) { fun get(): String = "${last_name ?: ""} ${name ?: ""}".trim() }
 data class RoomObj(val name_en: String?)
 data class LessonTimeResponse(val id_lesson: Int, val begin_time: String?, val end_time: String?, val lesson: LessonNum?)

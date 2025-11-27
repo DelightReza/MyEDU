@@ -2,10 +2,12 @@ package myedu.oshsu.kg
 
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 class BackgroundSyncWorker(
     appContext: Context, 
@@ -28,96 +30,57 @@ class BackgroundSyncWorker(
             NetworkClient.cookieJar.injectSessionCookies(token)
 
             // --- STEP A: CORE DATA (User & Profile) ---
-            // We fetch these first because we need the IDs (Semester/Speciality) for the rest.
-            
-            val userResponse = try {
-                NetworkClient.api.getUser()
-            } catch (e: Exception) {
-                // If core auth fails, likely token expired or server down. Retry later.
-                return@withContext Result.retry()
-            }
-            
-            val profile = try {
-                NetworkClient.api.getProfile()
-            } catch (e: Exception) {
-                return@withContext Result.retry()
-            }
+            val userResponse = try { NetworkClient.api.getUser() } catch (e: Exception) { return@withContext Result.retry() }
+            val profile = try { NetworkClient.api.getProfile() } catch (e: Exception) { return@withContext Result.retry() }
 
-            // Save Core Data
             prefs.saveData("user_data", userResponse.user)
             prefs.saveData("profile_data", profile)
 
             val activeSemester = profile.active_semester ?: 1
             val mov = profile.studentMovement
 
-            // --- STEP B: LIGHTWEIGHT DATA (News & Pay) ---
-            // We wrap these in try-catch blocks so a failure here doesn't stop the important stuff (Grades/Schedule)
-            
-            try {
-                val news = NetworkClient.api.getNews()
-                prefs.saveList("news_list", news)
-            } catch (_: Exception) { }
-
-            try {
-                val pay = NetworkClient.api.getPayStatus()
-                prefs.saveData("pay_status", pay)
-            } catch (_: Exception) { }
-
+            // --- STEP B: LIGHTWEIGHT DATA ---
+            try { val news = NetworkClient.api.getNews(); prefs.saveList("news_list", news) } catch (_: Exception) { }
+            try { val pay = NetworkClient.api.getPayStatus(); prefs.saveData("pay_status", pay) } catch (_: Exception) { }
 
             // --- STEP C: GRADES (Session) ---
             try {
-                // 1. Load Old Grades (to compare)
                 val oldSession = prefs.loadList<SessionResponse>("session_list")
-
-                // 2. Fetch New Grades
                 val newSession = NetworkClient.api.getSession(activeSemester)
 
-                // 3. Compare and Notify
                 if (oldSession.isNotEmpty() && newSession.isNotEmpty()) {
-                    val updates = checkForUpdates(oldSession, newSession)
+                    // Check updates using localized context
+                    val localizedContext = getLocalizedContext(context, prefs)
+                    val updates = checkForUpdates(oldSession, newSession, localizedContext)
                     if (updates.isNotEmpty()) {
-                        sendNotification(context, updates)
+                        sendNotification(localizedContext, updates)
                     }
                 }
-
-                // 4. Save New Grades
                 prefs.saveList("session_list", newSession)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-
+            } catch (e: Exception) { e.printStackTrace() }
 
             // --- STEP D: SCHEDULE ---
             if (mov != null) {
                 try {
-                    // 1. Get Active Year
                     val years = NetworkClient.api.getYears()
                     val activeYearId = years.find { it.active }?.id ?: 25
-
-                    // 2. Get Lesson Times (Required for Alarms)
-                    val times = try {
-                        NetworkClient.api.getLessonTimes(mov.id_speciality!!, mov.id_edu_form!!, activeYearId)
-                    } catch (e: Exception) { emptyList() }
-
-                    // 3. Get Schedule
+                    val times = try { NetworkClient.api.getLessonTimes(mov.id_speciality!!, mov.id_edu_form!!, activeYearId) } catch (e: Exception) { emptyList() }
                     val wrappers = NetworkClient.api.getSchedule(mov.id_speciality!!, mov.id_edu_form!!, activeYearId, activeSemester)
                     val fullSchedule = wrappers.flatMap { it.schedule_items ?: emptyList() }.sortedBy { it.id_lesson }
 
-                    // 4. Save & Update Alarms
                     if (fullSchedule.isNotEmpty()) {
-                        // Save to Cache
                         prefs.saveList("schedule_list", fullSchedule)
-
-                        // Update Alarms immediately (This cancels old ones and sets new ones)
                         if (times.isNotEmpty()) {
                             val timeMap = times.associate { (it.lesson?.num ?: 0) to "${it.begin_time ?: ""} - ${it.end_time ?: ""}" }
-                            val alarmManager = ScheduleAlarmManager(context)
-                            alarmManager.scheduleNotifications(fullSchedule, timeMap)
+                            // Update Alarms using Localized Context
+                            val localizedContext = getLocalizedContext(context, prefs)
+                            val alarmManager = ScheduleAlarmManager(localizedContext)
+                            // Pass language to scheduleNotifications so it can resolve NameObj correctly
+                            val lang = prefs.loadData("language_pref", String::class.java)?.replace("\"", "") ?: "en"
+                            alarmManager.scheduleNotifications(fullSchedule, timeMap, lang)
                         }
                     }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
+                } catch (e: Exception) { e.printStackTrace() }
             }
 
             return@withContext Result.success()
@@ -128,15 +91,24 @@ class BackgroundSyncWorker(
         }
     }
 
-    // --- HELPER: Compare Grade Lists ---
-    private fun checkForUpdates(oldList: List<SessionResponse>, newList: List<SessionResponse>): List<String> {
+    private fun getLocalizedContext(context: Context, prefs: PrefsManager): Context {
+        val lang = prefs.loadData("language_pref", String::class.java)?.replace("\"", "") ?: "en"
+        val locale = Locale(lang)
+        Locale.setDefault(locale)
+        val config = Configuration(context.resources.configuration)
+        config.setLocale(locale)
+        return context.createConfigurationContext(config)
+    }
+
+    private fun checkForUpdates(oldList: List<SessionResponse>, newList: List<SessionResponse>, context: Context): List<String> {
         val updates = ArrayList<String>()
+        val lang = context.resources.configuration.locales.get(0).language
 
         val oldMap = oldList.flatMap { it.subjects ?: emptyList() }
-            .associate { (it.subject?.get() ?: "Unknown") to it.marklist }
+            .associate { (it.subject?.get(lang) ?: "Unknown") to it.marklist }
 
         newList.flatMap { it.subjects ?: emptyList() }.forEach { newSub ->
-            val name = newSub.subject?.get() ?: return@forEach
+            val name = newSub.subject?.get(lang) ?: return@forEach
             val oldMarks = oldMap[name]
             val newMarks = newSub.marklist
 
@@ -144,24 +116,23 @@ class BackgroundSyncWorker(
                 val v1 = oldVal ?: 0.0
                 val v2 = newVal ?: 0.0
                 if (v2 > v1 && v2 > 0) {
-                    updates.add("$name: $label ${v2.toInt()}")
+                    updates.add(context.getString(R.string.notif_grades_msg_single, name, label, v2.toInt()))
                 }
             }
 
             if (oldMarks != null && newMarks != null) {
                 check("M1", oldMarks.point1, newMarks.point1)
                 check("M2", oldMarks.point2, newMarks.point2)
-                check("Exam", oldMarks.finally, newMarks.finally)
+                check(context.getString(R.string.exam_short), oldMarks.finally, newMarks.finally)
             }
         }
         return updates
     }
 
-    // --- HELPER: Send Notification ---
     private fun sendNotification(context: Context, updates: List<String>) {
-        val title = "New Grades Posted"
+        val title = context.getString(R.string.notif_new_grades_title)
         val message = if (updates.size > 4) {
-            "${updates.size} subjects have updated scores."
+            context.getString(R.string.notif_grades_msg_multiple, updates.size)
         } else {
             updates.joinToString("\n")
         }
@@ -169,7 +140,7 @@ class BackgroundSyncWorker(
         val intent = Intent(context, NotificationReceiver::class.java).apply {
             putExtra("TITLE", title)
             putExtra("MESSAGE", message)
-            putExtra("ID", 777) // Unique ID for Grades
+            putExtra("ID", 777)
         }
         context.sendBroadcast(intent)
     }

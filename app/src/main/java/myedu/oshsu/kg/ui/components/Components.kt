@@ -6,7 +6,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -15,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -59,6 +63,63 @@ fun ThemedBackground(themeMode: String, content: @Composable BoxScope.() -> Unit
             Modifier.fillMaxSize(), 
             color = MaterialTheme.colorScheme.background,
             content = { Box(Modifier.fillMaxSize(), content = content) }
+        )
+    }
+}
+
+// --- COMPONENT: PULL TO REFRESH BOX ---
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MyEduPullToRefreshBox(
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    themeMode: String,
+    content: @Composable BoxScope.() -> Unit
+) {
+    val state = rememberPullToRefreshState()
+    
+    // Determine colors based on theme
+    val indicatorColor = if (themeMode == "GLASS" || themeMode == "AQUA") {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    
+    val containerColor = if (themeMode == "GLASS") {
+        Color(0xFF0F2027) 
+    } else if (themeMode == "AQUA") {
+        Color(0xFFE0F7FA)
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+
+    if (state.isRefreshing) {
+        LaunchedEffect(true) {
+            onRefresh()
+        }
+    }
+
+    // Sync state with ViewModel
+    LaunchedEffect(isRefreshing) {
+        if (isRefreshing) {
+            state.startRefresh()
+        } else {
+            state.endRefresh()
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .nestedScroll(state.nestedScrollConnection)
+            .fillMaxSize()
+    ) {
+        content()
+
+        PullToRefreshContainer(
+            modifier = Modifier.align(Alignment.TopCenter),
+            state = state,
+            containerColor = containerColor,
+            contentColor = indicatorColor
         )
     }
 }
@@ -127,7 +188,6 @@ fun BeautifulDocButton(
     
     val containerModifier = if (isGlassMode) {
         val bgColor = if(themeMode == "AQUA") MilkyGlass else GlassWhite
-        // FIX: Wrap MilkyBorder (Color) in SolidColor so it matches AccentGradient (Brush)
         val borderBrush = if(themeMode == "AQUA") SolidColor(MilkyBorder) else AccentGradient
         
         modifier

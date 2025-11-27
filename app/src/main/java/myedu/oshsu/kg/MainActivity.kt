@@ -1,7 +1,11 @@
 package myedu.oshsu.kg
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkRequest
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -29,11 +33,15 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
+import myedu.oshsu.kg.ui.components.MyEduPullToRefreshBox
 import myedu.oshsu.kg.ui.components.ThemedBackground
 import myedu.oshsu.kg.ui.screens.*
 import myedu.oshsu.kg.ui.theme.GlassWhite
@@ -44,18 +52,47 @@ class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { }
+    
+    // --- NETWORK MONITORING ---
+    private var connectivityManager: ConnectivityManager? = null
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private var mainViewModel: MainViewModel? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        
+        // Notification Permissions
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
+        
+        // Setup Network Monitoring
+        setupNetworkMonitoring()
+
         setContent { 
             val vm: MainViewModel = viewModel()
+            // Store reference for network callback
+            mainViewModel = vm
+            
             val context = LocalContext.current
+            
+            // --- 1. HANDLE APP RESUME (AUTO REFRESH) ---
+            val lifecycleOwner = LocalLifecycleOwner.current
+            DisposableEffect(lifecycleOwner) {
+                val observer = LifecycleEventObserver { _, event ->
+                    if (event == Lifecycle.Event.ON_RESUME) {
+                        vm.onAppResume()
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                onDispose {
+                    lifecycleOwner.lifecycle.removeObserver(observer)
+                }
+            }
+            
             LaunchedEffect(Unit) { vm.initSession(context) }
             LaunchedEffect(vm.fullSchedule, vm.timeMap) {
                 if (vm.fullSchedule.isNotEmpty() && vm.timeMap.isNotEmpty()) {
@@ -65,6 +102,26 @@ class MainActivity : ComponentActivity() {
             MyEduTheme(themeMode = vm.themeMode) { 
                 ThemedBackground(themeMode = vm.themeMode) { AppContent(vm) }
             } 
+        }
+    }
+
+    private fun setupNetworkMonitoring() {
+        connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        networkCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                super.onAvailable(network)
+                // --- 2. HANDLE NETWORK RECONNECT (AUTO REFRESH) ---
+                mainViewModel?.onNetworkAvailable()
+            }
+        }
+        val request = NetworkRequest.Builder().build()
+        connectivityManager?.registerNetworkCallback(request, networkCallback!!)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        networkCallback?.let {
+            connectivityManager?.unregisterNetworkCallback(it)
         }
     }
 }
@@ -99,17 +156,26 @@ fun MainAppStructure(vm: MainViewModel) {
     
     Scaffold(containerColor = Color.Transparent, contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
         Box(Modifier.padding(padding).fillMaxSize()) {
-            AnimatedContent(
-                targetState = vm.currentTab,
-                label = "TabContent",
-                transitionSpec = { (fadeIn(animationSpec = tween(400)) + scaleIn(initialScale = 0.96f, animationSpec = tween(400))).togetherWith(fadeOut(animationSpec = tween(200))) },
-                modifier = Modifier.fillMaxSize()
-            ) { targetTab ->
-                when(targetTab) {
-                    0 -> HomeScreen(vm)
-                    1 -> ScheduleScreen(vm)
-                    2 -> GradesScreen(vm)
-                    3 -> ProfileScreen(vm)
+            
+            // --- 3. PULL TO REFRESH WRAPPER ---
+            // Wraps the main tab content so pulling anywhere on tabs refreshes data
+            MyEduPullToRefreshBox(
+                isRefreshing = vm.isLoading,
+                onRefresh = { vm.refresh() },
+                themeMode = vm.themeMode
+            ) {
+                AnimatedContent(
+                    targetState = vm.currentTab,
+                    label = "TabContent",
+                    transitionSpec = { (fadeIn(animationSpec = tween(400)) + scaleIn(initialScale = 0.96f, animationSpec = tween(400))).togetherWith(fadeOut(animationSpec = tween(200))) },
+                    modifier = Modifier.fillMaxSize()
+                ) { targetTab ->
+                    when(targetTab) {
+                        0 -> HomeScreen(vm)
+                        1 -> ScheduleScreen(vm)
+                        2 -> GradesScreen(vm)
+                        3 -> ProfileScreen(vm)
+                    }
                 }
             }
 
@@ -138,7 +204,6 @@ fun MainAppStructure(vm: MainViewModel) {
                 val cleanName = "$lastName $name".trim().replace(" ", "_").replace(".", "")
                 val filePrefix = "${cleanName}_$docType.pdf"
                 
-                // FIX: Wrap WebDocumentScreen in ThemedBackground to prevent transparency overlap
                 ThemedBackground(themeMode = vm.themeMode) {
                     WebDocumentScreen(
                         url = vm.webDocumentUrl!!, 

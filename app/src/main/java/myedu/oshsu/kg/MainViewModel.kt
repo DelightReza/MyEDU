@@ -17,6 +17,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.Calendar
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 class MainViewModel : ViewModel() {
     // --- STATE: APP STATUS ---
@@ -25,11 +26,12 @@ class MainViewModel : ViewModel() {
     var isLoading by mutableStateOf(false)
     var errorMsg by mutableStateOf<String?>(null)
     
+    // --- REFRESH LOGIC ---
+    private var lastRefreshTime: Long = 0
+    private val refreshCooldownMs = TimeUnit.MINUTES.toMillis(5) // 5 Minute cooldown for auto-triggers
+
     // --- STATE: THEME ---
     var themeMode by mutableStateOf("SYSTEM")
-    
-    // UPDATED: Both GLASS (Dark Liquid) and AQUA (Light Aqua) count as "Glass" structural themes
-    // This ensures overlays, floating bars, and transparent backgrounds are active for both.
     val isGlass: Boolean get() = themeMode == "GLASS" || themeMode == "AQUA"
 
     // --- STATE: SETTINGS (DOCS) ---
@@ -50,11 +52,9 @@ class MainViewModel : ViewModel() {
     var determinedGroup by mutableStateOf<Int?>(null)
     var selectedClass by mutableStateOf<ScheduleItem?>(null)
     
-    // Persist the selected day index (0=Mon, 5=Sat) so it doesn't reset on back press
     var selectedScheduleDay by mutableStateOf(run {
         val cal = Calendar.getInstance()
         val dow = cal.get(Calendar.DAY_OF_WEEK)
-        // Convert Sunday(1)..Saturday(7) to Mon(0)..Sat(5). Sunday defaults to Mon.
         if (dow == Calendar.SUNDAY) 0 else (dow - 2).coerceIn(0, 5)
     })
     
@@ -109,9 +109,37 @@ class MainViewModel : ViewModel() {
             NetworkClient.cookieJar.injectSessionCookies(token)
             loadOfflineData()
             appState = "APP"
-            refreshAllData()
+            // Force refresh on cold boot
+            refreshAllData(force = true)
         } else {
             appState = "LOGIN"
+        }
+    }
+
+    // --- DATA REFRESH ACTIONS ---
+
+    // 1. Manual Pull-to-Refresh (Bypasses cooldown)
+    fun refresh() {
+        if (isLoading) return
+        refreshAllData(force = true)
+    }
+
+    // 2. Lifecycle: On App Resume
+    fun onAppResume() {
+        attemptAutoRefresh()
+    }
+
+    // 3. Network: On Connectivity Restored
+    fun onNetworkAvailable() {
+        attemptAutoRefresh()
+    }
+
+    private fun attemptAutoRefresh() {
+        if (appState != "APP" || isLoading) return
+        val currentTime = System.currentTimeMillis()
+        // Only refresh if cooldown period has passed
+        if (currentTime - lastRefreshTime > refreshCooldownMs) {
+            refreshAllData(force = false)
         }
     }
 
@@ -148,7 +176,7 @@ class MainViewModel : ViewModel() {
                     prefs?.saveToken(token)
                     NetworkClient.interceptor.authToken = token
                     NetworkClient.cookieJar.injectSessionCookies(token)
-                    refreshAllData()
+                    refreshAllData(force = true)
                     appState = "APP"
                 } else errorMsg = "Incorrect credentials"
             } catch (e: Exception) { errorMsg = "Login Failed: ${e.message}" }
@@ -165,7 +193,7 @@ class MainViewModel : ViewModel() {
         prefs?.saveData("doc_download_mode", downloadMode)
     }
 
-    private fun refreshAllData() {
+    private fun refreshAllData(force: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             withContext(Dispatchers.Main) { isLoading = true }
             try {
@@ -181,8 +209,11 @@ class MainViewModel : ViewModel() {
                     loadScheduleNetwork(profile)
                     fetchSession(profile)
                 }
+                // Update timestamp on success
+                lastRefreshTime = System.currentTimeMillis()
             } catch (e: Exception) {
                 if (e.message?.contains("401") == true) { withContext(Dispatchers.Main) { logout() } }
+                // Don't reset timestamp on failure to avoid loops, but allow manual retry
             } finally {
                 withContext(Dispatchers.Main) { isLoading = false }
             }
@@ -283,7 +314,6 @@ class MainViewModel : ViewModel() {
                 pdfStatusMessage = "Generating PDF..."
                 val bytes = WebPdfGenerator(context).generatePdf(infoJson.toString(), transcriptRaw, keyObj.optLong("id"), keyObj.optString("url"), resources!!, language, cachedDictionary) { println(it) }
                 
-                // SAVE AND OPEN
                 val filename = getFormattedFileName("Transcript", language)
                 saveToDownloads(context, bytes, filename)
                 
@@ -323,7 +353,6 @@ class MainViewModel : ViewModel() {
                 pdfStatusMessage = "Generating PDF..."
                 val bytes = ReferencePdfGenerator(context).generatePdf(infoJson.toString(), licenseRaw, univRaw, linkObj.optLong("id"), linkObj.optString("url"), resources!!, prefs?.getToken() ?: "", language, cachedDictionary) { println(it) }
                 
-                // SAVE AND OPEN
                 val filename = getFormattedFileName("Reference", language)
                 saveToDownloads(context, bytes, filename)
                 
@@ -338,7 +367,6 @@ class MainViewModel : ViewModel() {
         try {
             pdfStatusMessage = "Saving to Downloads..."
             val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            // Handle duplicate filenames
             var file = File(downloadsDir, filename)
             var counter = 1
             while (file.exists()) {
@@ -352,14 +380,11 @@ class MainViewModel : ViewModel() {
                 FileOutputStream(file).use { it.write(bytes) }
             }
 
-            // --- OPEN PDF AUTOMATICALLY ---
             withContext(Dispatchers.Main) {
                 Toast.makeText(context, "Saved: ${file.name}", Toast.LENGTH_SHORT).show()
                 try {
-                    // SECURELY GET URI via FileProvider
                     val authority = "${context.packageName}.provider"
                     val uri = FileProvider.getUriForFile(context, authority, file)
-                    
                     val intent = Intent(Intent.ACTION_VIEW)
                     intent.setDataAndType(uri, "application/pdf")
                     intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)

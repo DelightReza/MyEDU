@@ -138,12 +138,21 @@ fun MainAppStructure(vm: MainViewModel) {
                 val cleanName = "$lastName $name".trim().replace(" ", "_").replace(".", "")
                 val filePrefix = "${cleanName}_$docType.pdf"
                 
-                WebDocumentScreen(url = vm.webDocumentUrl!!, title = docType, fileName = filePrefix, authToken = vm.getAuthToken(), onClose = { vm.webDocumentUrl = null })
+                // FIX: Wrap WebDocumentScreen in ThemedBackground to prevent transparency overlap
+                ThemedBackground(themeMode = vm.themeMode) {
+                    WebDocumentScreen(
+                        url = vm.webDocumentUrl!!, 
+                        title = docType, 
+                        fileName = filePrefix, 
+                        authToken = vm.getAuthToken(),
+                        themeMode = vm.themeMode, 
+                        onClose = { vm.webDocumentUrl = null }
+                    )
+                }
             }
 
             if (vm.selectedClass != null) {
                 val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-                // Use MilkyGlass for Aqua sheet background
                 val sheetColor = if (vm.themeMode == "AQUA") MilkyGlass else if(vm.isGlass) Color(0xFF0F2027) else MaterialTheme.colorScheme.surface
                 
                 ModalBottomSheet(
@@ -161,10 +170,9 @@ fun MainAppStructure(vm: MainViewModel) {
 
 @Composable
 fun FloatingNavBar(vm: MainViewModel) {
-    // Explicitly handle AQUA (Light Glass) vs GLASS (Dark Glass) vs Material
     val containerColor = when(vm.themeMode) {
-        "AQUA" -> MilkyGlass // White translucent
-        "GLASS" -> Color(0xFF0F2027).copy(alpha = 0.90f) // Dark translucent
+        "AQUA" -> MilkyGlass
+        "GLASS" -> Color(0xFF0F2027).copy(alpha = 0.90f)
         else -> MaterialTheme.colorScheme.surfaceContainer
     }
     

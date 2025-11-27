@@ -22,6 +22,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.viewinterop.AndroidView
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -29,8 +30,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 fun WebDocumentScreen(
     url: String,
     title: String,
-    fileName: String, // <--- REPLACES server filename
+    fileName: String,
     authToken: String?,
+    themeMode: String,
     onClose: () -> Unit
 ) {
     var isLoading by remember { mutableStateOf(true) }
@@ -46,6 +48,7 @@ fun WebDocumentScreen(
     }
 
     Scaffold(
+        containerColor = Color.Transparent, // Allow the ThemedBackground (passed from MainActivity) to show through
         topBar = {
             TopAppBar(
                 title = { Text(title) },
@@ -53,7 +56,15 @@ fun WebDocumentScreen(
                     IconButton(onClick = onClose) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    // Ensure text is visible on the gradient background. 
+                    // Glass (Dark) -> White text. Aqua (Light) -> Dark Text (onSurface).
+                    titleContentColor = if (themeMode == "GLASS") Color.White else MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = if (themeMode == "GLASS") Color.White else MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = if (themeMode == "GLASS") Color.White else MaterialTheme.colorScheme.onSurface
+                )
             )
         }
     ) { padding ->
@@ -73,7 +84,6 @@ fun WebDocumentScreen(
                         settings.builtInZoomControls = true
                         settings.displayZoomControls = false
 
-                        // --- DOWNLOAD LISTENER (CUSTOM NAMING) ---
                         setDownloadListener { url, userAgent, contentDisposition, mimetype, _ ->
                             try {
                                 val request = DownloadManager.Request(Uri.parse(url))
@@ -83,7 +93,6 @@ fun WebDocumentScreen(
                                 request.addRequestHeader("cookie", cookies)
                                 request.addRequestHeader("User-Agent", userAgent)
                                 
-                                // FORCE CUSTOM FILENAME
                                 request.setDescription("Downloading $title...")
                                 request.setTitle(fileName)
                                 request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)

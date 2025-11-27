@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import myedu.oshsu.kg.MainViewModel
@@ -58,13 +59,53 @@ fun HomeScreen(vm: MainViewModel) {
                 }
             }
             Spacer(Modifier.height(24.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) { 
-                StatCard(Icons.Outlined.CalendarToday, stringResource(R.string.semester), profile?.active_semester?.toString() ?: "-", vm.themeMode, Modifier.weight(1f))
-                StatCard(Icons.Outlined.Groups, stringResource(R.string.group), if (vm.determinedGroup != null) "${stringResource(R.string.group_short)} ${vm.determinedGroup}" else profile?.studentMovement?.avn_group_name ?: "-", vm.themeMode, Modifier.weight(1f)) 
+
+            // --- UPDATED SEMESTER & GROUP CARDS ---
+            val streamLabel = stringResource(R.string.stream)
+            
+            // 1. SEMESTER LOGIC
+            val activeSemesterNum = profile?.active_semester?.toString() ?: "-"
+            val streamText = vm.determinedStream?.let { "$streamLabel $it" }
+
+            // 2. GROUP LOGIC
+            val rawGroupNum = vm.determinedGroup
+            val rawAvnName = profile?.studentMovement?.avn_group_name
+
+            // If number exists, use it. If not, fallback to name. If neither, use "-"
+            val displayGroupValue = rawGroupNum?.toString() ?: rawAvnName ?: "-"
+
+            // Show secondary text only if we used the number as primary AND the name is different
+            val groupSecondaryText = if (rawGroupNum != null && rawAvnName != null && rawAvnName != rawGroupNum.toString() && rawAvnName != "0") {
+                rawAvnName
+            } else {
+                null
             }
+
+            Row(
+                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max), // Ensures equal height based on tallest content
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) { 
+                StatCard(
+                    icon = Icons.Outlined.CalendarToday, 
+                    label = stringResource(R.string.semester), 
+                    value = activeSemesterNum, 
+                    secondaryText = streamText,
+                    themeMode = vm.themeMode, 
+                    modifier = Modifier.weight(1f).fillMaxHeight()
+                )
+                StatCard(
+                    icon = Icons.Outlined.Groups, 
+                    label = stringResource(R.string.group), 
+                    value = displayGroupValue, 
+                    secondaryText = groupSecondaryText,
+                    themeMode = vm.themeMode, 
+                    modifier = Modifier.weight(1f).fillMaxHeight()
+                ) 
+            }
+            // --------------------------------------
+
             Spacer(Modifier.height(32.dp))
             
-            // Note: vm.todayDayName is computed via Java Calendar, which matches the App Locale set in MainActivity
             Text("${vm.todayDayName}: ${stringResource(R.string.todays_classes)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(16.dp))
             if (vm.todayClasses.isEmpty()) {
@@ -87,13 +128,62 @@ fun HomeScreen(vm: MainViewModel) {
 }
 
 @Composable
-fun StatCard(icon: ImageVector, label: String, value: String, themeMode: String, modifier: Modifier = Modifier) {
+fun StatCard(
+    icon: ImageVector, 
+    label: String, 
+    value: String, 
+    secondaryText: String? = null, 
+    themeMode: String, 
+    modifier: Modifier = Modifier
+) {
     ThemedCard(modifier = modifier, themeMode = themeMode) { 
-        Column { 
-            Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(8.dp))
-            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(text = value, style = if(value.length > 15) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface) 
-        } 
+        // Use a Box with Alignment.Center to ensure absolute centering within the card's available space
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) { 
+                Icon(
+                    icon, 
+                    null, 
+                    tint = MaterialTheme.colorScheme.primary, 
+                    modifier = Modifier.size(28.dp)
+                )
+                
+                Spacer(Modifier.height(8.dp))
+                
+                Text(
+                    text = label, 
+                    style = MaterialTheme.typography.labelMedium, 
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+                
+                Spacer(Modifier.height(4.dp))
+                
+                Text(
+                    text = value, 
+                    style = MaterialTheme.typography.headlineLarge, 
+                    fontWeight = FontWeight.Bold, 
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center
+                )
+                
+                if (secondaryText != null) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = secondaryText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
     }
 }

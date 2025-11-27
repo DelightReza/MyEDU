@@ -27,7 +27,10 @@ class MainViewModel : ViewModel() {
     
     // --- STATE: THEME ---
     var themeMode by mutableStateOf("SYSTEM")
-    val isGlass: Boolean get() = themeMode == "GLASS"
+    
+    // UPDATED: Both GLASS (Dark Liquid) and AQUA (Light Aqua) count as "Glass" structural themes
+    // This ensures overlays, floating bars, and transparent backgrounds are active for both.
+    val isGlass: Boolean get() = themeMode == "GLASS" || themeMode == "AQUA"
 
     // --- STATE: SETTINGS (DOCS) ---
     var downloadMode by mutableStateOf("IN_APP") // "IN_APP" or "WEBSITE"
@@ -47,7 +50,7 @@ class MainViewModel : ViewModel() {
     var determinedGroup by mutableStateOf<Int?>(null)
     var selectedClass by mutableStateOf<ScheduleItem?>(null)
     
-    // NEW: Persist the selected day index (0=Mon, 5=Sat) so it doesn't reset on back press
+    // Persist the selected day index (0=Mon, 5=Sat) so it doesn't reset on back press
     var selectedScheduleDay by mutableStateOf(run {
         val cal = Calendar.getInstance()
         val dow = cal.get(Calendar.DAY_OF_WEEK)

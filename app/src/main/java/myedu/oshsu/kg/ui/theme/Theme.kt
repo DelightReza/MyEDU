@@ -16,11 +16,20 @@ import androidx.core.view.WindowCompat
 // --- GRADIENTS ---
 val AccentGradient = Brush.linearGradient(listOf(Color(0xFF00C6FF), Color(0xFF0072FF)))
 
+// Liquid Glass (Dark Mode)
 val LiquidBackgroundBrush = Brush.verticalGradient(
     colors = listOf(
-        Color(0xFF0F2027), // Deep Dark Blue
-        Color(0xFF203A43), // Tealish Dark
-        Color(0xFF2C5364)  // Lighter Teal/Blue
+        Color(0xFF0F2027),
+        Color(0xFF203A43),
+        Color(0xFF2C5364)
+    )
+)
+
+// Aqua Flow (Light Mode)
+val AquaBackgroundBrush = Brush.verticalGradient(
+    colors = listOf(
+        AquaLightStart,
+        AquaLightEnd
     )
 )
 
@@ -35,14 +44,6 @@ private val LightColorScheme = lightColorScheme(
     onSecondary = OnSecondaryBlue,
     secondaryContainer = SecondaryContainer,
     onSecondaryContainer = OnSecondaryContainer,
-    tertiary = TertiaryCyan,
-    onTertiary = OnTertiaryCyan,
-    tertiaryContainer = TertiaryContainer,
-    onTertiaryContainer = OnTertiaryContainer,
-    error = ErrorRed,
-    onError = OnErrorRed,
-    errorContainer = ErrorContainer,
-    onErrorContainer = OnErrorContainer,
     background = Color(0xFFFDFBFF),
     onBackground = Color(0xFF1A1C1E),
     surface = Color(0xFFFDFBFF),
@@ -58,19 +59,13 @@ private val DarkColorScheme = darkColorScheme(
     onSecondary = OnSecondaryBlueDark,
     secondaryContainer = SecondaryContainerDark,
     onSecondaryContainer = OnSecondaryContainerDark,
-    tertiary = Color(0xFF4FD8EB),
-    onTertiary = Color(0xFF00363D),
-    tertiaryContainer = Color(0xFF004F58),
-    onTertiaryContainer = Color(0xFF97F0FF),
-    error = Color(0xFFFFB4AB),
-    onError = Color(0xFF690005),
     background = Color(0xFF1A1C1E),
     onBackground = Color(0xFFE3E2E6),
     surface = Color(0xFF1A1C1E),
     onSurface = Color(0xFFE3E2E6),
 )
 
-// Custom Glass Scheme (Forces Dark Mode styling + Transparent Backgrounds)
+// 1. LIQUID GLASS (Dark Theme + Transparency)
 private val GlassColorScheme = darkColorScheme(
     primary = Color(0xFF00C6FF),
     onPrimary = Color.White,
@@ -84,6 +79,20 @@ private val GlassColorScheme = darkColorScheme(
     onSurfaceVariant = Color.White.copy(alpha = 0.7f)
 )
 
+// 2. AQUA FLOW (Light Theme + Transparency)
+private val AquaColorScheme = lightColorScheme(
+    primary = Color(0xFF00796B), // Teal
+    onPrimary = Color.White,
+    secondary = Color(0xFF0097A7),
+    onSecondary = Color.White,
+    background = Color.Transparent, 
+    onBackground = TextDarkTeal,
+    surface = Color.Transparent, 
+    onSurface = TextDarkTeal,
+    surfaceVariant = Color(0xFFB2DFDB), // Used for fallback card colors
+    onSurfaceVariant = TextDarkTeal.copy(alpha = 0.7f)
+)
+
 @Composable
 fun MyEduTheme(
     themeMode: String,
@@ -92,20 +101,19 @@ fun MyEduTheme(
 ) {
     val context = LocalContext.current
     
-    // Determine strict Dark Mode based on user preference
+    // Determine strict Dark Mode logic
     val isDark = when(themeMode) {
-        "LIGHT" -> false
-        "DARK", "GLASS" -> true
-        else -> systemDark // SYSTEM
+        "LIGHT", "AQUA" -> false // Aqua is Light
+        "DARK", "GLASS" -> true  // Glass is Dark
+        else -> systemDark
     }
 
-    // Dynamic Color is available on Android 12+ (S)
     val dynamicColor = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     val colorScheme = when {
         themeMode == "GLASS" -> GlassColorScheme
+        themeMode == "AQUA" -> AquaColorScheme
         dynamicColor -> {
-            // Material You Dynamic Colors
             if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         isDark -> DarkColorScheme
@@ -116,14 +124,18 @@ fun MyEduTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            // Edge-to-Edge: Transparent bars
             window.statusBarColor = Color.Transparent.toArgb()
             window.navigationBarColor = Color.Transparent.toArgb()
             
-            // Icon contrast logic
-            // Glass Mode always has a dark background -> Light Icons (isAppearanceLightStatusBars = false)
-            // Material Mode -> Depends on isDark
-            val useLightIcons = if (themeMode == "GLASS") false else !isDark
+            // Icon Contrast Logic
+            // If theme is Light (Aqua), we need Dark Icons (true).
+            // If theme is Dark (Glass), we need Light Icons (false).
+            // Standard themes follow isDark.
+            val useLightIcons = when(themeMode) {
+                "GLASS" -> false // Dark background -> Light icons
+                "AQUA" -> true   // Light background -> Dark icons
+                else -> !isDark
+            }
             
             val insetsController = WindowCompat.getInsetsController(window, view)
             insetsController.isAppearanceLightStatusBars = useLightIcons

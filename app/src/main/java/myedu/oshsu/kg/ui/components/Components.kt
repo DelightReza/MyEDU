@@ -11,9 +11,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -26,7 +26,7 @@ import myedu.oshsu.kg.ui.theme.*
 
 // --- UI COMPONENT: LOGO ---
 @Composable
-fun OshSuLogo(modifier: Modifier = Modifier) {
+fun OshSuLogo(modifier: Modifier = Modifier, themeMode: String = "SYSTEM") {
     val context = LocalContext.current
     val url = "file:///android_asset/logo-dark4.svg"
     
@@ -36,29 +36,27 @@ fun OshSuLogo(modifier: Modifier = Modifier) {
             .build()
     }
     
+    val isGlassDark = themeMode == "GLASS"
+    val isDarkMode = themeMode == "DARK"
+    
     AsyncImage(
         model = url,
         imageLoader = imageLoader,
         contentDescription = "OshSU Logo",
         modifier = modifier,
         contentScale = ContentScale.Fit,
-        // Tint white in Glass mode, otherwise rely on the SVG colors (or tint onPrimaryContainer for Dark Mode)
-        colorFilter = if (MaterialTheme.colorScheme.background == Color.Transparent) ColorFilter.tint(Color.White) else null
+        colorFilter = if (isGlassDark || isDarkMode) ColorFilter.tint(Color.White) else null
     )
 }
 
 // --- ABSTRACTION: THEMED BACKGROUND ---
 @Composable
-fun ThemedBackground(isGlass: Boolean, content: @Composable BoxScope.() -> Unit) {
-    if (isGlass) {
-        Box(
-            modifier = Modifier.fillMaxSize().background(LiquidBackgroundBrush),
-            content = content
-        )
-    } else {
-        // Material Mode: Standard background (reacts to Light/Dark)
-        Surface(
-            modifier = Modifier.fillMaxSize(),
+fun ThemedBackground(themeMode: String, content: @Composable BoxScope.() -> Unit) {
+    when (themeMode) {
+        "GLASS" -> Box(Modifier.fillMaxSize().background(LiquidBackgroundBrush), content = content)
+        "AQUA" -> Box(Modifier.fillMaxSize().background(AquaBackgroundBrush), content = content)
+        else -> Surface(
+            Modifier.fillMaxSize(), 
             color = MaterialTheme.colorScheme.background,
             content = { Box(Modifier.fillMaxSize(), content = content) }
         )
@@ -69,30 +67,30 @@ fun ThemedBackground(isGlass: Boolean, content: @Composable BoxScope.() -> Unit)
 @Composable
 fun ThemedCard(
     modifier: Modifier = Modifier,
-    isGlass: Boolean,
+    themeMode: String,
     onClick: (() -> Unit)? = null,
-    glassAlpha: Float = 0.10f,
-    // Default to a tonal surface color for MD3 (Surface Container Low/High/etc)
-    // In M3 1.2+, we can use MaterialTheme.colorScheme.surfaceContainer if available,
-    // or stick to explicit overrides in usage. Default to surfaceVariant logic here.
-    materialColor: Color = MaterialTheme.colorScheme.surfaceContainer, // M3 1.2+ property
+    materialColor: Color = MaterialTheme.colorScheme.surfaceContainer, 
     content: @Composable ColumnScope.() -> Unit
 ) {
-    if (isGlass) {
-        // GLASS MODE
+    val isGlassMode = themeMode == "GLASS" || themeMode == "AQUA"
+    
+    if (isGlassMode) {
+        // GLASS LOGIC
+        val glassColor = if (themeMode == "AQUA") MilkyGlass else GlassWhite
+        val borderColor = if (themeMode == "AQUA") MilkyBorder else GlassBorder
+        
         Surface(
             modifier = modifier
-                .border(1.dp, GlassBorder, RoundedCornerShape(24.dp))
+                .border(1.dp, borderColor, RoundedCornerShape(24.dp))
                 .clip(RoundedCornerShape(24.dp)),
-            color = Color.White.copy(alpha = glassAlpha),
+            color = glassColor,
             shape = RoundedCornerShape(24.dp),
             onClick = onClick ?: {},
             content = { Column(Modifier.padding(16.dp), content = content) }
         )
     } else {
-        // MATERIAL 3 MODE (Standard Elevated Card)
-        val shape = RoundedCornerShape(16.dp) // MD3 Card Shape
-        
+        // STANDARD MATERIAL LOGIC
+        val shape = RoundedCornerShape(16.dp)
         if (onClick != null) {
             ElevatedCard(
                 onClick = onClick,
@@ -119,22 +117,26 @@ fun ThemedCard(
 fun BeautifulDocButton(
     text: String,
     icon: ImageVector,
-    isGlass: Boolean,
+    themeMode: String,
     modifier: Modifier = Modifier,
     isLoading: Boolean = false,
     onClick: () -> Unit
 ) {
+    val isGlassMode = themeMode == "GLASS" || themeMode == "AQUA"
     val shape = RoundedCornerShape(16.dp)
     
-    val containerModifier = if (isGlass) {
+    val containerModifier = if (isGlassMode) {
+        val bgColor = if(themeMode == "AQUA") MilkyGlass else GlassWhite
+        // FIX: Wrap MilkyBorder (Color) in SolidColor so it matches AccentGradient (Brush)
+        val borderBrush = if(themeMode == "AQUA") SolidColor(MilkyBorder) else AccentGradient
+        
         modifier
             .height(56.dp)
-            .background(GlassWhite, shape)
-            .border(1.dp, AccentGradient, shape)
+            .background(bgColor, shape)
+            .border(1.dp, borderBrush, shape)
             .clip(shape)
             .clickable(enabled = !isLoading, onClick = onClick)
     } else {
-        // Material 3 Style: Secondary Container
         modifier
             .height(56.dp)
             .background(MaterialTheme.colorScheme.secondaryContainer, shape)
@@ -146,7 +148,7 @@ fun BeautifulDocButton(
         if (isLoading) {
             CircularProgressIndicator(
                 modifier = Modifier.size(24.dp), 
-                color = if(isGlass) Color.White else MaterialTheme.colorScheme.onSecondaryContainer,
+                color = MaterialTheme.colorScheme.onSurface,
                 strokeWidth = 2.dp
             )
         } else {
@@ -154,7 +156,7 @@ fun BeautifulDocButton(
                 Icon(
                     icon, 
                     null, 
-                    tint = if(isGlass) Color.White else MaterialTheme.colorScheme.onSecondaryContainer,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(Modifier.width(8.dp))
@@ -162,37 +164,36 @@ fun BeautifulDocButton(
                     text, 
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = if(isGlass) Color.White else MaterialTheme.colorScheme.onSecondaryContainer
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
         }
     }
 }
 
-// --- HELPER UI: TEXT SECTION ---
+// --- HELPER UI ---
 @Composable
-fun InfoSection(title: String, isGlass: Boolean) { 
+fun InfoSection(title: String, themeMode: String) { 
     Text(
         title, 
         style = MaterialTheme.typography.labelLarge, 
-        color = if(isGlass) Color.White.copy(0.8f) else MaterialTheme.colorScheme.primary, 
+        color = MaterialTheme.colorScheme.primary, 
         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp, start = 4.dp)
     ) 
 }
 
 @Composable
-fun DetailCard(icon: ImageVector, title: String, value: String, isGlass: Boolean) {
+fun DetailCard(icon: ImageVector, title: String, value: String, themeMode: String) {
     ThemedCard(
         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), 
-        isGlass = isGlass,
-        // Use a lower surface container for simple lists in MD3
+        themeMode = themeMode,
         materialColor = MaterialTheme.colorScheme.surfaceContainerLow
     ) { 
         Row(verticalAlignment = Alignment.CenterVertically) { 
             Icon(
                 icon, 
                 null, 
-                tint = if(isGlass) Color(0xFF00C6FF) else MaterialTheme.colorScheme.secondary, 
+                tint = MaterialTheme.colorScheme.primary, 
                 modifier = Modifier.size(24.dp)
             )
             Spacer(Modifier.width(16.dp))
@@ -200,14 +201,27 @@ fun DetailCard(icon: ImageVector, title: String, value: String, isGlass: Boolean
                 Text(
                     title, 
                     style = MaterialTheme.typography.labelSmall, 
-                    color = if(isGlass) Color.White.copy(0.7f) else MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     value, 
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if(isGlass) Color.White else MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface
                 ) 
             } 
         } 
+    }
+}
+
+@Composable
+fun ScoreColumn(label: String, score: Double?, isTotal: Boolean = false) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            "${score?.toInt() ?: 0}", 
+            style = MaterialTheme.typography.bodyLarge, 
+            fontWeight = FontWeight.Bold, 
+            color = if (isTotal && (score ?: 0.0) >= 50) Color(0xFF4CAF50) else if (isTotal) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+        )
     }
 }

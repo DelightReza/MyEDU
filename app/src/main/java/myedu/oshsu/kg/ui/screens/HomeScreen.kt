@@ -30,28 +30,16 @@ fun HomeScreen(vm: MainViewModel) {
     
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(Modifier.fillMaxSize().widthIn(max = 840.dp).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-            
-            // --- FIX: Push content down below the Status Bar ---
             Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
             Spacer(Modifier.height(16.dp))
             
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) { 
                     Text(greetingText, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(
-                        text = user?.name ?: "Student", 
-                        style = MaterialTheme.typography.titleMedium, 
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    ) 
+                    Text(text = user?.name ?: "Student", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface) 
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    OshSuLogo(modifier = Modifier.width(100.dp).height(40.dp))
+                    OshSuLogo(modifier = Modifier.width(100.dp).height(40.dp), themeMode = vm.themeMode)
                     Spacer(Modifier.width(8.dp))
                     Box(modifier = Modifier.size(40.dp).clickable { showNewsSheet = true }, contentAlignment = Alignment.Center) {
                         if (vm.newsList.isNotEmpty()) {
@@ -64,16 +52,16 @@ fun HomeScreen(vm: MainViewModel) {
             }
             Spacer(Modifier.height(24.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) { 
-                StatCard(Icons.Outlined.CalendarToday, "Semester", profile?.active_semester?.toString() ?: "-", vm.isGlass, Modifier.weight(1f))
-                StatCard(Icons.Outlined.Groups, "Group", if (vm.determinedGroup != null) "Group ${vm.determinedGroup}" else profile?.studentMovement?.avn_group_name ?: "-", vm.isGlass, Modifier.weight(1f)) 
+                StatCard(Icons.Outlined.CalendarToday, "Semester", profile?.active_semester?.toString() ?: "-", vm.themeMode, Modifier.weight(1f))
+                StatCard(Icons.Outlined.Groups, "Group", if (vm.determinedGroup != null) "Group ${vm.determinedGroup}" else profile?.studentMovement?.avn_group_name ?: "-", vm.themeMode, Modifier.weight(1f)) 
             }
             Spacer(Modifier.height(32.dp))
-            Text("${vm.todayDayName}'s Classes", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("${vm.todayDayName}'s Classes", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(16.dp))
             if (vm.todayClasses.isEmpty()) {
-                ThemedCard(modifier = Modifier.fillMaxWidth(), vm.isGlass) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Outlined.Weekend, null, tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(16.dp)); Text("No classes today!", style = MaterialTheme.typography.bodyLarge) } } 
+                ThemedCard(modifier = Modifier.fillMaxWidth(), themeMode = vm.themeMode) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Outlined.Weekend, null, tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(16.dp)); Text("No classes today!", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface) } } 
             } else {
-                vm.todayClasses.forEach { item -> ClassItem(item, vm.getTimeString(item.id_lesson), vm.isGlass) { vm.selectedClass = item } } 
+                vm.todayClasses.forEach { item -> ClassItem(item, vm.getTimeString(item.id_lesson), vm.themeMode) { vm.selectedClass = item } } 
             }
             Spacer(Modifier.height(80.dp))
         }
@@ -82,26 +70,21 @@ fun HomeScreen(vm: MainViewModel) {
         val containerColor = if(vm.isGlass) Color(0xFF16213E) else BottomSheetDefaults.ContainerColor
         ModalBottomSheet(onDismissRequest = { showNewsSheet = false }, containerColor = containerColor) { 
             Column(Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) { 
-                Text("Announcements", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = if(vm.isGlass) Color.White else Color.Unspecified)
-                LazyColumn { items(vm.newsList) { news -> ThemedCard(Modifier.padding(top=8.dp).fillMaxWidth(), vm.isGlass, materialColor = MaterialTheme.colorScheme.surfaceVariant) { Column { Text(news.title?:"", fontWeight=FontWeight.Bold); Text(news.message?:"", color = MaterialTheme.colorScheme.onSurfaceVariant) } } } } 
+                Text("Announcements", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                LazyColumn { items(vm.newsList) { news -> ThemedCard(Modifier.padding(top=8.dp).fillMaxWidth(), themeMode = vm.themeMode, materialColor = MaterialTheme.colorScheme.surfaceVariant) { Column { Text(news.title?:"", fontWeight=FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface); Text(news.message?:"", color = MaterialTheme.colorScheme.onSurfaceVariant) } } } } 
             } 
         } 
     }
 }
 
-// --- HELPER UI: STAT CARD ---
 @Composable
-fun StatCard(icon: ImageVector, label: String, value: String, isGlass: Boolean, modifier: Modifier = Modifier) {
-    if (isGlass) {
-        ThemedCard(modifier = modifier, isGlass = true) { Column { Icon(icon, null, tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.height(8.dp)); Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant); Text(text = value, style = if(value.length > 15) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis) } }
-    } else {
-        ElevatedCard(modifier = modifier, colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)) { 
-            Column(Modifier.padding(16.dp)) { 
-                Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.height(8.dp))
-                Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(text = value, style = if(value.length > 15) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 2, overflow = TextOverflow.Ellipsis) 
-            } 
-        }
+fun StatCard(icon: ImageVector, label: String, value: String, themeMode: String, modifier: Modifier = Modifier) {
+    ThemedCard(modifier = modifier, themeMode = themeMode) { 
+        Column { 
+            Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.height(8.dp))
+            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(text = value, style = if(value.length > 15) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface) 
+        } 
     }
 }

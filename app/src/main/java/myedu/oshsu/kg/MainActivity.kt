@@ -41,12 +41,18 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import myedu.oshsu.kg.ui.components.MyEduPullToRefreshBox
 import myedu.oshsu.kg.ui.components.ThemedBackground
 import myedu.oshsu.kg.ui.screens.*
 import myedu.oshsu.kg.ui.theme.GlassWhite
 import myedu.oshsu.kg.ui.theme.MilkyGlass
 import myedu.oshsu.kg.ui.theme.MyEduTheme
+import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
@@ -71,6 +77,9 @@ class MainActivity : ComponentActivity() {
         
         // Setup Network Monitoring
         setupNetworkMonitoring()
+
+        // --- SETUP BACKGROUND WORK ---
+        setupBackgroundWork()
 
         setContent { 
             val vm: MainViewModel = viewModel()
@@ -118,6 +127,26 @@ class MainActivity : ComponentActivity() {
         connectivityManager?.registerNetworkCallback(request, networkCallback!!)
     }
 
+    private fun setupBackgroundWork() {
+        // Constraints: Requires Battery Not Low + Network Connected
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .setRequiresBatteryNotLow(true)
+            .build()
+
+        // Repeat every 4 hours
+        val syncRequest = PeriodicWorkRequestBuilder<BackgroundSyncWorker>(4, TimeUnit.HOURS)
+            .setConstraints(constraints)
+            .build()
+
+        // Enqueue Unique Work (Keeps existing one if already scheduled)
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "MyEduGradeSync",
+            ExistingPeriodicWorkPolicy.KEEP,
+            syncRequest
+        )
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         networkCallback?.let {
@@ -158,7 +187,6 @@ fun MainAppStructure(vm: MainViewModel) {
         Box(Modifier.padding(padding).fillMaxSize()) {
             
             // --- 3. PULL TO REFRESH WRAPPER ---
-            // Wraps the main tab content so pulling anywhere on tabs refreshes data
             MyEduPullToRefreshBox(
                 isRefreshing = vm.isLoading,
                 onRefresh = { vm.refresh() },

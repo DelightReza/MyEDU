@@ -77,6 +77,8 @@ dependencies {
     
     // --- LIFECYCLE ---
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
-    // Added for better lifecycle integration (LocalLifecycleOwner, etc.)
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
+
+    // --- WORK MANAGER (BACKGROUND TASKS) ---
+    implementation("androidx.work:work-runtime-ktx:2.9.0") 
 }

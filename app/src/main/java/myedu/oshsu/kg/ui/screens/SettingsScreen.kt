@@ -1,7 +1,7 @@
 package myedu.oshsu.kg.ui.screens
 
+import android.content.pm.PackageManager
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -33,6 +33,22 @@ import myedu.oshsu.kg.ui.theme.MilkyGlass
 @Composable
 fun SettingsScreen(vm: MainViewModel, onClose: () -> Unit) {
     val context = LocalContext.current
+    
+    // --- DYNAMIC VERSION FETCHING ---
+    val appVersion = remember {
+        try {
+            val pInfo = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                context.packageManager.getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(0))
+            } else {
+                context.packageManager.getPackageInfo(context.packageName, 0)
+            }
+            pInfo.versionName
+        } catch (e: Exception) {
+            "Unknown"
+        }
+    }
+    // --------------------------------
+
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
@@ -88,8 +104,13 @@ fun SettingsScreen(vm: MainViewModel, onClose: () -> Unit) {
             InfoSection(stringResource(R.string.about), vm.themeMode)
             ThemedCard(modifier = Modifier.fillMaxWidth(), themeMode = vm.themeMode) {
                 Column {
-                    Text("MyEDU Mobile", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                    Text("Version 1.0.1", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.app_name_display), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    // CHANGED: Dynamic version concatenation
+                    Text(
+                        text = "${stringResource(R.string.version_prefix)} $appVersion", 
+                        style = MaterialTheme.typography.bodySmall, 
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }

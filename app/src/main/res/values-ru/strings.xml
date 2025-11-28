@@ -1,5 +1,7 @@
 <resources>
     <string name="app_name">MyEDU</string>
+    <string name="app_name_display">MyEDU Мобайл</string>
+    <string name="version_prefix">Версия:</string>
 
     <!-- Bottom Nav -->
     <string name="nav_home">Главная</string>

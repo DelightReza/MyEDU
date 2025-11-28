@@ -26,8 +26,7 @@ import myedu.oshsu.kg.ui.theme.MilkyGlass
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(vm: MainViewModel) {
-    var email by remember { mutableStateOf("") }
-    var pass by remember { mutableStateOf("") }
+    // Note: Local email/pass state variables removed; we use VM state now.
     var showSettingsSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
     
@@ -76,8 +75,8 @@ fun LoginScreen(vm: MainViewModel) {
                 Spacer(Modifier.height(48.dp))
                 
                 OutlinedTextField(
-                    value = email, 
-                    onValueChange = { email = it }, 
+                    value = vm.loginEmail, 
+                    onValueChange = { vm.loginEmail = it }, 
                     label = { Text(stringResource(R.string.email)) }, 
                     modifier = Modifier.fillMaxWidth(), 
                     singleLine = true, 
@@ -87,8 +86,8 @@ fun LoginScreen(vm: MainViewModel) {
                 Spacer(Modifier.height(16.dp))
                 
                 OutlinedTextField(
-                    value = pass, 
-                    onValueChange = { pass = it }, 
+                    value = vm.loginPass, 
+                    onValueChange = { vm.loginPass = it }, 
                     label = { Text(stringResource(R.string.password)) }, 
                     modifier = Modifier.fillMaxWidth(), 
                     singleLine = true, 
@@ -96,6 +95,34 @@ fun LoginScreen(vm: MainViewModel) {
                     colors = inputColors, 
                     shape = RoundedCornerShape(16.dp)
                 )
+                
+                // --- REMEMBER ME CHECKBOX ---
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val chkColors = if (vm.isGlass) {
+                         CheckboxDefaults.colors(
+                             checkedColor = MaterialTheme.colorScheme.primary,
+                             uncheckedColor = MaterialTheme.colorScheme.outline,
+                             checkmarkColor = Color.White
+                         )
+                    } else CheckboxDefaults.colors()
+
+                    Checkbox(
+                        checked = vm.rememberMe, 
+                        onCheckedChange = { vm.rememberMe = it },
+                        colors = chkColors
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = stringResource(R.string.remember_me),
+                        color = if(vm.isGlass) Color.White else MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                // ----------------------------
                 
                 if (vm.errorMsg != null) { 
                     Spacer(Modifier.height(16.dp))
@@ -116,7 +143,7 @@ fun LoginScreen(vm: MainViewModel) {
                 }
 
                 Button(
-                    onClick = { vm.login(email, pass) }, 
+                    onClick = { vm.login(vm.loginEmail, vm.loginPass) }, 
                     modifier = finalBtnMod, 
                     enabled = !vm.isLoading,
                     colors = btnColors,

@@ -26,6 +26,11 @@ class MainViewModel : ViewModel() {
     var isLoading by mutableStateOf(false)
     var errorMsg by mutableStateOf<String?>(null)
     
+    // --- STATE: LOGIN CREDENTIALS ---
+    var loginEmail by mutableStateOf("")
+    var loginPass by mutableStateOf("")
+    var rememberMe by mutableStateOf(false)
+
     // --- REFRESH LOGIC ---
     private var lastRefreshTime: Long = 0
     private val refreshCooldownMs = TimeUnit.MINUTES.toMillis(5)
@@ -105,6 +110,15 @@ class MainViewModel : ViewModel() {
         val savedLang = prefs?.loadData("language_pref", String::class.java)
         if (savedLang != null) language = savedLang.replace("\"", "")
 
+        // --- LOAD SAVED CREDENTIALS ---
+        val isRemember = prefs?.loadData("pref_remember_me", Boolean::class.java) ?: false
+        rememberMe = isRemember
+        if (isRemember) {
+            loginEmail = prefs?.loadData("pref_saved_email", String::class.java) ?: ""
+            loginPass = prefs?.loadData("pref_saved_pass", String::class.java) ?: ""
+        }
+        // ------------------------------
+
         if (token != null) {
             NetworkClient.interceptor.authToken = token
             NetworkClient.cookieJar.injectSessionCookies(token)
@@ -169,6 +183,19 @@ class MainViewModel : ViewModel() {
     fun login(email: String, pass: String) {
         viewModelScope.launch {
             isLoading = true; errorMsg = null; NetworkClient.cookieJar.clear(); NetworkClient.interceptor.authToken = null
+            
+            // --- SAVE/CLEAR CREDENTIALS ---
+            if (rememberMe) {
+                prefs?.saveData("pref_remember_me", true)
+                prefs?.saveData("pref_saved_email", email)
+                prefs?.saveData("pref_saved_pass", pass)
+            } else {
+                prefs?.saveData("pref_remember_me", false)
+                prefs?.saveData("pref_saved_email", "")
+                prefs?.saveData("pref_saved_pass", "")
+            }
+            // ------------------------------
+
             try {
                 val resp = withContext(Dispatchers.IO) { NetworkClient.api.login(LoginRequest(email.trim(), pass.trim())) }
                 val token = resp.authorisation?.token
@@ -185,12 +212,29 @@ class MainViewModel : ViewModel() {
     }
 
     fun logout() {
+        // Preserve Config and Credentials
+        val wasRemember = rememberMe
+        val savedE = loginEmail
+        val savedP = loginPass
+
         appState = "LOGIN"; currentTab = 0; userData = null; profileData = null; payStatus = null
         newsList = emptyList(); fullSchedule = emptyList(); sessionData = emptyList(); transcriptData = emptyList()
         prefs?.clearAll(); NetworkClient.cookieJar.clear(); NetworkClient.interceptor.authToken = null
+        
+        // Restore
         prefs?.saveData("theme_mode_pref", themeMode)
         prefs?.saveData("doc_download_mode", downloadMode)
         prefs?.saveData("language_pref", language)
+        
+        if (wasRemember) {
+            prefs?.saveData("pref_remember_me", true)
+            prefs?.saveData("pref_saved_email", savedE)
+            prefs?.saveData("pref_saved_pass", savedP)
+            // Re-populate state so fields aren't empty on login screen
+            loginEmail = savedE
+            loginPass = savedP
+            rememberMe = true
+        }
     }
 
     private fun refreshAllData(force: Boolean) {
@@ -250,7 +294,6 @@ class MainViewModel : ViewModel() {
             .firstOrNull()
             
         val cal = Calendar.getInstance()
-        // Respect standard Java Locale which was set in MainActivity based on preference
         val loc = Locale.getDefault() 
         var dayName = cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.LONG, loc) ?: "Today"
         if (dayName.isNotEmpty()) {

@@ -11,6 +11,7 @@
     <string name="email">Email</string>
     <string name="password">Пароль</string>
     <string name="sign_in">Войти</string>
+    <string name="remember_me">Запомнить меня</string>
     <string name="login_failed">Ошибка входа</string>
     <string name="incorrect_credentials">Неверные данные</string>
     

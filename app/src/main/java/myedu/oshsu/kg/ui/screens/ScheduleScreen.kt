@@ -40,17 +40,11 @@ import kotlinx.coroutines.launch
 @Composable
 fun ScheduleScreen(vm: MainViewModel) {
     val tabs = listOf(
-        stringResource(R.string.mon),
-        stringResource(R.string.tue),
-        stringResource(R.string.wed),
-        stringResource(R.string.thu),
-        stringResource(R.string.fri),
-        stringResource(R.string.sat)
+        stringResource(R.string.mon), stringResource(R.string.tue), stringResource(R.string.wed),
+        stringResource(R.string.thu), stringResource(R.string.fri), stringResource(R.string.sat)
     )
-    
     val scope = rememberCoroutineScope()
     val pagerState = rememberPagerState(initialPage = vm.selectedScheduleDay) { tabs.size }
-
     LaunchedEffect(pagerState.currentPage) { vm.selectedScheduleDay = pagerState.currentPage }
 
     Scaffold(
@@ -71,7 +65,7 @@ fun ScheduleScreen(vm: MainViewModel) {
                         }
                     } else {
                         LazyColumn(modifier = Modifier.fillMaxSize().widthIn(max = 840.dp), contentPadding = PaddingValues(horizontal = 16.dp)) { 
-                            items(dayClasses) { item -> ClassItem(item, vm.getTimeString(item.id_lesson), vm.language, vm.themeMode) { vm.selectedClass = item } } 
+                            items(dayClasses) { item -> ClassItem(item, vm.getTimeString(item.id_lesson), vm) { vm.selectedClass = item } } 
                             item { Spacer(Modifier.height(80.dp)) } 
                         }
                     }
@@ -86,12 +80,7 @@ fun ScheduleScreen(vm: MainViewModel) {
 
 @Composable
 fun FloatingDayTabs(tabs: List<String>, selectedIndex: Int, themeMode: String, onTabSelected: (Int) -> Unit) {
-    val containerColor = when(themeMode) {
-        "AQUA" -> MilkyGlass
-        "GLASS" -> Color(0xFF0F2027).copy(alpha = 0.85f)
-        else -> MaterialTheme.colorScheme.surface
-    }
-    
+    val containerColor = when(themeMode) { "AQUA" -> MilkyGlass; "GLASS" -> Color(0xFF0F2027).copy(alpha = 0.85f); else -> MaterialTheme.colorScheme.surface }
     val border = if (themeMode == "GLASS" || themeMode == "AQUA") BorderStroke(1.dp, if(themeMode == "AQUA") Color.White.copy(0.5f) else GlassWhite) else null
     val elevation = if (themeMode == "GLASS" || themeMode == "AQUA") 0.dp else 4.dp
 
@@ -99,15 +88,11 @@ fun FloatingDayTabs(tabs: List<String>, selectedIndex: Int, themeMode: String, o
         Row(modifier = Modifier.fillMaxSize().padding(4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             tabs.forEachIndexed { index, title ->
                 val isSelected = selectedIndex == index
-                val selectedBg = MaterialTheme.colorScheme.primary
-                val unselectedBg = Color.Transparent
-                val selectedTxt = MaterialTheme.colorScheme.onPrimary
-                val unselectedTxt = MaterialTheme.colorScheme.onSurfaceVariant
-                
+                val selectedBg = MaterialTheme.colorScheme.primary; val unselectedBg = Color.Transparent
+                val selectedTxt = MaterialTheme.colorScheme.onPrimary; val unselectedTxt = MaterialTheme.colorScheme.onSurfaceVariant
                 val bgColor by animateColorAsState(if (isSelected) selectedBg else unselectedBg, label = "bg")
                 val txtColor by animateColorAsState(if (isSelected) selectedTxt else unselectedTxt, label = "txt")
                 val scale by animateFloatAsState(if (isSelected) 1f else 0.9f, label = "scale")
-
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.weight(1f).fillMaxHeight().scale(scale).clip(CircleShape).background(bgColor).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onTabSelected(index) }) {
                     Text(text = title, style = MaterialTheme.typography.labelMedium, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, color = txtColor)
                 }
@@ -117,60 +102,30 @@ fun FloatingDayTabs(tabs: List<String>, selectedIndex: Int, themeMode: String, o
 }
 
 @Composable
-fun ClassItem(item: ScheduleItem, timeString: String, language: String, themeMode: String, onClick: () -> Unit) {
-    val streamLabel = stringResource(R.string.stream)
-    val groupLabel = stringResource(R.string.group_short)
-    val roomLabel = stringResource(R.string.auditorium)
-
-    val typeName = item.subject_type?.get(language) ?: "Lesson"
-    val streamInfo = if (item.stream?.numeric != null) { 
-        if (typeName == "Lecture" || typeName == "Лекция") "$streamLabel ${item.stream.numeric}" else "$groupLabel ${item.stream.numeric}" 
-    } else ""
+fun ClassItem(item: ScheduleItem, timeString: String, vm: MainViewModel, onClick: () -> Unit) {
+    val streamLabel = stringResource(R.string.stream); val groupLabel = stringResource(R.string.group_short); val roomLabel = stringResource(R.string.auditorium)
     
+    // UPDATED: Use Resource ID mapping + stringResource
+    val typeResId = vm.getSubjectTypeResId(item)
+    val typeName = if (typeResId != null) stringResource(typeResId) else item.subject_type?.get(vm.language) ?: stringResource(R.string.lesson_default)
+
+    val streamInfo = if (item.stream?.numeric != null) { 
+        if (item.subject_type?.name_en?.contains("Lection", true) == true) "$streamLabel ${item.stream.numeric}" else "$groupLabel ${item.stream.numeric}" 
+    } else ""
     val fullTime = if (!timeString.contains(":") && !timeString.contains("-")) stringResource(R.string.pair) + " $timeString" else timeString
 
-    ThemedCard(onClick = onClick, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp), themeMode = themeMode) { 
+    ThemedCard(onClick = onClick, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp), themeMode = vm.themeMode) { 
         Row(verticalAlignment = Alignment.CenterVertically) { 
-            val timeBg = if (themeMode == "AQUA") Color.White.copy(alpha = 0.5f) 
-                         else if (themeMode == "GLASS") GlassWhite 
-                         else MaterialTheme.colorScheme.surfaceContainerHigh
-            
-            val contentColor = if (themeMode == "AQUA") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-            
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally, 
-                modifier = Modifier
-                    .width(50.dp)
-                    .background(timeBg, RoundedCornerShape(8.dp))
-                    .padding(vertical = 8.dp)
-            ) { 
+            val timeBg = if (vm.themeMode == "AQUA") Color.White.copy(alpha = 0.5f) else if (vm.themeMode == "GLASS") GlassWhite else MaterialTheme.colorScheme.surfaceContainerHigh
+            val contentColor = if (vm.themeMode == "AQUA") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(50.dp).background(timeBg, RoundedCornerShape(8.dp)).padding(vertical = 8.dp)) { 
                 Text("${item.id_lesson}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                Text(
-                    fullTime.split("-").firstOrNull()?.trim() ?: "", 
-                    style = MaterialTheme.typography.labelSmall, 
-                    color = contentColor 
-                ) 
+                Text(fullTime.split("-").firstOrNull()?.trim() ?: "", style = MaterialTheme.typography.labelSmall, color = contentColor) 
             }
-            
             Spacer(Modifier.width(16.dp))
-            
             Column(modifier = Modifier.weight(1f)) { 
-                Text(
-                    item.subject?.get(language) ?: "Subject", 
-                    style = MaterialTheme.typography.titleMedium, 
-                    fontWeight = FontWeight.SemiBold, 
-                    color = contentColor 
-                )
-                
-                val metaText = buildString { 
-                    append(item.room?.name_en ?: "$roomLabel ?")
-                    append(" • ")
-                    append(typeName)
-                    if (streamInfo.isNotEmpty()) { 
-                        append(" • ")
-                        append(streamInfo) 
-                    } 
-                }
+                Text(item.subject?.get(vm.language) ?: stringResource(R.string.subject_default), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = contentColor)
+                val metaText = buildString { append(item.room?.name_en ?: "$roomLabel ?"); append(" • "); append(typeName); if (streamInfo.isNotEmpty()) { append(" • "); append(streamInfo) } }
                 Text(metaText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(fullTime, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary) 
             }

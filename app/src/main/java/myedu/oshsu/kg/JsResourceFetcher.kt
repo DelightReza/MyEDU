@@ -1,16 +1,14 @@
 package myedu.oshsu.kg
 
+import android.content.Context
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-data class PdfResources(
-    val combinedScript: String
-)
+data class PdfResources(val combinedScript: String)
 
-class JsResourceFetcher {
-
+class JsResourceFetcher(private val context: Context) {
     private val client = OkHttpClient()
     private val baseUrl = "https://myedu.oshsu.kg"
 
@@ -19,15 +17,14 @@ class JsResourceFetcher {
             logger("Fetching index.html...")
             val indexHtml = fetchString("$baseUrl/")
             val mainJsName = findMatch(indexHtml, """src="/assets/(index\.[^"]+\.js)"""") 
-                ?: throw Exception("Main JS missing")
+                ?: throw Exception(context.getString(R.string.error_main_js_missing))
             
             val mainJsContent = fetchString("$baseUrl/assets/$mainJsName")
             val transcriptJsName = findMatch(mainJsContent, """["']\./(Transcript\.[^"']+\.js)["']""") 
-                ?: throw Exception("Transcript JS missing")
+                ?: throw Exception(context.getString(R.string.error_transcript_js_missing))
             
             logger("Fetching $transcriptJsName...")
             var transcriptContent = fetchString("$baseUrl/assets/$transcriptJsName")
-
             val dependencies = StringBuilder()
             
             suspend fun linkModule(importRegex: Regex, exportRegex: Regex, finalVarName: String, fallbackValue: String) {
@@ -36,13 +33,8 @@ class JsResourceFetcher {
                     val fileNameMatch = importRegex.find(transcriptContent) ?: importRegex.find(mainJsContent)
                     if (fileNameMatch != null) {
                         val fileName = fileNameMatch.groupValues[1]
-                        logger("Linking $finalVarName from $fileName")
                         var fileContent = fetchString("$baseUrl/assets/$fileName")
-                        
-                        if (language == "en") {
-                             fileContent = applyDictionary(fileContent, dictionary)
-                        }
-
+                        if (language == "en") fileContent = applyDictionary(fileContent, dictionary)
                         val internalVarMatch = exportRegex.find(fileContent)
                         if (internalVarMatch != null) {
                             val internalVar = internalVarMatch.groupValues[1]
@@ -52,7 +44,6 @@ class JsResourceFetcher {
                         }
                     }
                 } catch (e: Exception) { logger("Link Error ($finalVarName): ${e.message}") }
-
                 if (!success) dependencies.append("const $finalVarName = $fallbackValue;\n")
             }
 
@@ -76,56 +67,33 @@ class JsResourceFetcher {
 
             val dummyScript = StringBuilder()
             dummyScript.append("const UniversalDummy = new Proxy(function(){}, { get: () => UniversalDummy, apply: () => UniversalDummy, construct: () => UniversalDummy });\n")
-            if (varsToMock.isNotEmpty()) {
-                dummyScript.append("var ")
-                dummyScript.append(varsToMock.joinToString(",") { "$it = UniversalDummy" })
-                dummyScript.append(";\n")
-            }
+            if (varsToMock.isNotEmpty()) dummyScript.append("var " + varsToMock.joinToString(",") { "$it = UniversalDummy" } + ";\n")
 
-            var cleanTranscript = transcriptContent
-                .replace(importRegex, "") 
-                .replace(Regex("""export\s+default"""), "const TranscriptModule =")
-                .replace(Regex("""export\s*\{.*?\}"""), "")
-
-            if (language == "en") {
-                logger("Applying Dictionary to Transcript Template...")
-                cleanTranscript = applyDictionary(cleanTranscript, dictionary)
-            }
+            var cleanTranscript = transcriptContent.replace(importRegex, "").replace(Regex("""export\s+default"""), "const TranscriptModule =").replace(Regex("""export\s*\{.*?\}"""), "")
+            if (language == "en") cleanTranscript = applyDictionary(cleanTranscript, dictionary)
 
             val funcNameMatch = findMatch(cleanTranscript, """(\w+)\s*=\s*\(C,a,c,d\)""")
             val exposeCode = if (funcNameMatch != null) "\nwindow.PDFGenerator = $funcNameMatch;" else ""
 
-            val finalScript = dummyScript.toString() + dependencies.toString() + "\n" + cleanTranscript + exposeCode
-            return@withContext PdfResources(finalScript)
-
-        } catch (e: Exception) {
-            logger("Fetch Error: ${e.message}")
-            e.printStackTrace()
-            return@withContext PdfResources("")
-        }
+            return@withContext PdfResources(dummyScript.toString() + dependencies.toString() + "\n" + cleanTranscript + exposeCode)
+        } catch (e: Exception) { e.printStackTrace(); throw e }
     }
 
     private fun applyDictionary(script: String, dictionary: Map<String, String>): String {
         var s = script
-        dictionary.forEach { (ru, en) -> 
-            if (ru.length > 1) { 
-                s = s.replace(ru, en) 
-            }
-        }
+        dictionary.forEach { (ru, en) -> if (ru.length > 1) s = s.replace(ru, en) }
         return s
     }
 
     private fun fetchString(url: String): String {
         val request = Request.Builder().url(url).build()
         client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw Exception("HTTP ${response.code}")
+            if (!response.isSuccessful) throw Exception(context.getString(R.string.error_http, response.code))
             return response.body?.string() ?: ""
         }
     }
 
     private fun findMatch(content: String, regex: String): String? {
-        return Regex(regex).find(content)?.let { match ->
-            if (match.groupValues.size > 1) match.groupValues[1] else match.groupValues[0]
-        }
+        return Regex(regex).find(content)?.let { if (it.groupValues.size > 1) it.groupValues[1] else it.groupValues[0] }
     }
 }

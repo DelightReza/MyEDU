@@ -79,17 +79,10 @@ data class NameObj(
     @SerializedName("faculty") val faculty: NameObj?
 ) {
     fun get(lang: String = "en"): String {
-        // Fallback Logic:
-        val text = if (lang == "ru") {
-            name_ru ?: name_kg ?: name_en ?: "Unknown"
-        } else {
-            name_en ?: name_ru ?: name_kg ?: "Unknown"
-        }
-
-        return when (text) {
-            "Lection", "Лекция" -> if (lang == "ru") "Лекция" else "Lecture"
-            "Practical lessons", "Практические занятия" -> if (lang == "ru") "Практика" else "Practical Class"
-            else -> text
+        return when (lang) {
+            "ky" -> name_kg ?: name_ru ?: name_en ?: "Unknown"
+            "ru" -> name_ru ?: name_kg ?: name_en ?: "Unknown"
+            else -> name_en ?: name_ru ?: name_kg ?: "Unknown"
         }
     }
 }
@@ -102,19 +95,22 @@ data class StreamObj(val id: Int, val numeric: Int?)
 data class ClassroomObj(val building: BuildingObj?)
 
 // --- BUILDING OBJECT WITH PRIORITY LOGIC ---
-data class BuildingObj(val name_en: String?, val name_ru: String?, val info_en: String?, val info_ru: String?) {
-    fun getName(lang: String = "en"): String {
-        return if (lang == "ru") {
-            name_ru ?: name_en ?: "Корпус"
-        } else {
-            name_en ?: name_ru ?: "Campus"
+data class BuildingObj(
+    val name_en: String?, val name_ru: String?, val name_kg: String?, 
+    val info_en: String?, val info_ru: String?, val info_kg: String?
+) {
+    fun getName(lang: String = "en"): String? {
+        return when (lang) {
+            "ky" -> name_kg ?: name_ru ?: name_en
+            "ru" -> name_ru ?: name_kg ?: name_en
+            else -> name_en ?: name_ru ?: name_kg
         }
     }
     fun getAddress(lang: String = "en"): String {
-        return if (lang == "ru") {
-            info_ru ?: info_en ?: ""
-        } else {
-            info_en ?: info_ru ?: ""
+        return when (lang) {
+            "ky" -> info_kg ?: info_ru ?: info_en ?: ""
+            "ru" -> info_ru ?: info_kg ?: info_en ?: ""
+            else -> info_en ?: info_ru ?: info_kg ?: ""
         }
     }
 }
@@ -153,7 +149,7 @@ interface OshSuApi {
     @GET("public/api/studentsession") suspend fun getSession(@Query("id_semester") semesterId: Int): List<SessionResponse>
     @GET("public/api/studenttranscript") suspend fun getTranscript(@Query("id_student") studentId: Long, @Query("id_movement") movementId: Long): List<TranscriptYear>
 
-    // --- DOCS: RAW ENDPOINTS (Required for In-App PDF Generation) ---
+    // --- DOCS: RAW ENDPOINTS ---
     @GET("public/api/searchstudentinfo") 
     suspend fun getStudentInfoRaw(@Query("id_student") studentId: Long): ResponseBody
 
@@ -165,17 +161,13 @@ interface OshSuApi {
 
     @GET("public/api/control/structure/university")
     suspend fun getUniversityInfo(): ResponseBody
-    // ---------------------------------------------------------------
-
-    // DOCS: Form 13 (Transcript)
+    
     @POST("public/api/student/doc/form13link") suspend fun getTranscriptLink(@Body req: DocIdRequest): ResponseBody
     @Multipart @POST("public/api/student/doc/form13") suspend fun uploadPdf(@Part("id") id: RequestBody, @Part("id_student") idStudent: RequestBody, @Part pdf: MultipartBody.Part): ResponseBody
 
-    // DOCS: Form 8 (Reference)
     @POST("public/api/student/doc/form8link") suspend fun getReferenceLink(@Body req: DocIdRequest): ResponseBody
     @Multipart @POST("public/api/student/doc/form8") suspend fun uploadReferencePdf(@Part("id") id: RequestBody, @Part("id_student") idStudent: RequestBody, @Part pdf: MultipartBody.Part): ResponseBody
 
-    // DOCS: Shared
     @POST("public/api/open/doc/showlink") suspend fun resolveDocLink(@Body req: DocKeyRequest): ResponseBody
 }
 
@@ -214,7 +206,7 @@ object NetworkClient {
         .client(OkHttpClient.Builder()
             .cookieJar(cookieJar)
             .addInterceptor(interceptor)
-            .connectTimeout(60, TimeUnit.SECONDS) // Increased timeout for PDF generation
+            .connectTimeout(60, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .build())
         .addConverterFactory(GsonConverterFactory.create(GsonBuilder().setLenient().create()))

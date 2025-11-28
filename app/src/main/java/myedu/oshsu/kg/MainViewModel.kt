@@ -41,7 +41,7 @@ class MainViewModel : ViewModel() {
 
     // --- STATE: SETTINGS ---
     var downloadMode by mutableStateOf("IN_APP") 
-    var language by mutableStateOf("en") // Controls API Data Priority
+    var language by mutableStateOf("en") 
     
     // --- STATE: DATA ---
     var userData by mutableStateOf<UserData?>(null)
@@ -54,8 +54,8 @@ class MainViewModel : ViewModel() {
     var todayClasses by mutableStateOf<List<ScheduleItem>>(emptyList())
     var timeMap by mutableStateOf<Map<Int, String>>(emptyMap())
     
-    // Calculated day name (e.g. "Monday" or "Понедельник")
-    var todayDayName by mutableStateOf("Today")
+    // Calculated day name
+    var todayDayName by mutableStateOf("")
 
     var determinedStream by mutableStateOf<Int?>(null)
     var determinedGroup by mutableStateOf<Int?>(null)
@@ -82,42 +82,48 @@ class MainViewModel : ViewModel() {
     var isPdfGenerating by mutableStateOf(false)
     var pdfStatusMessage by mutableStateOf<String?>(null)
 
-    var dictionaryUrl by mutableStateOf("https://gist.githubusercontent.com/Placeholder6/71c6a6638faf26c7858d55a1e73b7aef/raw/myedudictionary.json")
+    var dictionaryUrl by mutableStateOf("")
     private var cachedDictionary: Map<String, String> = emptyMap()
 
     private var prefs: PrefsManager? = null
-    private val jsFetcher = JsResourceFetcher()
-    private val refFetcher = ReferenceJsFetcher()
+    private var jsFetcher: JsResourceFetcher? = null
+    private var refFetcher: ReferenceJsFetcher? = null
     private val dictUtils = DictionaryUtils()
+    
     private var cachedResourcesRu: PdfResources? = null
     private var cachedResourcesEn: PdfResources? = null
     private var cachedRefResourcesRu: ReferenceResources? = null
     private var cachedRefResourcesEn: ReferenceResources? = null
+    
+    private var appContext: Context? = null
 
     fun getAuthToken(): String? = prefs?.getToken()
 
     fun initSession(context: Context) {
-        if (prefs == null) prefs = PrefsManager(context)
-        val token = prefs?.getToken()
+        appContext = context.applicationContext
         
+        if (prefs == null) prefs = PrefsManager(context)
+        if (jsFetcher == null) jsFetcher = JsResourceFetcher(context)
+        if (refFetcher == null) refFetcher = ReferenceJsFetcher(context)
+        
+        dictionaryUrl = context.getString(R.string.config_dictionary_url)
+        
+        val token = prefs?.getToken()
         val savedTheme = prefs?.loadData("theme_mode_pref", String::class.java)
         if (savedTheme != null) themeMode = savedTheme
         
         val savedDocMode = prefs?.loadData("doc_download_mode", String::class.java)
         if (savedDocMode != null) downloadMode = savedDocMode
         
-        // Load language and strip Gson quotes if present
         val savedLang = prefs?.loadData("language_pref", String::class.java)
         if (savedLang != null) language = savedLang.replace("\"", "")
 
-        // --- LOAD SAVED CREDENTIALS ---
         val isRemember = prefs?.loadData("pref_remember_me", Boolean::class.java) ?: false
         rememberMe = isRemember
         if (isRemember) {
             loginEmail = prefs?.loadData("pref_saved_email", String::class.java) ?: ""
             loginPass = prefs?.loadData("pref_saved_pass", String::class.java) ?: ""
         }
-        // ------------------------------
 
         if (token != null) {
             NetworkClient.interceptor.authToken = token
@@ -184,7 +190,6 @@ class MainViewModel : ViewModel() {
         viewModelScope.launch {
             isLoading = true; errorMsg = null; NetworkClient.cookieJar.clear(); NetworkClient.interceptor.authToken = null
             
-            // --- SAVE/CLEAR CREDENTIALS ---
             if (rememberMe) {
                 prefs?.saveData("pref_remember_me", true)
                 prefs?.saveData("pref_saved_email", email)
@@ -194,7 +199,6 @@ class MainViewModel : ViewModel() {
                 prefs?.saveData("pref_saved_email", "")
                 prefs?.saveData("pref_saved_pass", "")
             }
-            // ------------------------------
 
             try {
                 val resp = withContext(Dispatchers.IO) { NetworkClient.api.login(LoginRequest(email.trim(), pass.trim())) }
@@ -205,14 +209,15 @@ class MainViewModel : ViewModel() {
                     NetworkClient.cookieJar.injectSessionCookies(token)
                     refreshAllData(force = true)
                     appState = "APP"
-                } else errorMsg = "Incorrect credentials"
-            } catch (e: Exception) { errorMsg = "Login Failed: ${e.message}" }
+                } else errorMsg = appContext?.getString(R.string.error_credentials) ?: "Incorrect credentials"
+            } catch (e: Exception) { 
+                errorMsg = appContext?.getString(R.string.error_login_failed, e.message) ?: "Login Failed: ${e.message}" 
+            }
             isLoading = false
         }
     }
 
     fun logout() {
-        // Preserve Config and Credentials
         val wasRemember = rememberMe
         val savedE = loginEmail
         val savedP = loginPass
@@ -221,7 +226,6 @@ class MainViewModel : ViewModel() {
         newsList = emptyList(); fullSchedule = emptyList(); sessionData = emptyList(); transcriptData = emptyList()
         prefs?.clearAll(); NetworkClient.cookieJar.clear(); NetworkClient.interceptor.authToken = null
         
-        // Restore
         prefs?.saveData("theme_mode_pref", themeMode)
         prefs?.saveData("doc_download_mode", downloadMode)
         prefs?.saveData("language_pref", language)
@@ -230,7 +234,6 @@ class MainViewModel : ViewModel() {
             prefs?.saveData("pref_remember_me", true)
             prefs?.saveData("pref_saved_email", savedE)
             prefs?.saveData("pref_saved_pass", savedP)
-            // Re-populate state so fields aren't empty on login screen
             loginEmail = savedE
             loginPass = savedP
             rememberMe = true
@@ -281,21 +284,21 @@ class MainViewModel : ViewModel() {
     private fun processScheduleLocally() {
         if (fullSchedule.isEmpty()) return
         
-        fun NameObj?.g(): String = this?.get(language) ?: ""
-        
         determinedStream = fullSchedule.asSequence()
-            .filter { it.subject_type?.g() == "Lecture" || it.subject_type?.g() == "Лекция" }
+            .filter { it.subject_type?.name_en?.contains("Lection", ignoreCase = true) == true }
             .mapNotNull { it.stream?.numeric }
             .firstOrNull()
             
         determinedGroup = fullSchedule.asSequence()
-            .filter { it.subject_type?.g() == "Practical Class" || it.subject_type?.g() == "Практика" }
+            .filter { it.subject_type?.name_en?.contains("Practical", ignoreCase = true) == true }
             .mapNotNull { it.stream?.numeric }
             .firstOrNull()
             
         val cal = Calendar.getInstance()
-        val loc = Locale.getDefault() 
-        var dayName = cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.LONG, loc) ?: "Today"
+        val loc = Locale(language) 
+        var dayName = cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.LONG, loc) 
+            ?: appContext?.getString(R.string.today) ?: "Today"
+            
         if (dayName.isNotEmpty()) {
             dayName = dayName.replaceFirstChar { if (it.isLowerCase()) it.titlecase(loc) else it.toString() }
         }
@@ -303,6 +306,26 @@ class MainViewModel : ViewModel() {
 
         val apiDay = if (cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) 6 else cal.get(Calendar.DAY_OF_WEEK) - 2
         todayClasses = fullSchedule.filter { it.day == apiDay }
+    }
+    
+    // UPDATED: Returns Resource ID instead of String to ensure UI Context is used
+    fun getSubjectTypeResId(item: ScheduleItem): Int? {
+        val rawEn = item.subject_type?.name_en ?: ""
+        val rawRu = item.subject_type?.name_ru ?: ""
+        
+        return when {
+            rawEn.contains("Lection", ignoreCase = true) || 
+            rawEn.contains("Lecture", ignoreCase = true) || 
+            rawRu.equals("Лекция", ignoreCase = true) -> R.string.type_lecture
+
+            rawEn.contains("Practical", ignoreCase = true) || 
+            rawRu.contains("Практические", ignoreCase = true) -> R.string.type_practice
+            
+            rawEn.contains("Lab", ignoreCase = true) || 
+            rawRu.contains("Лаборатор", ignoreCase = true) -> R.string.type_lab
+            
+            else -> null
+        }
     }
 
     private fun fetchSession(profile: StudentInfoResponse) {
@@ -331,9 +354,7 @@ class MainViewModel : ViewModel() {
         }
     }
     
-    fun getTimeString(lessonId: Int): String {
-        return timeMap[lessonId] ?: "$lessonId"
-    }
+    fun getTimeString(lessonId: Int): String = timeMap[lessonId] ?: "$lessonId"
 
     private suspend fun fetchDictionaryIfNeeded() {
         if (cachedDictionary.isEmpty() && dictionaryUrl.isNotBlank()) {
@@ -360,7 +381,8 @@ class MainViewModel : ViewModel() {
                 var resources = if (lang == "en") cachedResourcesEn else cachedResourcesRu
                 if (resources == null) {
                     pdfStatusMessage = context.getString(R.string.status_fetching_scripts)
-                    resources = jsFetcher.fetchResources({ println(it) }, lang, cachedDictionary)
+                    val fetcher = jsFetcher ?: JsResourceFetcher(context)
+                    resources = fetcher.fetchResources({ println(it) }, lang, cachedDictionary)
                     if (lang == "en") cachedResourcesEn = resources else cachedResourcesRu = resources
                 }
                 val infoRaw = withContext(Dispatchers.IO) { NetworkClient.api.getStudentInfoRaw(studentId).string() }
@@ -399,7 +421,8 @@ class MainViewModel : ViewModel() {
                 var resources = if (lang == "en") cachedRefResourcesEn else cachedRefResourcesRu
                 if (resources == null) {
                     pdfStatusMessage = context.getString(R.string.status_fetching_scripts)
-                    resources = refFetcher.fetchResources({ println(it) }, lang, cachedDictionary)
+                    val fetcher = refFetcher ?: ReferenceJsFetcher(context)
+                    resources = fetcher.fetchResources({ println(it) }, lang, cachedDictionary)
                     if (lang == "en") cachedRefResourcesEn = resources else cachedRefResourcesRu = resources
                 }
                 val infoRaw = withContext(Dispatchers.IO) { NetworkClient.api.getStudentInfoRaw(studentId).string() }

@@ -1,34 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">MyEDU</string>
     <string name="app_name_display">MyEDU Мобайл</string>
     <string name="version_prefix">Версия:</string>
+    <string name="config_date_format">dd.MM.yyyy</string>
+    
+    <string name="unknown">Белгисиз</string>
+    <string name="unknown_year">Год неизвестен</string>
+    <string name="unknown_semester">Семестр неизвестен</string>
+    <string name="today">Сегодня</string>
+    <string name="student_default">Студент</string>
+    <string name="subject_default">Предмет</string>
+    <string name="lesson_default">Урок</string>
+    <string name="class_default">Пара</string>
+    <string name="campus_default">Кампус</string>
+    <string name="building_fallback">Корпус</string>
+    <string name="university_addr_default">-</string>
 
-    <!-- Bottom Nav -->
+    <string name="desc_logo">Логотип ОшГУ</string>
+    <string name="desc_back">Назад</string>
+    <string name="desc_settings">Настройки</string>
+    <string name="desc_announcements">Объявления</string>
+    <string name="desc_dropdown">Меню</string>
+    <string name="desc_time">Время</string>
+
     <string name="nav_home">Главная</string>
     <string name="nav_schedule">Расписание</string>
     <string name="nav_grades">Оценки</string>
     <string name="nav_profile">Профиль</string>
 
-    <!-- Login -->
-    <string name="email">Email</string>
+    <string name="email">Почта</string>
     <string name="password">Пароль</string>
-    <string name="sign_in">Войти</string>
     <string name="remember_me">Запомнить меня</string>
-    <string name="login_failed">Ошибка входа</string>
-    <string name="incorrect_credentials">Неверные данные</string>
-    
-    <!-- Home -->
+    <string name="sign_in">Войти</string>
+    <string name="log_out">Выйти</string>
+    <string name="error_credentials">Неверный логин или пароль</string>
+    <string name="error_login_failed">Ошибка: %s</string>
+
     <string name="good_morning">Доброе утро,</string>
     <string name="good_afternoon">Добрый день,</string>
     <string name="good_evening">Добрый вечер,</string>
     <string name="announcements">Объявления</string>
     <string name="semester">Семестр</string>
+    <string name="stream">Поток</string>
     <string name="group">Группа</string>
-    <string name="group_short">Группа</string>
-    <string name="todays_classes">Пары на сегодня</string>
-    <string name="no_classes_today">Сегодня пар нет!</string>
-    
-    <!-- Schedule -->
+    <string name="todays_classes">Пары сегодня</string>
+    <string name="no_classes_today">Сегодня пар нет</string>
+
     <string name="mon">Пн</string>
     <string name="tue">Вт</string>
     <string name="wed">Ср</string>
@@ -36,37 +54,72 @@
     <string name="fri">Пт</string>
     <string name="sat">Сб</string>
     <string name="no_classes">Пар нет</string>
+    <string name="group_short">Группа</string>
+    <string name="auditorium">Аудитория</string>
     <string name="pair">Пара</string>
-    <string name="stream">Поток</string>
-    <string name="room">Комната</string>
-    <string name="auditorium">Комната</string>
+    <string name="teacher">Преподаватель</string>
+    <string name="location">Локация</string>
+    <string name="room">Аудитория</string>
+    <string name="building">Корпус</string>
+    <string name="map">Карта</string>
+    <string name="copy">Копия</string>
+    <string name="copied">Скопировано</string>
+    <string name="no_map_app">Карты не найдены</string>
     
-    <!-- Grades -->
+    <string name="type_lecture">Лекция</string>
+    <string name="type_practice">Практика</string>
+    <string name="type_lab">Лабораторная</string>
+
     <string name="current_session">Текущая сессия</string>
-    <string name="no_grades">Оценок нет.</string>
-    <string name="semester_not_found">Данные семестра не найдены.</string>
+    <string name="no_grades">Оценок нет</string>
+    <string name="semester_not_found">Семестр не найден</string>
+    <string name="current_performance">Успеваемость</string>
     <string name="exam_short">Экзамен</string>
-    <string name="total_short">Сумма</string>
-    
-    <!-- Profile -->
+    <string name="total_short">сумма</string>
+    <string name="m1">М1</string>
+    <string name="m2">М2</string>
+
     <string name="profile">Профиль</string>
-    <string name="settings">Настройки</string>
-    <string name="tuition_contract">Контракт</string>
+    <string name="tuition_contract">Контракт обучения</string>
     <string name="paid">Оплачено</string>
     <string name="total">Всего</string>
-    <string name="remaining">Остаток: %s сом</string>
+    <string name="remaining">Остаток: %d сом</string>
+    <string name="currency_kgs">сом</string>
     <string name="documents">Документы</string>
-    <string name="reference">Справка</string>
-    <string name="transcript">Транскрипт</string>
     <string name="academic">Учеба</string>
     <string name="faculty">Факультет</string>
     <string name="speciality">Специальность</string>
-    <string name="personal">Личное</string>
+    <string name="personal">Личные данные</string>
     <string name="passport">Паспорт</string>
     <string name="phone">Телефон</string>
-    <string name="log_out">Выйти</string>
+
+    <string name="reference">Справка</string>
+    <string name="reference_title">Справка (Форма 8)</string>
+    <string name="transcript">Транскрипт</string>
+    <string name="transcript_title">Транскрипт (Форма 13)</string>
+    <string name="print_download">Печать / Скачать</string>
+    <string name="cert_header">СПРАВКА С МЕСТА УЧЕБЫ</string>
+    <string name="cert_intro">Дана настоящая в том, что</string>
+    <string name="student_id">ID студента</string>
+    <string name="year_of_study">Курс</string>
+    <string name="sem_short">Семестр</string>
+    <string name="edu_form">Форма обуч.</string>
+    <string name="payment">Оплата</string>
+    <string name="contract">Контракт</string>
+    <string name="budget">Бюджет</string>
+    <string name="active_student">Обучается</string>
+    <string name="preview_msg">Это предварительный просмотр данных.</string>
+    <string name="download_msg">Нажмите кнопки ниже для генерации PDF.</string>
+    <string name="generating_pdf">Создание PDF...</string>
+    <string name="pdf_ru">PDF (RU)</string>
+    <string name="pdf_en">PDF (EN)</string>
+    <string name="code">Код</string>
+    <string name="credits">Кредиты</string>
     
-    <!-- Settings -->
+    <string name="transcript_filename">Транскрипт</string>
+    <string name="reference_filename">Справка</string>
+
+    <string name="settings">Настройки</string>
     <string name="appearance">Внешний вид</string>
     <string name="follow_system">Системная</string>
     <string name="light_mode">Светлая</string>
@@ -74,67 +127,38 @@
     <string name="liquid_glass">Жидкое стекло</string>
     <string name="aqua_flow">Аква</string>
     <string name="docs_download">Скачивание документов</string>
-    <string name="in_app_pdf">В приложении (PDF)</string>
-    <string name="website_official">Через сайт (Официальный)</string>
-    <string name="language">Язык (Language)</string>
+    <string name="in_app_pdf">В приложении</string>
+    <string name="website_official">Сайт</string>
+    <string name="language">Язык</string>
     <string name="about">О приложении</string>
-    
-    <!-- Docs -->
-    <string name="reference_title">Справка (Форма 8)</string>
-    <string name="transcript_title">Транскрипт</string>
-    <string name="code">Код</string>
-    <string name="credits">Кредит</string>
-    <string name="cert_header">СПРАВКА С МЕСТА УЧЕБЫ</string>
-    <string name="cert_intro">Дана в том, что</string>
-    <string name="student_id">ID студента</string>
-    <string name="year_of_study">Курс</string>
-    <string name="sem_short">Семестр</string>
-    <string name="edu_form">Форма обучения</string>
-    <string name="payment">Оплата</string>
-    <string name="contract">Контракт</string>
-    <string name="budget">Бюджет</string>
-    <string name="active_student">Активный студент</string>
-    <string name="preview_msg">Это предпросмотр.</string>
-    <string name="download_msg">Нажмите кнопку ниже для скачивания PDF.</string>
-    <string name="generating_pdf">Создание PDF...</string>
-    <string name="pdf_ru">PDF (RU)</string>
-    <string name="pdf_en">PDF (EN)</string>
-    <string name="print_download">Печать / Скачать</string>
-    
-    <!-- Details -->
-    <string name="current_performance">Текущая успеваемость</string>
-    <string name="teacher">Преподаватель</string>
-    <string name="location">Локация</string>
-    <string name="building">Корпус</string>
-    <string name="copy">Копировать</string>
-    <string name="map">Карта</string>
-    <string name="copied">Скопировано</string>
 
-    <!-- Notifications -->
-    <string name="notif_channel_name">Напоминания о парах</string>
-    <string name="notif_new_grades_title">Новые оценки</string>
-    <string name="notif_grades_msg_single">%1$s: %2$s %3$d</string>
-    <string name="notif_grades_msg_multiple">Обновлены оценки по %d предметам.</string>
-    <string name="notif_tomorrow_title">Расписание на завтра</string>
-    <string name="notif_tomorrow_msg">Завтра %1$d пар(ы). Первая: %2$s.</string>
-    <string name="notif_class_title">Пара через 1 час</string>
-    <string name="notif_class_msg">%1$s\nВремя: %2$s\nАдрес: %3$s\nКомната: %4$s</string>
-    <string name="notif_default_title">MyEDU Оповещение</string>
-    <string name="notif_default_msg">Проверьте расписание.</string>
-
-    <!-- PDF Status & Errors -->
     <string name="status_preparing_transcript">Подготовка транскрипта...</string>
     <string name="status_preparing_reference">Подготовка справки...</string>
     <string name="status_fetching_scripts">Загрузка скриптов...</string>
-    <string name="status_saving">Сохранение в загрузки...</string>
+    <string name="status_saving">Сохранение...</string>
     <string name="status_saved">Сохранено: %s</string>
     <string name="status_save_failed">Ошибка сохранения: %s</string>
-    <string name="error_no_pdf_viewer">PDF просмотрщик не найден</string>
-    <string name="error_generic">Ошибка: %s</string>
-    
-    <!-- Web Download -->
-    <string name="status_downloading">Скачивание: %s</string>
-    <string name="status_download_desc">Скачивание %s...</string>
+    <string name="status_download_desc">Скачивание %s</string>
+    <string name="status_downloading">Скачивание %s...</string>
     <string name="status_download_failed">Ошибка скачивания: %s</string>
-    <string name="no_map_app">Приложение карт не найдено</string>
+    <string name="error_generic">Ошибка: %s</string>
+    <string name="error_no_pdf_viewer">PDF просмотрщик не найден</string>
+    <string name="error_main_js_missing">Main JS не найден</string>
+    <string name="error_transcript_js_missing">Transcript JS не найден</string>
+    <string name="error_ref_script_missing">Reference скрипт не найден</string>
+    <string name="error_http">HTTP Ошибка %d</string>
+    <string name="error_js_logic">JS Ошибка: %s</string>
+    <string name="error_script_exec">Скрипт: %s</string>
+
+    <string name="notif_channel_name">Напоминания</string>
+    <string name="channel_description">Уведомления о парах и оценках</string>
+    <string name="notif_default_title">MyEDU</string>
+    <string name="notif_default_msg">Новое уведомление</string>
+    <string name="notif_tomorrow_title">Пары завтра</string>
+    <string name="notif_tomorrow_msg">Завтра пар: %1$d. Первая: %2$s.</string>
+    <string name="notif_class_title">Скоро пара</string>
+    <string name="notif_class_msg">%1$s\nВремя: %2$s\nЛокация: %3$s\nАудитория: %4$s</string>
+    <string name="notif_new_grades_title">Новые оценки</string>
+    <string name="notif_grades_msg_single">%1$s: %2$s -> %3$d</string>
+    <string name="notif_grades_msg_multiple">Новых оценок: %d!</string>
 </resources>

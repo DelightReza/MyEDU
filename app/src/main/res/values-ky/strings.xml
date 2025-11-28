@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MyEDU</string>
+    <string name="app_name_display">MyEDU Мобайл</string>
+    <string name="version_prefix">Версия:</string>
+    <string name="config_date_format">dd.MM.yyyy</string>
+    
+    <string name="unknown">Белгисиз</string>
+    <string name="unknown_year">Жылы белгисиз</string>
+    <string name="unknown_semester">Семестр белгисиз</string>
+    <string name="today">Бүгүн</string>
+    <string name="student_default">Студент</string>
+    <string name="subject_default">Предмет</string>
+    <string name="lesson_default">Сабак</string>
+    <string name="class_default">Сабак</string>
+    <string name="campus_default">Кампус</string>
+    <string name="building_fallback">Имарат</string>
+    <string name="university_addr_default">-</string>
+
+    <string name="desc_logo">ОшМУ Лого</string>
+    <string name="desc_back">Артка</string>
+    <string name="desc_settings">Жөндөөлөр</string>
+    <string name="desc_announcements">Жарыялар</string>
+    <string name="desc_dropdown">Тизме</string>
+    <string name="desc_time">Убакыт</string>
+
+    <string name="nav_home">Башкы</string>
+    <string name="nav_schedule">Жүгүртмө</string>
+    <string name="nav_grades">Баалар</string>
+    <string name="nav_profile">Профиль</string>
+
+    <string name="email">Почта</string>
+    <string name="password">Сырсөз</string>
+    <string name="remember_me">Эстеп калуу</string>
+    <string name="sign_in">Кирүү</string>
+    <string name="log_out">Чыгуу</string>
+    <string name="error_credentials">Логин же сырсөз туура эмес</string>
+    <string name="error_login_failed">Ката: %s</string>
+
+    <string name="good_morning">Кутман таң,</string>
+    <string name="good_afternoon">Кутман күн,</string>
+    <string name="good_evening">Кутман кеч,</string>
+    <string name="announcements">Жарыялар</string>
+    <string name="semester">Семестр</string>
+    <string name="stream">Поток</string>
+    <string name="group">Тайпа</string>
+    <string name="todays_classes">Бүгүнкү сабактар</string>
+    <string name="no_classes_today">Бүгүн сабак жок</string>
+
+    <string name="mon">Дш</string>
+    <string name="tue">Шш</string>
+    <string name="wed">Шр</string>
+    <string name="thu">Бш</string>
+    <string name="fri">Жм</string>
+    <string name="sat">Иш</string>
+    <string name="no_classes">Сабак жок</string>
+    <string name="group_short">Тайпа</string>
+    <string name="auditorium">Аудитория</string>
+    <string name="pair">Пара</string>
+    <string name="teacher">Окутуучу</string>
+    <string name="location">Локация</string>
+    <string name="room">Аудитория</string>
+    <string name="building">Имарат</string>
+    <string name="map">Карта</string>
+    <string name="copy">Көчүрүү</string>
+    <string name="copied">Көчүрүлдү</string>
+    <string name="no_map_app">Карта тиркемеси табылган жок</string>
+    
+    <string name="type_lecture">Лекция</string>
+    <string name="type_practice">Практикалык сабак</string>
+    <string name="type_lab">Лаборатория</string>
+
+    <string name="current_session">Учурдагы сессия</string>
+    <string name="no_grades">Баалар жок</string>
+    <string name="semester_not_found">Семестр табылган жок</string>
+    <string name="current_performance">Жетишкендик</string>
+    <string name="exam_short">Экзамен</string>
+    <string name="total_short">Сумма</string>
+    <string name="m1">М1</string>
+    <string name="m2">М2</string>
+
+    <string name="profile">Профиль</string>
+    <string name="tuition_contract">Окуу келишими</string>
+    <string name="paid">Төлөндү</string>
+    <string name="total">Бардыгы</string>
+    <string name="remaining">Калды: %d сом</string>
+    <string name="currency_kgs">сом</string>
+    <string name="documents">Документтер</string>
+    <string name="academic">Окуу маалыматы</string>
+    <string name="faculty">Факультет</string>
+    <string name="speciality">Адистик</string>
+    <string name="personal">Жеке маалымат</string>
+    <string name="passport">Паспорт</string>
+    <string name="phone">Телефон</string>
+
+    <string name="reference">Маалымкат</string>
+    <string name="reference_title">Маалымкат (Форма 8)</string>
+    <string name="transcript">Транскрипт</string>
+    <string name="transcript_title">Транскрипт (Форма 13)</string>
+    <string name="print_download">Печать / Жүктөө</string>
+    <string name="cert_header">ОКУГАНДЫГЫ ТУУРАЛУУ МААЛЫМКАТ</string>
+    <string name="cert_intro">Бул маалымкат төмөнкүнү тастыктайт</string>
+    <string name="student_id">Студент ID</string>
+    <string name="year_of_study">Курс</string>
+    <string name="sem_short">Семестр</string>
+    <string name="edu_form">Окуу формасы</string>
+    <string name="payment">Төлөө түрү</string>
+    <string name="contract">Контракт</string>
+    <string name="budget">Бюджет</string>
+    <string name="active_student">Окуп жатат</string>
+    <string name="preview_msg">Бул алдын ала көрүү.</string>
+    <string name="download_msg">Расмий PDF үчүн төмөнкү баскычтарды басыңыз.</string>
+    <string name="generating_pdf">PDF даярдалууда...</string>
+    <string name="pdf_ru">PDF (RU)</string>
+    <string name="pdf_en">PDF (EN)</string>
+    <string name="code">Код</string>
+    <string name="credits">Кредит</string>
+    
+    <string name="transcript_filename">Транскрипт</string>
+    <string name="reference_filename">Маалымкат</string>
+
+    <string name="settings">Жөндөөлөр</string>
+    <string name="appearance">Көрүнүш</string>
+    <string name="follow_system">Системалык</string>
+    <string name="light_mode">Жарык</string>
+    <string name="dark_mode">Караңгы</string>
+    <string name="liquid_glass">Суюк айнек</string>
+    <string name="aqua_flow">Аква</string>
+    <string name="docs_download">Документ жүктөө</string>
+    <string name="in_app_pdf">Тиркеме ичинде</string>
+    <string name="website_official">Расмий сайт</string>
+    <string name="language">Тил</string>
+    <string name="about">Тиркеме жөнүндө</string>
+
+    <string name="status_preparing_transcript">Транскрипт даярдалууда...</string>
+    <string name="status_preparing_reference">Маалымкат даярдалууда...</string>
+    <string name="status_fetching_scripts">Шаблондор жүктөлүүдө...</string>
+    <string name="status_saving">Сакталууда...</string>
+    <string name="status_saved">Жүктөөлөргө сакталды: %s</string>
+    <string name="status_save_failed">Сактоо катасы: %s</string>
+    <string name="status_download_desc">Жүктөлүүдө %s</string>
+    <string name="status_downloading">Жүктөлүүдө %s...</string>
+    <string name="status_download_failed">Жүктөө катасы: %s</string>
+    <string name="error_generic">Ката: %s</string>
+    <string name="error_no_pdf_viewer">PDF ачкыч табылган жок</string>
+    <string name="error_main_js_missing">Main JS табылган жок</string>
+    <string name="error_transcript_js_missing">Transcript JS табылган жок</string>
+    <string name="error_ref_script_missing">Reference скрипти табылган жок</string>
+    <string name="error_http">HTTP Ката %d</string>
+    <string name="error_js_logic">Логикалык ката: %s</string>
+    <string name="error_script_exec">Скрипт катасы: %s</string>
+
+    <string name="notif_channel_name">Сабак эскертүүлөрү</string>
+    <string name="channel_description">Сабактар жана баалар жөнүндө билдирүүлөр</string>
+    <string name="notif_default_title">MyEDU</string>
+    <string name="notif_default_msg">Жаңы билдирүү</string>
+    <string name="notif_tomorrow_title">Эртеңки сабактар</string>
+    <string name="notif_tomorrow_msg">Эртең %1$d сабак бар. Биринчи сабак: %2$s.</string>
+    <string name="notif_class_title">Сабак башталууда</string>
+    <string name="notif_class_msg">%1$s\nУбакыт: %2$s\nЛокация: %3$s\nАудитория: %4$s</string>
+    <string name="notif_new_grades_title">Жаңы баалар</string>
+    <string name="notif_grades_msg_single">%1$s: %2$s жаңырды -> %3$d</string>
+    <string name="notif_grades_msg_multiple">Сизде %d жаңы баа бар!</string>
+</resources>

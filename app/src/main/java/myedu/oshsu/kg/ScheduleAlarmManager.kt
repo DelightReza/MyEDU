@@ -105,10 +105,24 @@ class ScheduleAlarmManager(private val context: Context) {
                 classCal.add(Calendar.DAY_OF_YEAR, 7)
             }
 
+            // --- DATA PREPARATION ---
             val subjectName = item.subject?.get(language) ?: "Class"
-            val roomName = item.room?.name_en ?: "Unknown"
+            val roomName = item.room?.name_en ?: "?"
             
-            val msg = context.getString(R.string.notif_class_msg, subjectName, startTime, roomName)
+            // Build Location String (Building Name + Address)
+            val bName = item.classroom?.building?.getName(language) ?: ""
+            val bAddr = item.classroom?.building?.getAddress(language) ?: ""
+            
+            val locationStr = when {
+                bName.isNotBlank() && bAddr.isNotBlank() -> "$bName, $bAddr"
+                bName.isNotBlank() -> bName
+                bAddr.isNotBlank() -> bAddr
+                else -> "Campus"
+            }
+            // ------------------------
+
+            // Pass 4 arguments to the string resource
+            val msg = context.getString(R.string.notif_class_msg, subjectName, startTime, locationStr, roomName)
 
             val id = item.day * 100 + item.id_lesson
 

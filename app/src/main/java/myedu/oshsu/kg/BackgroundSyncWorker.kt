@@ -11,23 +11,55 @@ import java.util.Locale
 
 class BackgroundSyncWorker(appContext: Context, workerParams: WorkerParameters) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        // Attempt to run the sync logic, allowing for one retry on auth failure
+        val success = runSyncTask(retryAuth = true)
+        if (success) Result.success() else Result.retry()
+    }
+
+    private suspend fun runSyncTask(retryAuth: Boolean): Boolean {
         try {
             val context = applicationContext
             val prefs = PrefsManager(context)
-            val token = prefs.getToken() ?: return@withContext Result.failure()
+            var token = prefs.getToken()
+
+            if (token == null && retryAuth) {
+                // No token found initially, try to login if credentials exist
+                if (attemptBgLogin(prefs)) {
+                     token = prefs.getToken()
+                } else {
+                     return false
+                }
+            } else if (token == null) {
+                return false
+            }
 
             NetworkClient.interceptor.authToken = token
-            NetworkClient.cookieJar.injectSessionCookies(token)
+            NetworkClient.cookieJar.injectSessionCookies(token!!)
 
-            val userResponse = try { NetworkClient.api.getUser() } catch (e: Exception) { return@withContext Result.retry() }
-            val profile = try { NetworkClient.api.getProfile() } catch (e: Exception) { return@withContext Result.retry() }
+            // 1. Fetch User Data
+            val userResponse = try { 
+                NetworkClient.api.getUser() 
+            } catch (e: Exception) {
+                // If 401 and we haven't retried yet, attempt login and recursion
+                if (retryAuth && (e.message?.contains("401") == true || e.message?.contains("HTTP 401") == true)) {
+                    if (attemptBgLogin(prefs)) {
+                        return runSyncTask(retryAuth = false)
+                    }
+                }
+                return false // Other error or auth retry failed
+            }
+
+            // 2. Fetch Profile
+            val profile = try { NetworkClient.api.getProfile() } catch (e: Exception) { return false }
 
             prefs.saveData("user_data", userResponse.user)
             prefs.saveData("profile_data", profile)
 
+            // 3. Other Data (Best Effort)
             try { val news = NetworkClient.api.getNews(); prefs.saveList("news_list", news) } catch (_: Exception) { }
             try { val pay = NetworkClient.api.getPayStatus(); prefs.saveData("pay_status", pay) } catch (_: Exception) { }
 
+            // 4. Session & Grades Notification
             try {
                 val oldSession = prefs.loadList<SessionResponse>("session_list")
                 val activeSemester = profile.active_semester ?: 1
@@ -41,6 +73,7 @@ class BackgroundSyncWorker(appContext: Context, workerParams: WorkerParameters) 
                 prefs.saveList("session_list", newSession)
             } catch (e: Exception) { e.printStackTrace() }
 
+            // 5. Schedule & Alarms
             val mov = profile.studentMovement
             if (mov != null) {
                 try {
@@ -62,8 +95,35 @@ class BackgroundSyncWorker(appContext: Context, workerParams: WorkerParameters) 
                     }
                 } catch (e: Exception) { e.printStackTrace() }
             }
-            return@withContext Result.success()
-        } catch (e: Exception) { return@withContext Result.retry() }
+            return true
+        } catch (e: Exception) {
+            return false
+        }
+    }
+
+    private suspend fun attemptBgLogin(prefs: PrefsManager): Boolean {
+        val isRemember = prefs.loadData("pref_remember_me", Boolean::class.java) ?: false
+        if (!isRemember) return false
+        
+        val email = prefs.loadData("pref_saved_email", String::class.java) ?: ""
+        val pass = prefs.loadData("pref_saved_pass", String::class.java) ?: ""
+        
+        if (email.isBlank() || pass.isBlank()) return false
+
+        return try {
+            val resp = NetworkClient.api.login(LoginRequest(email.trim(), pass.trim()))
+            val token = resp.authorisation?.token
+            if (token != null) {
+                prefs.saveToken(token)
+                NetworkClient.interceptor.authToken = token
+                NetworkClient.cookieJar.injectSessionCookies(token)
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            false
+        }
     }
 
     private fun getLocalizedContext(context: Context, prefs: PrefsManager): Context {

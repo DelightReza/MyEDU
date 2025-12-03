@@ -217,6 +217,26 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    // New helper to attempt login silently without UI changes
+    private suspend fun performSilentLogin(): Boolean {
+        if (!rememberMe || loginEmail.isBlank() || loginPass.isBlank()) return false
+        
+        return try {
+            val resp = NetworkClient.api.login(LoginRequest(loginEmail.trim(), loginPass.trim()))
+            val token = resp.authorisation?.token
+            if (token != null) {
+                prefs?.saveToken(token)
+                NetworkClient.interceptor.authToken = token
+                NetworkClient.cookieJar.injectSessionCookies(token)
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     fun logout() {
         val wasRemember = rememberMe
         val savedE = loginEmail
@@ -240,7 +260,7 @@ class MainViewModel : ViewModel() {
         }
     }
 
-    private fun refreshAllData(force: Boolean) {
+    private fun refreshAllData(force: Boolean, retryCount: Int = 0) {
         viewModelScope.launch(Dispatchers.IO) {
             withContext(Dispatchers.Main) { isLoading = true }
             try {
@@ -258,7 +278,23 @@ class MainViewModel : ViewModel() {
                 }
                 lastRefreshTime = System.currentTimeMillis()
             } catch (e: Exception) {
-                if (e.message?.contains("401") == true) { withContext(Dispatchers.Main) { logout() } }
+                val isAuthError = e.message?.contains("401") == true || e.message?.contains("HTTP 401") == true
+                
+                if (isAuthError && retryCount == 0) {
+                    // Try to auto-login using saved credentials
+                    val reloginSuccess = performSilentLogin()
+                    if (reloginSuccess) {
+                        // Retry data fetch once
+                        refreshAllData(force, retryCount = 1)
+                        return@launch
+                    } else {
+                        // Auto-login failed, force logout
+                        withContext(Dispatchers.Main) { logout() }
+                    }
+                } else if (isAuthError) {
+                    // Already retried and failed
+                    withContext(Dispatchers.Main) { logout() }
+                }
             } finally {
                 withContext(Dispatchers.Main) { isLoading = false }
             }
@@ -350,7 +386,10 @@ class MainViewModel : ViewModel() {
                 val movId = profileData?.studentMovement?.id ?: return@launch 
                 val transcript = NetworkClient.api.getTranscript(uid, movId)
                 withContext(Dispatchers.Main) { transcriptData = transcript; prefs?.saveList("transcript_list", transcript) }
-            } catch (_: Exception) {} finally { withContext(Dispatchers.Main) { isTranscriptLoading = false } }
+            } catch (e: Exception) {
+                // If transcript fetch fails with 401, we could also retry here, 
+                // but usually refreshAllData handles the main token refresh.
+            } finally { withContext(Dispatchers.Main) { isTranscriptLoading = false } }
         }
     }
     

@@ -1,5 +1,6 @@
 package myedu.oshsu.kg.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -16,12 +17,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import myedu.oshsu.kg.DebugLogger
 import myedu.oshsu.kg.MainViewModel
 import myedu.oshsu.kg.R
+import myedu.oshsu.kg.secretDebugTrigger
 import myedu.oshsu.kg.ui.components.*
 import myedu.oshsu.kg.ui.theme.AccentGradient
 import java.text.SimpleDateFormat
@@ -31,6 +35,7 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(vm: MainViewModel) {
+    val context = LocalContext.current
     val user = vm.userData; val profile = vm.profileData; val pay = vm.payStatus
     val lang = vm.language
     val fullName = "${user?.last_name ?: ""} ${user?.name ?: ""}".trim().ifEmpty { stringResource(R.string.student_default) }
@@ -43,7 +48,18 @@ fun ProfileScreen(vm: MainViewModel) {
         Column(Modifier.fillMaxSize().widthIn(max = 840.dp).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.profile), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                IconButton(onClick = { vm.showSettingsScreen = true }) { Icon(Icons.Outlined.Settings, stringResource(R.string.desc_settings), tint = MaterialTheme.colorScheme.onSurface) }
+                
+                IconButton(
+                    onClick = { vm.showSettingsScreen = true },
+                    modifier = Modifier.secretDebugTrigger { 
+                        vm.isDebugPipVisible = !vm.isDebugPipVisible
+                        val msg = if(vm.isDebugPipVisible) "Debug Mode Enabled" else "Debug Mode Disabled"
+                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        DebugLogger.log("UI", msg)
+                    }
+                ) { 
+                    Icon(Icons.Outlined.Settings, stringResource(R.string.desc_settings), tint = MaterialTheme.colorScheme.onSurface) 
+                }
             }
             Spacer(Modifier.height(24.dp))
             val imgMod = Modifier.size(128.dp).background(AccentGradient, CircleShape).padding(3.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface)

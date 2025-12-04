@@ -1,5 +1,6 @@
 package myedu.oshsu.kg.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,9 +16,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import myedu.oshsu.kg.DebugLogger
 import myedu.oshsu.kg.MainActivity
 import myedu.oshsu.kg.MainViewModel
 import myedu.oshsu.kg.R
+import myedu.oshsu.kg.secretDebugTrigger
 import myedu.oshsu.kg.ui.components.OshSuLogo
 import myedu.oshsu.kg.ui.theme.AccentGradient
 
@@ -29,7 +32,23 @@ fun LoginScreen(vm: MainViewModel) {
     val inputColors = if (vm.isGlass) OutlinedTextFieldDefaults.colors(focusedBorderColor = MaterialTheme.colorScheme.primary, unfocusedBorderColor = MaterialTheme.colorScheme.outline, focusedTextColor = MaterialTheme.colorScheme.onSurface, unfocusedTextColor = MaterialTheme.colorScheme.onSurface, focusedLabelColor = MaterialTheme.colorScheme.primary, cursorColor = MaterialTheme.colorScheme.onSurface, unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant) else OutlinedTextFieldDefaults.colors()
 
     Box(modifier = Modifier.fillMaxSize()) {
-        IconButton(onClick = { showSettingsSheet = true }, modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(16.dp)) { Icon(imageVector = Icons.Default.Settings, contentDescription = stringResource(R.string.desc_settings), tint = if (vm.themeMode == "GLASS") Color.White else MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(28.dp)) }
+        IconButton(
+            onClick = { showSettingsSheet = true },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .statusBarsPadding()
+                .padding(16.dp)
+                // --- 5 SECOND HOLD TRIGGER ---
+                .secretDebugTrigger {
+                    vm.isDebugPipVisible = !vm.isDebugPipVisible
+                    val msg = if(vm.isDebugPipVisible) "Debug Mode Enabled" else "Debug Mode Disabled"
+                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                    DebugLogger.log("UI", msg)
+                }
+        ) { 
+            Icon(imageVector = Icons.Default.Settings, contentDescription = stringResource(R.string.desc_settings), tint = if (vm.themeMode == "GLASS") Color.White else MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(28.dp)) 
+        }
+        
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(modifier = Modifier.fillMaxSize().widthIn(max = 600.dp).padding(24.dp).systemBarsPadding(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                 OshSuLogo(modifier = Modifier.width(260.dp).height(100.dp), themeMode = vm.themeMode); Spacer(Modifier.height(48.dp))

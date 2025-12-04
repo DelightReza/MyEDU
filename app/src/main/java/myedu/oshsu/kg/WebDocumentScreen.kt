@@ -39,16 +39,48 @@ fun WebDocumentScreen(url: String, title: String, fileName: String, authToken: S
             AndroidView(factory = { ctx ->
                 WebView(ctx).apply {
                     layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-                    settings.javaScriptEnabled = true; settings.domStorageEnabled = true; settings.loadWithOverviewMode = true; settings.useWideViewPort = true; settings.builtInZoomControls = true; settings.displayZoomControls = false
+                    settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
+                    settings.loadWithOverviewMode = true
+                    settings.useWideViewPort = true
+                    settings.builtInZoomControls = true
+                    settings.displayZoomControls = false
+                    
                     setDownloadListener { url, userAgent, _, mimetype, _ ->
                         try {
+                            DebugLogger.log("WEB_DL", "Downloading: $fileName")
                             val request = DownloadManager.Request(Uri.parse(url)).setMimeType(mimetype).addRequestHeader("cookie", CookieManager.getInstance().getCookie(url)).addRequestHeader("User-Agent", userAgent)
                             request.setDescription(ctx.getString(R.string.status_download_desc, title)).setTitle(fileName).setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED).setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
                             (ctx.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).enqueue(request)
                             Toast.makeText(ctx, ctx.getString(R.string.status_downloading, fileName), Toast.LENGTH_LONG).show()
-                        } catch (e: Exception) { Toast.makeText(ctx, ctx.getString(R.string.status_download_failed, e.message), Toast.LENGTH_LONG).show() }
+                        } catch (e: Exception) { 
+                            DebugLogger.log("WEB_ERR", "Download failed: ${e.message}")
+                            Toast.makeText(ctx, ctx.getString(R.string.status_download_failed, e.message), Toast.LENGTH_LONG).show() 
+                        }
                     }
-                    webChromeClient = object : WebChromeClient() {}; webViewClient = object : WebViewClient() { override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) { isLoading = true }; override fun onPageFinished(view: WebView?, url: String?) { isLoading = false } }
+                    
+                    // --- WEB SPY ADDITION ---
+                    webChromeClient = object : WebChromeClient() {
+                        override fun onConsoleMessage(cm: ConsoleMessage): Boolean {
+                            // Log WebView console messages to our Debug Overlay
+                            DebugLogger.log("WEB_JS", "${cm.message()} (L${cm.lineNumber()})")
+                            return true
+                        }
+                    }
+                    
+                    webViewClient = object : WebViewClient() { 
+                        override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) { 
+                            isLoading = true
+                            DebugLogger.log("WEB", "Loading: $url")
+                        }
+                        override fun onPageFinished(view: WebView?, url: String?) { 
+                            isLoading = false
+                            DebugLogger.log("WEB", "Finished: $url")
+                        } 
+                        override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
+                            DebugLogger.log("WEB_ERR", "Code: ${error?.errorCode} Desc: ${error?.description}")
+                        }
+                    }
                     loadUrl(url)
                 }
             }, modifier = Modifier.fillMaxSize())

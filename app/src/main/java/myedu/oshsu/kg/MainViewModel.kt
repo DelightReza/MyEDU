@@ -43,6 +43,10 @@ class MainViewModel : ViewModel() {
     var downloadMode by mutableStateOf("IN_APP") 
     var language by mutableStateOf("en") 
     
+    // --- STATE: DEBUG TOOLS ---
+    var isDebugPipVisible by mutableStateOf(false) // The floating button
+    var isDebugConsoleOpen by mutableStateOf(false) // The full screen logs
+
     // --- STATE: DATA ---
     var userData by mutableStateOf<UserData?>(null)
     var profileData by mutableStateOf<StudentInfoResponse?>(null)
@@ -54,7 +58,6 @@ class MainViewModel : ViewModel() {
     var todayClasses by mutableStateOf<List<ScheduleItem>>(emptyList())
     var timeMap by mutableStateOf<Map<Int, String>>(emptyMap())
     
-    // Calculated day name
     var todayDayName by mutableStateOf("")
 
     var determinedStream by mutableStateOf<Int?>(null)
@@ -100,6 +103,7 @@ class MainViewModel : ViewModel() {
     fun getAuthToken(): String? = prefs?.getToken()
 
     fun initSession(context: Context) {
+        DebugLogger.log("APP", "Session Init Started")
         appContext = context.applicationContext
         
         if (prefs == null) prefs = PrefsManager(context)
@@ -126,12 +130,14 @@ class MainViewModel : ViewModel() {
         }
 
         if (token != null) {
+            DebugLogger.log("AUTH", "Token found, loading offline data")
             NetworkClient.interceptor.authToken = token
             NetworkClient.cookieJar.injectSessionCookies(token)
             loadOfflineData()
             appState = "APP"
             refreshAllData(force = true)
         } else {
+            DebugLogger.log("AUTH", "No token, showing login")
             appState = "LOGIN"
         }
     }
@@ -153,6 +159,7 @@ class MainViewModel : ViewModel() {
         if (appState != "APP" || isLoading) return
         val currentTime = System.currentTimeMillis()
         if (currentTime - lastRefreshTime > refreshCooldownMs) {
+            DebugLogger.log("SYNC", "Auto-refresh triggered")
             refreshAllData(force = false)
         }
     }
@@ -188,6 +195,7 @@ class MainViewModel : ViewModel() {
 
     fun login(email: String, pass: String) {
         viewModelScope.launch {
+            DebugLogger.log("AUTH", "Login attempt: $email")
             isLoading = true; errorMsg = null; NetworkClient.cookieJar.clear(); NetworkClient.interceptor.authToken = null
             
             if (rememberMe) {
@@ -204,6 +212,7 @@ class MainViewModel : ViewModel() {
                 val resp = withContext(Dispatchers.IO) { NetworkClient.api.login(LoginRequest(email.trim(), pass.trim())) }
                 val token = resp.authorisation?.token
                 if (token != null) {
+                    DebugLogger.log("AUTH", "Login successful")
                     prefs?.saveToken(token)
                     NetworkClient.interceptor.authToken = token
                     NetworkClient.cookieJar.injectSessionCookies(token)
@@ -211,16 +220,16 @@ class MainViewModel : ViewModel() {
                     appState = "APP"
                 } else errorMsg = appContext?.getString(R.string.error_credentials) ?: "Incorrect credentials"
             } catch (e: Exception) { 
+                DebugLogger.log("AUTH", "Login error: ${e.message}")
                 errorMsg = appContext?.getString(R.string.error_login_failed, e.message) ?: "Login Failed: ${e.message}" 
             }
             isLoading = false
         }
     }
 
-    // New helper to attempt login silently without UI changes
     private suspend fun performSilentLogin(): Boolean {
         if (!rememberMe || loginEmail.isBlank() || loginPass.isBlank()) return false
-        
+        DebugLogger.log("AUTH", "Silent login attempt")
         return try {
             val resp = NetworkClient.api.login(LoginRequest(loginEmail.trim(), loginPass.trim()))
             val token = resp.authorisation?.token
@@ -238,6 +247,7 @@ class MainViewModel : ViewModel() {
     }
 
     fun logout() {
+        DebugLogger.log("AUTH", "Logging out")
         val wasRemember = rememberMe
         val savedE = loginEmail
         val savedP = loginPass
@@ -278,21 +288,18 @@ class MainViewModel : ViewModel() {
                 }
                 lastRefreshTime = System.currentTimeMillis()
             } catch (e: Exception) {
+                DebugLogger.log("SYNC", "Refresh error: ${e.message}")
                 val isAuthError = e.message?.contains("401") == true || e.message?.contains("HTTP 401") == true
                 
                 if (isAuthError && retryCount == 0) {
-                    // Try to auto-login using saved credentials
                     val reloginSuccess = performSilentLogin()
                     if (reloginSuccess) {
-                        // Retry data fetch once
                         refreshAllData(force, retryCount = 1)
                         return@launch
                     } else {
-                        // Auto-login failed, force logout
                         withContext(Dispatchers.Main) { logout() }
                     }
                 } else if (isAuthError) {
-                    // Already retried and failed
                     withContext(Dispatchers.Main) { logout() }
                 }
             } finally {
@@ -344,7 +351,6 @@ class MainViewModel : ViewModel() {
         todayClasses = fullSchedule.filter { it.day == apiDay }
     }
     
-    // UPDATED: Returns Resource ID instead of String to ensure UI Context is used
     fun getSubjectTypeResId(item: ScheduleItem): Int? {
         val rawEn = item.subject_type?.name_en ?: ""
         val rawRu = item.subject_type?.name_ru ?: ""
@@ -386,10 +392,7 @@ class MainViewModel : ViewModel() {
                 val movId = profileData?.studentMovement?.id ?: return@launch 
                 val transcript = NetworkClient.api.getTranscript(uid, movId)
                 withContext(Dispatchers.Main) { transcriptData = transcript; prefs?.saveList("transcript_list", transcript) }
-            } catch (e: Exception) {
-                // If transcript fetch fails with 401, we could also retry here, 
-                // but usually refreshAllData handles the main token refresh.
-            } finally { withContext(Dispatchers.Main) { isTranscriptLoading = false } }
+            } catch (e: Exception) { } finally { withContext(Dispatchers.Main) { isTranscriptLoading = false } }
         }
     }
     
@@ -411,6 +414,7 @@ class MainViewModel : ViewModel() {
 
     fun generateTranscriptPdf(context: Context, lang: String) {
         if (isPdfGenerating) return
+        DebugLogger.log("PDF", "Starting Transcript Gen ($lang)")
         val studentId = userData?.id ?: return
         viewModelScope.launch {
             isPdfGenerating = true
@@ -421,7 +425,7 @@ class MainViewModel : ViewModel() {
                 if (resources == null) {
                     pdfStatusMessage = context.getString(R.string.status_fetching_scripts)
                     val fetcher = jsFetcher ?: JsResourceFetcher(context)
-                    resources = fetcher.fetchResources({ println(it) }, lang, cachedDictionary)
+                    resources = fetcher.fetchResources({ DebugLogger.log("JS_FETCHER", it) }, lang, cachedDictionary)
                     if (lang == "en") cachedResourcesEn = resources else cachedResourcesRu = resources
                 }
                 val infoRaw = withContext(Dispatchers.IO) { NetworkClient.api.getStudentInfoRaw(studentId).string() }
@@ -434,13 +438,17 @@ class MainViewModel : ViewModel() {
                 val keyObj = JSONObject(keyRaw)
                 
                 pdfStatusMessage = context.getString(R.string.generating_pdf)
-                val bytes = WebPdfGenerator(context).generatePdf(infoJson.toString(), transcriptRaw, keyObj.optLong("id"), keyObj.optString("url"), resources!!, lang, cachedDictionary) { println(it) }
+                val bytes = WebPdfGenerator(context).generatePdf(infoJson.toString(), transcriptRaw, keyObj.optLong("id"), keyObj.optString("url"), resources!!, lang, cachedDictionary) { 
+                    println(it)
+                    DebugLogger.log("JS_TRANSCRIPT", it)
+                }
                 
                 val filename = getFormattedFileName("Transcript", lang)
                 saveToDownloads(context, bytes, filename)
                 
                 pdfStatusMessage = null
             } catch (e: Exception) {
+                DebugLogger.log("PDF_ERR", "Transcript Gen Failed: ${e.message}")
                 pdfStatusMessage = context.getString(R.string.error_generic, e.message)
                 e.printStackTrace()
                 delay(3000)
@@ -451,6 +459,7 @@ class MainViewModel : ViewModel() {
 
     fun generateReferencePdf(context: Context, lang: String) {
         if (isPdfGenerating) return
+        DebugLogger.log("PDF", "Starting Reference Gen ($lang)")
         val studentId = userData?.id ?: return
         viewModelScope.launch {
             isPdfGenerating = true
@@ -461,7 +470,7 @@ class MainViewModel : ViewModel() {
                 if (resources == null) {
                     pdfStatusMessage = context.getString(R.string.status_fetching_scripts)
                     val fetcher = refFetcher ?: ReferenceJsFetcher(context)
-                    resources = fetcher.fetchResources({ println(it) }, lang, cachedDictionary)
+                    resources = fetcher.fetchResources({ DebugLogger.log("JS_FETCHER", it) }, lang, cachedDictionary)
                     if (lang == "en") cachedRefResourcesEn = resources else cachedRefResourcesRu = resources
                 }
                 val infoRaw = withContext(Dispatchers.IO) { NetworkClient.api.getStudentInfoRaw(studentId).string() }
@@ -477,13 +486,17 @@ class MainViewModel : ViewModel() {
                 val linkObj = JSONObject(linkRaw)
                 
                 pdfStatusMessage = context.getString(R.string.generating_pdf)
-                val bytes = ReferencePdfGenerator(context).generatePdf(infoJson.toString(), licenseRaw, univRaw, linkObj.optLong("id"), linkObj.optString("url"), resources!!, prefs?.getToken() ?: "", lang, cachedDictionary) { println(it) }
+                val bytes = ReferencePdfGenerator(context).generatePdf(infoJson.toString(), licenseRaw, univRaw, linkObj.optLong("id"), linkObj.optString("url"), resources!!, prefs?.getToken() ?: "", lang, cachedDictionary) { 
+                    println(it)
+                    DebugLogger.log("JS_REF", it)
+                }
                 
                 val filename = getFormattedFileName("Reference", lang)
                 saveToDownloads(context, bytes, filename)
                 
                 pdfStatusMessage = null
             } catch (e: Exception) {
+                DebugLogger.log("PDF_ERR", "Reference Gen Failed: ${e.message}")
                 pdfStatusMessage = context.getString(R.string.error_generic, e.message)
                 e.printStackTrace()
                 delay(3000)
@@ -508,6 +521,8 @@ class MainViewModel : ViewModel() {
             withContext(Dispatchers.IO) {
                 FileOutputStream(file).use { it.write(bytes) }
             }
+            
+            DebugLogger.log("PDF", "File saved: ${file.name}")
 
             withContext(Dispatchers.Main) {
                 Toast.makeText(context, context.getString(R.string.status_saved, file.name), Toast.LENGTH_SHORT).show()
@@ -524,6 +539,7 @@ class MainViewModel : ViewModel() {
                 }
             }
         } catch (e: Exception) {
+            DebugLogger.log("PDF_ERR", "Save Failed: ${e.message}")
             pdfStatusMessage = context.getString(R.string.status_save_failed, e.message)
             delay(2000)
         }

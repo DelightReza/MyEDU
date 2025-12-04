@@ -13,6 +13,7 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.Response
 import okhttp3.ResponseBody
+import okio.Buffer
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
@@ -21,6 +22,7 @@ import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
 import retrofit2.http.Query
+import java.nio.charset.Charset
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -199,13 +201,104 @@ class WindowsInterceptor : Interceptor {
     }
 }
 
+// --- DEEP SPY INTERCEPTOR ---
+// Logs headers and body content (text/json) to the Debug Console
+class DeepSpyInterceptor : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val request = chain.request()
+        val startNs = System.nanoTime()
+        val url = request.url.toString()
+        
+        // 1. Log Request
+        var reqLog = "REQ: ${request.method} $url"
+        
+        // Safely read request body
+        val reqBody = request.body
+        if (reqBody != null) {
+            try {
+                val buffer = Buffer()
+                reqBody.writeTo(buffer)
+                val charset = reqBody.contentType()?.charset(Charset.forName("UTF-8")) ?: Charset.forName("UTF-8")
+                
+                if (isPlaintext(buffer)) {
+                    reqLog += "\nBODY: ${buffer.readString(charset)}"
+                } else {
+                    reqLog += "\nBODY: (Binary/Multipart)"
+                }
+            } catch (e: Exception) {
+                reqLog += "\nBODY: (Error reading body)"
+            }
+        }
+        DebugLogger.log("NET_REQ", reqLog)
+
+        val response: Response
+        try {
+            response = chain.proceed(request)
+        } catch (e: Exception) {
+            DebugLogger.log("NET_FAIL", "FAILED: $url - ${e.message}")
+            throw e
+        }
+
+        val tookMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs)
+        
+        // 2. Log Response
+        var resLog = "RES: ${response.code} (${tookMs}ms) $url"
+        
+        val resBody = response.body
+        if (resBody != null && response.code != 204) {
+            try {
+                val source = resBody.source()
+                source.request(Long.MAX_VALUE) // Buffer entire body
+                val buffer = source.buffer.clone() // Clone so we don't consume the actual response
+                
+                val contentType = resBody.contentType()?.toString()
+                if (contentType != null && (contentType.contains("pdf") || contentType.contains("image"))) {
+                    resLog += "\nBODY: [Binary Data: $contentType]"
+                } else if (isPlaintext(buffer)) {
+                    val charset = resBody.contentType()?.charset(Charset.forName("UTF-8")) ?: Charset.forName("UTF-8")
+                    val content = buffer.readString(charset)
+                    resLog += if (content.length > 3000) "\nBODY: ${content.take(3000)}... (Truncated)" else "\nBODY: $content"
+                } else {
+                    resLog += "\nBODY: (Binary Data)"
+                }
+            } catch (e: Exception) {
+                resLog += "\nBODY: (Error reading response)"
+            }
+        }
+        
+        DebugLogger.log("NET_RES", resLog)
+        return response
+    }
+
+    private fun isPlaintext(buffer: Buffer): Boolean {
+        try {
+            val prefix = Buffer()
+            val byteCount = if (buffer.size < 64) buffer.size else 64
+            buffer.copyTo(prefix, 0, byteCount)
+            for (i in 0 until 16) {
+                if (prefix.exhausted()) break
+                val codePoint = prefix.readUtf8CodePoint()
+                if (Character.isISOControl(codePoint) && !Character.isWhitespace(codePoint)) {
+                    return false
+                }
+            }
+            return true
+        } catch (e: Exception) {
+            return false 
+        }
+    }
+}
+
 object NetworkClient {
     val cookieJar = UniversalCookieJar()
     val interceptor = WindowsInterceptor()
+    val deepSpy = DeepSpyInterceptor()
+    
     val api: OshSuApi = Retrofit.Builder().baseUrl("https://api.myedu.oshsu.kg/")
         .client(OkHttpClient.Builder()
             .cookieJar(cookieJar)
             .addInterceptor(interceptor)
+            .addInterceptor(deepSpy) // Inject Spy
             .connectTimeout(60, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .build())

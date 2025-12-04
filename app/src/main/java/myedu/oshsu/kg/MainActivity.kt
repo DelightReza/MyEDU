@@ -117,8 +117,26 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun AppContent(vm: MainViewModel) {
-    AnimatedContent(targetState = vm.appState, label = "Root", transitionSpec = { fadeIn(animationSpec = tween(500)) togetherWith fadeOut(animationSpec = tween(500)) }) { state ->
-        when (state) { "LOGIN" -> LoginScreen(vm); "APP" -> MainAppStructure(vm); else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
+    Box(Modifier.fillMaxSize()) {
+        AnimatedContent(targetState = vm.appState, label = "Root", transitionSpec = { fadeIn(animationSpec = tween(500)) togetherWith fadeOut(animationSpec = tween(500)) }) { state ->
+            when (state) { "LOGIN" -> LoginScreen(vm); "APP" -> MainAppStructure(vm); else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
+        }
+        
+        // --- DEBUG UI OVERLAYS ---
+        // 1. The PIP Button (Show if enabled)
+        if (vm.isDebugPipVisible) {
+            DebugPipButton(
+                onClick = { vm.isDebugConsoleOpen = true },
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 16.dp)
+            )
+        }
+        
+        // 2. The Full Console (Show if open)
+        if (vm.isDebugConsoleOpen) {
+            DebugConsoleOverlay(onDismiss = { vm.isDebugConsoleOpen = false })
+        }
     }
 }
 

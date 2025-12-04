@@ -138,6 +138,13 @@ data class TranscriptSemester(@SerializedName("semester") val semesterName: Stri
 data class TranscriptSubject(@SerializedName("subject") val subjectName: String?, @SerializedName("code") val code: String?, @SerializedName("credit") val credit: Double?, @SerializedName("mark_list") val markList: MarkList?, @SerializedName("exam_rule") val examRule: ExamRule?)
 data class ExamRule(@SerializedName("alphabetic") val alphabetic: String?, @SerializedName("digital") val digital: Double?, @SerializedName("control_form") val controlForm: String?, @SerializedName("word_ru") val wordRu: String?)
 
+// --- 2FA & SECURITY MODELS ---
+data class Verify2FAResponse(
+    @SerializedName("have_role") val haveRole: Boolean?,
+    @SerializedName("have_bot") val haveBot: Boolean?,
+    @SerializedName("have_2fa") val have2fa: Boolean?
+)
+
 // --- API INTERFACE ---
 interface OshSuApi {
     @POST("public/api/login") suspend fun login(@Body request: LoginRequest): LoginResponse
@@ -146,6 +153,10 @@ interface OshSuApi {
     @GET("public/api/control/regulations/eduyear") suspend fun getYears(): List<EduYear>
     @GET("public/api/studentPayStatus") suspend fun getPayStatus(): PayStatusResponse
     @GET("public/api/appupdate") suspend fun getNews(): List<NewsItem>
+    
+    // New 2FA Verification Endpoint
+    @POST("public/api/verify2FA") suspend fun verify2FA(): Verify2FAResponse
+
     @GET("public/api/ep/schedule/schedulelessontime") suspend fun getLessonTimes(@Query("id_speciality") specId: Int, @Query("id_edu_form") formId: Int, @Query("id_edu_year") yearId: Int): List<LessonTimeResponse>
     @GET("public/api/studentscheduleitem") suspend fun getSchedule(@Query("id_speciality") specId: Int, @Query("id_edu_form") formId: Int, @Query("id_edu_year") yearId: Int, @Query("id_semester") semId: Int): List<ScheduleWrapper>
     @GET("public/api/studentsession") suspend fun getSession(@Query("id_semester") semesterId: Int): List<SessionResponse>

@@ -53,6 +53,9 @@ class MainViewModel : ViewModel() {
     var payStatus by mutableStateOf<PayStatusResponse?>(null)
     var newsList by mutableStateOf<List<NewsItem>>(emptyList())
     
+    // --- STATE: 2FA & SECURITY ---
+    var verify2FAStatus by mutableStateOf<Verify2FAResponse?>(null)
+
     // --- STATE: SCHEDULE ---
     var fullSchedule by mutableStateOf<List<ScheduleItem>>(emptyList())
     var todayClasses by mutableStateOf<List<ScheduleItem>>(emptyList())
@@ -169,6 +172,7 @@ class MainViewModel : ViewModel() {
             userData = p.loadData("user_data", UserData::class.java)
             profileData = p.loadData("profile_data", StudentInfoResponse::class.java)
             payStatus = p.loadData("pay_status", PayStatusResponse::class.java)
+            verify2FAStatus = p.loadData("verify_2fa_status", Verify2FAResponse::class.java)
             newsList = p.loadList("news_list")
             fullSchedule = p.loadList("schedule_list")
             sessionData = p.loadList("session_list")
@@ -254,6 +258,7 @@ class MainViewModel : ViewModel() {
 
         appState = "LOGIN"; currentTab = 0; userData = null; profileData = null; payStatus = null
         newsList = emptyList(); fullSchedule = emptyList(); sessionData = emptyList(); transcriptData = emptyList()
+        verify2FAStatus = null
         prefs?.clearAll(); NetworkClient.cookieJar.clear(); NetworkClient.interceptor.authToken = null
         
         prefs?.saveData("theme_mode_pref", themeMode)
@@ -280,6 +285,19 @@ class MainViewModel : ViewModel() {
                     userData = user; profileData = profile
                     prefs?.saveData("user_data", user); prefs?.saveData("profile_data", profile)
                 }
+                
+                // Fetch 2FA Status
+                try {
+                    val v2fa = NetworkClient.api.verify2FA()
+                    withContext(Dispatchers.Main) {
+                        verify2FAStatus = v2fa
+                        prefs?.saveData("verify_2fa_status", v2fa)
+                        DebugLogger.log("API", "2FA Status: Role=${v2fa.haveRole}, Bot=${v2fa.haveBot}, 2FA=${v2fa.have2fa}")
+                    }
+                } catch (e: Exception) {
+                    DebugLogger.log("API_WARN", "verify2FA failed: ${e.message}")
+                }
+                
                 if (profile != null) {
                     try { val news = NetworkClient.api.getNews(); withContext(Dispatchers.Main) { newsList = news; prefs?.saveList("news_list", news) } } catch (_: Exception) {}
                     try { val pay = NetworkClient.api.getPayStatus(); withContext(Dispatchers.Main) { payStatus = pay; prefs?.saveData("pay_status", pay) } } catch (_: Exception) {}

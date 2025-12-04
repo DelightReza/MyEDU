@@ -19,44 +19,150 @@ class ReferenceJsFetcher(private val context: Context) {
     private val client = OkHttpClient()
     private val baseUrl = "https://myedu.oshsu.kg"
 
+    private fun getStampOrPlaceholder(): String {
+        return try {
+            val inputStream = context.assets.open("stamp.jpg")
+            val bytes = inputStream.readBytes()
+            val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+            "data:image/jpeg;base64,$base64" // Reference PDF needs raw base64 string
+        } catch (e: Exception) {
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+        }
+    }
+
     suspend fun fetchResources(logger: (String) -> Unit, language: String, dictionary: Map<String, String>): ReferenceResources = withContext(Dispatchers.IO) {
         try {
             val indexHtml = fetchString("$baseUrl/")
-            val mainJsName = findMatch(indexHtml, """src="/assets/(index\.[^"]+\.js)"""") ?: throw Exception(context.getString(R.string.error_main_js_missing))
+            val mainJsName = findMatch(indexHtml, """src="/assets/(index\.[^"]+\.js)"""") 
+                ?: throw Exception(context.getString(R.string.error_main_js_missing))
             val mainJsContent = fetchString("$baseUrl/assets/$mainJsName")
+            
             var refJsPath = findMatch(mainJsContent, """["']([^"']*References7\.[^"']+\.js)["']""")
             if (refJsPath == null) {
                 val docsJsPath = findMatch(mainJsContent, """["']([^"']*StudentDocuments\.[^"']+\.js)["']""")
                 if (docsJsPath != null) {
-                    val docsContent = fetchString("$baseUrl/assets/" + getName(docsJsPath))
+                    val docsContent = fetchString("$baseUrl/assets/${getName(docsJsPath)}")
                     refJsPath = findMatch(docsContent, """["']([^"']*References7\.[^"']+\.js)["']""")
                 }
             }
             if (refJsPath == null) throw Exception(context.getString(R.string.error_ref_script_missing))
             
-            val scriptName = getName(refJsPath)
-            var scriptContent = fetchString("$baseUrl/assets/$scriptName")
-            var stampBase64: String? = null
-            val signedJsPath = findMatch(scriptContent, """["']\./(Signed\.[^"']+\.js)["']""")
-            if (signedJsPath != null) {
-                val signedContent = fetchString("$baseUrl/assets/$signedJsPath")
-                val exportMatch = Regex("""export\s*\{\s*(\w+)\s+as\s+S\s*\}""").find(signedContent)
-                val varName = exportMatch?.groupValues?.get(1)
-                if (varName != null) {
-                    val valueMatch = Regex("""const\s+$varName\s*=\s*["'](.*?)["']""").find(signedContent)
-                    if (valueMatch != null) stampBase64 = valueMatch.groupValues[1]
+            val refJsName = getName(refJsPath)
+            logger("Fetching $refJsName...")
+            val refContent = fetchString("$baseUrl/assets/$refJsName")
+
+            val dependencies = StringBuilder()
+            
+            suspend fun linkModule(fileKeyword: String, exportChar: String, fallbackName: String, fallbackValue: String) {
+                var varName: String? = null
+                
+                // Regex to find what variable name the main script imports it as
+                if (exportChar == "DEFAULT_OR_NAMED") {
+                     val regex = Regex("""import\s*\{\s*(\w+)\s*\}\s*from\s*['"][^'"]*$fileKeyword[^'"]*['"]""")
+                     varName = findMatch(refContent, regex.pattern)
+                } else {
+                    val regex = Regex("""import\s*\{\s*$exportChar\s+as\s+(\w+)\s*\}\s*from\s*['"][^'"]*$fileKeyword[^'"]*['"]""")
+                    varName = findMatch(refContent, regex.pattern)
+                }
+                
+                if (varName == null) varName = fallbackName
+
+                // Special handling for Signed (Stamp) to use local asset
+                if (fileKeyword == "Signed") {
+                    // For reference PDF, stamp logic is handled mainly in ReferenceResources
+                    // But if the script uses a variable, we define it here too
+                    // fallbackValue passed in is usually the raw base64 string
+                    dependencies.append("var $varName = $fallbackValue;\n")
+                    return
+                }
+
+                val fileUrlRegex = Regex("""["']([^"']*$fileKeyword\.[^"']+\.js)["']""")
+                val fileNameMatch = fileUrlRegex.find(refContent) ?: fileUrlRegex.find(mainJsContent)
+                var success = false
+                if (fileNameMatch != null) {
+                    val fileName = getName(fileNameMatch.groupValues[1])
+                    try {
+                        val fileContent = fetchString("$baseUrl/assets/$fileName")
+                        val exportRegex = if (exportChar == "DEFAULT_OR_NAMED") 
+                             Regex("""export\s*\{\s*(\w+)\s*\}""") 
+                        else 
+                             Regex("""export\s*\{\s*(\w+)\s+as\s+$exportChar\s*\}""")
+                        val internalVarMatch = exportRegex.find(fileContent)
+                        if (internalVarMatch != null) {
+                            val internalVar = internalVarMatch.groupValues[1]
+                            val cleanContent = cleanJsContent(fileContent)
+                            dependencies.append("var $varName = (() => {\n$cleanContent\nreturn $internalVar;\n})();\n")
+                            success = true
+                        }
+                    } catch (e: Exception) { logger("Link Warn: $fileName ${e.message}") }
+                }
+                if (!success) dependencies.append("var $varName = $fallbackValue;\n")
+            }
+
+            // Link modules using the new robust logic
+            linkModule("PdfStyle", "P", "PdfStyle_Fallback", "{}")          
+            
+            // Pass the quoted string for the JS variable
+            val stampJsValue = "\"${getStampOrPlaceholder()}\"" 
+            linkModule("Signed", "S", "Signed_Fallback", stampJsValue)            
+            
+            linkModule("LicenseYear", "L", "LicenseYear_Fallback", "[]")    
+            linkModule("SpecialityLincense", "S", "SpecLic_Fallback", "{}") 
+            linkModule("DocumentLink", "DEFAULT_OR_NAMED", "DocLink_Fallback", "{}") 
+            linkModule("ru", "r", "Ru_Fallback", "{}")                      
+
+            val varsToMock = mutableSetOf<String>()
+            val genericImportRegex = Regex("""import\s*\{(.*?)\}\s*from\s*['"].*?['"];?""")
+            genericImportRegex.findAll(refContent).forEach { match ->
+                match.groupValues[1].split(",").forEach { item ->
+                    val parts = item.trim().split(Regex("""\s+as\s+"""))
+                    val name = if (parts.size == 2) parts[1] else parts[0]
+                    if (name.isNotBlank()) varsToMock.add(name.trim())
                 }
             }
-            if (language == "en") scriptContent = applyDictionary(scriptContent, dictionary)
-            return@withContext ReferenceResources(scriptContent, stampBase64)
-        } catch (e: Exception) { throw e }
+            varsToMock.remove("$") 
+
+            val dummyScript = StringBuilder()
+            dummyScript.append("const UniversalDummy = new Proxy(function(){}, { get: () => UniversalDummy, apply: () => UniversalDummy, construct: () => UniversalDummy });\n")
+            if (varsToMock.isNotEmpty()) {
+                dummyScript.append("var ")
+                dummyScript.append(varsToMock.joinToString(",") { "$it = UniversalDummy" })
+                dummyScript.append(";\n")
+            }
+
+            var cleanRef = cleanJsContent(refContent)
+            if (language == "en" && dictionary.isNotEmpty()) {
+                logger("Translating Reference Template...")
+                dictionary.forEach { (ru, en) -> if (ru.length > 1) cleanRef = cleanRef.replace(ru, en) }
+            }
+
+            val generatorRegex = Regex("""const\s+(\w+)\s*=\s*\([a-zA-Z0-9,]*\)\s*=>\s*\{[^}]*pageSize:["']A4["']""")
+            val generatorMatch = generatorRegex.find(cleanRef)
+            val genFuncName = generatorMatch?.groupValues?.get(1) ?: "at" 
+            val exposeCode = "\nwindow.RefDocGenerator = $genFuncName;"
+            
+            // Pass the RAW base64 (not quoted) for the ReferenceResources stampBase64 field
+            val rawStamp = getStampOrPlaceholder()
+            
+            val finalScript = dummyScript.toString() + dependencies.toString() + "\n(() => {\n" + cleanRef + exposeCode + "\n})();"
+            return@withContext ReferenceResources(finalScript, rawStamp)
+        } catch (e: Exception) {
+            logger("Ref Fetch Error: ${e.message}")
+            e.printStackTrace()
+            return@withContext ReferenceResources("", null)
+        }
     }
 
-    private fun applyDictionary(script: String, dictionary: Map<String, String>): String {
-        var s = script
-        dictionary.forEach { (ru, en) -> if (ru.length > 2) s = s.replace(ru, en) }
-        return s
+    private fun cleanJsContent(content: String): String {
+        return content
+            .replace(Regex("""import\s*\{[^}]*\}\s*from\s*['"][^'"]+['"];?""", RegexOption.DOT_MATCHES_ALL), "")
+            .replace(Regex("""import\s+[\w*]+\s+(?:as\s+\w+\s+)?from\s*['"][^'"]+['"];?"""), "")
+            .replace(Regex("""import\s*['"][^'"]+['"];?"""), "")
+            .replace(Regex("""export\s*\{[^}]*\}""", RegexOption.DOT_MATCHES_ALL), "")
+            .replace(Regex("""export\s+default\s+"""), "")
     }
+
+    private fun getName(path: String) = path.split('/').last()
 
     private fun fetchString(url: String): String {
         val request = Request.Builder().url(url).build()
@@ -66,9 +172,11 @@ class ReferenceJsFetcher(private val context: Context) {
         }
     }
 
-    private fun findMatch(content: String, regex: String): String? = Regex(regex).find(content)?.groupValues?.get(1)
-    private fun getName(path: String) = path.split('/').last()
+    private fun findMatch(content: String, regex: String): String? {
+        return Regex(regex).find(content)?.groupValues?.get(1)
+    }
 }
+
 
 class ReferencePdfGenerator(private val context: Context) {
     @SuppressLint("SetJavaScriptEnabled")
@@ -120,6 +228,7 @@ class ReferencePdfGenerator(private val context: Context) {
                     }
                 }
 
+                // Fallback here is just a safety measure, resources.stampBase64 should be populated by Assets now
                 val stamp = resources.stampBase64 ?: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFhAJ/wlseKgAAAABJRU5ErkJggg=="
                 val defaultAddr = context.getString(R.string.university_addr_default)
 

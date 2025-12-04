@@ -79,8 +79,11 @@ class WebPdfGenerator(private val context: Context) {
                 const lang = "$language";
                 const dictionary = $dictionaryJson;
 
-                const ${'$'} = function(d) { return { format: (f) => (d ? new Date(d) : new Date()).toLocaleDateString("$dateLocale") }; };
-                ${'$'}.locale = function() {};
+                // FIX: Use 'var' and check if exists to prevent 'Identifier already declared' error
+                if (typeof $ === 'undefined') {
+                    var $ = function(d) { return { format: (f) => (d ? new Date(d) : new Date()).toLocaleDateString("$dateLocale") }; };
+                    $.locale = function() {};
+                }
             </script>
 
             <script>

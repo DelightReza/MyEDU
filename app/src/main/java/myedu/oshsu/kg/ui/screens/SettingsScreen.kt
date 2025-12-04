@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,8 +34,6 @@ import myedu.oshsu.kg.ui.theme.MilkyGlass
 @Composable
 fun SettingsScreen(vm: MainViewModel, onClose: () -> Unit) {
     val context = LocalContext.current
-    
-    // FIX: Retrieve resource string outside of remember block
     val unknownStr = stringResource(R.string.unknown)
     
     val appVersion = remember {
@@ -85,6 +84,22 @@ fun SettingsScreen(vm: MainViewModel, onClose: () -> Unit) {
                 onOptionSelected = { selectedLang -> if (vm.language != selectedLang) { vm.setAppLanguage(selectedLang); (context as? MainActivity)?.restartApp() } },
                 themeMode = vm.themeMode
             )
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            // --- NEW DICTIONARY BUTTON ---
+            InfoSection(stringResource(R.string.dict_tools_section), vm.themeMode)
+            ThemedCard(modifier = Modifier.fillMaxWidth().clickable { vm.showDictionaryScreen = true }, themeMode = vm.themeMode) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Translate, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(16.dp))
+                    Column {
+                        Text(stringResource(R.string.dict_open_btn), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        Text(stringResource(R.string.dict_open_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
             InfoSection(stringResource(R.string.about), vm.themeMode)
             ThemedCard(modifier = Modifier.fillMaxWidth(), themeMode = vm.themeMode) {

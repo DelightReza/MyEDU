@@ -5,7 +5,6 @@
     <string name="version_prefix">Version:</string>
     
     <!-- CONFIGURATION -->
-    <string name="config_dictionary_url" translatable="false">https://gist.githubusercontent.com/Placeholder6/71c6a6638faf26c7858d55a1e73b7aef/raw/myedudictionary.json</string>
     <string name="config_date_format">dd.MM.yyyy</string>
     
     <!-- DEFAULTS & FALLBACKS -->
@@ -178,4 +177,25 @@
     <string name="notif_new_grades_title">New Grades Available</string>
     <string name="notif_grades_msg_single">%1$s: %2$s updated to %3$d</string>
     <string name="notif_grades_msg_multiple">You have %d new grade updates!</string>
+
+    <!-- DICTIONARY UI -->
+    <string name="dict_title">Dictionary Editor</string>
+    <string name="dict_tools_section">Tools</string>
+    <string name="dict_open_btn">PDF Dictionary</string>
+    <string name="dict_open_desc">Edit translations for transcripts</string>
+    <string name="dict_search_hint">Search Russian or English...</string>
+    <string name="dict_no_results">No entries found</string>
+    <string name="dict_add_title">Add New Entry</string>
+    <string name="dict_edit_title">Edit Entry</string>
+    <string name="dict_label_original">Original (ru)</string>
+    <string name="dict_label_translation">Translation (en)</string>
+    <string name="dict_btn_save">Save</string>
+    <string name="dict_btn_cancel">Cancel</string>
+    <string name="dict_delete_title">Delete Entry?</string>
+    <string name="dict_delete_msg">Are you sure you want to remove this translation?</string>
+    <string name="dict_delete_confirm">Delete</string>
+    <string name="dict_reset_desc">Reset Defaults</string>
+    <string name="dict_add_desc">Add Word</string>
+    <string name="dict_edit_desc">Edit</string>
+    <string name="dict_delete_desc">Delete</string>
 </resources>

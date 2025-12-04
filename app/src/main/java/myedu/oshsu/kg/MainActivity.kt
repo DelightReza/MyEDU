@@ -122,18 +122,13 @@ fun AppContent(vm: MainViewModel) {
             when (state) { "LOGIN" -> LoginScreen(vm); "APP" -> MainAppStructure(vm); else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
         }
         
-        // --- DEBUG UI OVERLAYS ---
-        // 1. The PIP Button (Show if enabled)
         if (vm.isDebugPipVisible) {
             DebugPipButton(
                 onClick = { vm.isDebugConsoleOpen = true },
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 16.dp)
+                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)
             )
         }
         
-        // 2. The Full Console (Show if open)
         if (vm.isDebugConsoleOpen) {
             DebugConsoleOverlay(onDismiss = { vm.isDebugConsoleOpen = false })
         }
@@ -143,8 +138,16 @@ fun AppContent(vm: MainViewModel) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainAppStructure(vm: MainViewModel) {
-    BackHandler(enabled = vm.selectedClass != null || vm.showTranscriptScreen || vm.showReferenceScreen || vm.showSettingsScreen || vm.webDocumentUrl != null) { 
-        when { vm.webDocumentUrl != null -> vm.webDocumentUrl = null; vm.selectedClass != null -> vm.selectedClass = null; vm.showTranscriptScreen -> vm.showTranscriptScreen = false; vm.showReferenceScreen -> vm.showReferenceScreen = false; vm.showSettingsScreen -> vm.showSettingsScreen = false }
+    // Priority: Dictionary > Settings > WebDoc > Transcript/Ref > ClassSheet > MainTabs
+    BackHandler(enabled = vm.selectedClass != null || vm.showTranscriptScreen || vm.showReferenceScreen || vm.showSettingsScreen || vm.webDocumentUrl != null || vm.showDictionaryScreen) { 
+        when { 
+            vm.webDocumentUrl != null -> vm.webDocumentUrl = null
+            vm.showDictionaryScreen -> vm.showDictionaryScreen = false // Close Dict before Settings
+            vm.showSettingsScreen -> vm.showSettingsScreen = false 
+            vm.selectedClass != null -> vm.selectedClass = null
+            vm.showTranscriptScreen -> vm.showTranscriptScreen = false
+            vm.showReferenceScreen -> vm.showReferenceScreen = false
+        }
     }
     Scaffold(containerColor = Color.Transparent, contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
         Box(Modifier.padding(padding).fillMaxSize()) {
@@ -153,11 +156,21 @@ fun MainAppStructure(vm: MainViewModel) {
                     when(targetTab) { 0 -> HomeScreen(vm); 1 -> ScheduleScreen(vm); 2 -> GradesScreen(vm); 3 -> ProfileScreen(vm) }
                 }
             }
-            val showNav = vm.selectedClass == null && !vm.showTranscriptScreen && !vm.showReferenceScreen && !vm.showSettingsScreen && vm.webDocumentUrl == null
+            val showNav = vm.selectedClass == null && !vm.showTranscriptScreen && !vm.showReferenceScreen && !vm.showSettingsScreen && vm.webDocumentUrl == null && !vm.showDictionaryScreen
             AnimatedVisibility(visible = showNav, enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut(), modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp, start = 16.dp, end = 16.dp).windowInsetsPadding(WindowInsets.navigationBars)) { FloatingNavBar(vm) }
+            
+            // --- SCREENS LAYERED BY Z-INDEX (Lowest to Highest) ---
+            
             AnimatedVisibility(visible = vm.showTranscriptScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground(themeMode = vm.themeMode) { TranscriptView(vm) { vm.showTranscriptScreen = false } } }
             AnimatedVisibility(visible = vm.showReferenceScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground(themeMode = vm.themeMode) { ReferenceView(vm) { vm.showReferenceScreen = false } } }
+            
+            // Settings overlays main screens
             AnimatedVisibility(visible = vm.showSettingsScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground(themeMode = vm.themeMode) { SettingsScreen(vm) { vm.showSettingsScreen = false } } }
+            
+            // Dictionary overlays Settings (Z-Order FIX)
+            AnimatedVisibility(visible = vm.showDictionaryScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground(themeMode = vm.themeMode) { DictionaryScreen(vm) { vm.showDictionaryScreen = false } } }
+
+            // Web Doc overlays everything (if needed)
             if (vm.webDocumentUrl != null) {
                 val isTranscript = vm.webDocumentUrl!!.contains("Transcript", true)
                 val docTitle = if (isTranscript) stringResource(R.string.transcript) else stringResource(R.string.reference)
@@ -166,6 +179,8 @@ fun MainAppStructure(vm: MainViewModel) {
                 val fileName = "${cleanName}_$filePrefix.pdf"
                 ThemedBackground(themeMode = vm.themeMode) { WebDocumentScreen(url = vm.webDocumentUrl!!, title = docTitle, fileName = fileName, authToken = vm.getAuthToken(), themeMode = vm.themeMode, onClose = { vm.webDocumentUrl = null }) }
             }
+            
+            // Bottom Sheets
             if (vm.selectedClass != null) {
                 val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
                 val sheetColor = if (vm.themeMode == "AQUA") MilkyGlass else if(vm.isGlass) Color(0xFF0F2027) else MaterialTheme.colorScheme.surface

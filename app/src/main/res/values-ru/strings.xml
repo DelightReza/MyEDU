@@ -161,4 +161,24 @@
     <string name="notif_new_grades_title">Новые оценки</string>
     <string name="notif_grades_msg_single">%1$s: %2$s -> %3$d</string>
     <string name="notif_grades_msg_multiple">Новых оценок: %d!</string>
+
+    <string name="dict_title">Редактор словаря</string>
+    <string name="dict_tools_section">Инструменты</string>
+    <string name="dict_open_btn">Словарь PDF</string>
+    <string name="dict_open_desc">Редактирование перевода документов</string>
+    <string name="dict_search_hint">Поиск (русский или английский)...</string>
+    <string name="dict_no_results">Ничего не найдено</string>
+    <string name="dict_add_title">Добавить запись</string>
+    <string name="dict_edit_title">Редактировать запись</string>
+    <string name="dict_label_original">Оригинал (ru)</string>
+    <string name="dict_label_translation">Перевод (en)</string>
+    <string name="dict_btn_save">Сохранить</string>
+    <string name="dict_btn_cancel">Отмена</string>
+    <string name="dict_delete_title">Удалить запись?</string>
+    <string name="dict_delete_msg">Вы уверены, что хотите удалить этот перевод?</string>
+    <string name="dict_delete_confirm">Удалить</string>
+    <string name="dict_reset_desc">Сбросить</string>
+    <string name="dict_add_desc">Добавить</string>
+    <string name="dict_edit_desc">Изменить</string>
+    <string name="dict_delete_desc">Удалить</string>
 </resources>

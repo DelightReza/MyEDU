@@ -161,4 +161,24 @@
     <string name="notif_new_grades_title">Жаңы баалар</string>
     <string name="notif_grades_msg_single">%1$s: %2$s жаңырды -> %3$d</string>
     <string name="notif_grades_msg_multiple">Сизде %d жаңы баа бар!</string>
+
+    <string name="dict_title">Сөздүк редактору</string>
+    <string name="dict_tools_section">Куралдар</string>
+    <string name="dict_open_btn">PDF Сөздүгү</string>
+    <string name="dict_open_desc">Документтердин котормосун оңдоо</string>
+    <string name="dict_search_hint">Издөө (орусча же англисче)...</string>
+    <string name="dict_no_results">Эч нерсе табылган жок</string>
+    <string name="dict_add_title">Жаңы жазуу кошуу</string>
+    <string name="dict_edit_title">Жазууну оңдоо</string>
+    <string name="dict_label_original">Түпнуска (ru)</string>
+    <string name="dict_label_translation">Котормо (en)</string>
+    <string name="dict_btn_save">Сактоо</string>
+    <string name="dict_btn_cancel">Жокко чыгаруу</string>
+    <string name="dict_delete_title">Өчүрүү керекпи?</string>
+    <string name="dict_delete_msg">Бул котормону чын эле өчүргүңүз келеби?</string>
+    <string name="dict_delete_confirm">Өчүрүү</string>
+    <string name="dict_reset_desc">Калыбына келтирүү</string>
+    <string name="dict_add_desc">Кошуу</string>
+    <string name="dict_edit_desc">Оңдоо</string>
+    <string name="dict_delete_desc">Өчүрүү</string>
 </resources>

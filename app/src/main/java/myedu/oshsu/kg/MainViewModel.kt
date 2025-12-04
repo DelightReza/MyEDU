@@ -8,6 +8,8 @@ import androidx.compose.runtime.*
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -44,16 +46,14 @@ class MainViewModel : ViewModel() {
     var language by mutableStateOf("en") 
     
     // --- STATE: DEBUG TOOLS ---
-    var isDebugPipVisible by mutableStateOf(false) // The floating button
-    var isDebugConsoleOpen by mutableStateOf(false) // The full screen logs
+    var isDebugPipVisible by mutableStateOf(false)
+    var isDebugConsoleOpen by mutableStateOf(false)
 
     // --- STATE: DATA ---
     var userData by mutableStateOf<UserData?>(null)
     var profileData by mutableStateOf<StudentInfoResponse?>(null)
     var payStatus by mutableStateOf<PayStatusResponse?>(null)
     var newsList by mutableStateOf<List<NewsItem>>(emptyList())
-    
-    // --- STATE: 2FA & SECURITY ---
     var verify2FAStatus by mutableStateOf<Verify2FAResponse?>(null)
 
     // --- STATE: SCHEDULE ---
@@ -83,13 +83,15 @@ class MainViewModel : ViewModel() {
     var showTranscriptScreen by mutableStateOf(false)
     var showReferenceScreen by mutableStateOf(false)
     var showSettingsScreen by mutableStateOf(false)
+    
+    // --- DICTIONARY UI STATE ---
+    var showDictionaryScreen by mutableStateOf(false)
+    var dictionaryMap by mutableStateOf<Map<String, String>>(emptyMap())
+
     var webDocumentUrl by mutableStateOf<String?>(null)
     
     var isPdfGenerating by mutableStateOf(false)
     var pdfStatusMessage by mutableStateOf<String?>(null)
-
-    var dictionaryUrl by mutableStateOf("")
-    private var cachedDictionary: Map<String, String> = emptyMap()
 
     private var prefs: PrefsManager? = null
     private var jsFetcher: JsResourceFetcher? = null
@@ -113,8 +115,6 @@ class MainViewModel : ViewModel() {
         if (jsFetcher == null) jsFetcher = JsResourceFetcher(context)
         if (refFetcher == null) refFetcher = ReferenceJsFetcher(context)
         
-        dictionaryUrl = context.getString(R.string.config_dictionary_url)
-        
         val token = prefs?.getToken()
         val savedTheme = prefs?.loadData("theme_mode_pref", String::class.java)
         if (savedTheme != null) themeMode = savedTheme
@@ -131,6 +131,9 @@ class MainViewModel : ViewModel() {
             loginEmail = prefs?.loadData("pref_saved_email", String::class.java) ?: ""
             loginPass = prefs?.loadData("pref_saved_pass", String::class.java) ?: ""
         }
+        
+        // Load Dictionary from Prefs or Default
+        loadLocalDictionary()
 
         if (token != null) {
             DebugLogger.log("AUTH", "Token found, loading offline data")
@@ -143,6 +146,46 @@ class MainViewModel : ViewModel() {
             DebugLogger.log("AUTH", "No token, showing login")
             appState = "LOGIN"
         }
+    }
+
+    // --- DICTIONARY METHODS ---
+    private fun loadLocalDictionary() {
+        val savedJson = prefs?.loadData("custom_dictionary_json", String::class.java)
+        if (savedJson != null) {
+            try {
+                val type = object : TypeToken<Map<String, String>>() {}.type
+                dictionaryMap = Gson().fromJson(savedJson, type)
+            } catch (e: Exception) {
+                dictionaryMap = dictUtils.getDefaultDictionary()
+            }
+        } else {
+            dictionaryMap = dictUtils.getDefaultDictionary()
+            saveDictionary()
+        }
+    }
+
+    private fun saveDictionary() {
+        val json = Gson().toJson(dictionaryMap)
+        prefs?.saveData("custom_dictionary_json", json)
+    }
+
+    fun addOrUpdateDictionaryEntry(key: String, value: String) {
+        val mutable = dictionaryMap.toMutableMap()
+        mutable[key.trim()] = value.trim()
+        dictionaryMap = mutable
+        saveDictionary()
+    }
+
+    fun removeDictionaryEntry(key: String) {
+        val mutable = dictionaryMap.toMutableMap()
+        mutable.remove(key)
+        dictionaryMap = mutable
+        saveDictionary()
+    }
+
+    fun resetDictionaryToDefault() {
+        dictionaryMap = dictUtils.getDefaultDictionary()
+        saveDictionary()
     }
 
     fun refresh() {
@@ -264,6 +307,8 @@ class MainViewModel : ViewModel() {
         prefs?.saveData("theme_mode_pref", themeMode)
         prefs?.saveData("doc_download_mode", downloadMode)
         prefs?.saveData("language_pref", language)
+        // Keep dictionary
+        prefs?.saveData("custom_dictionary_json", Gson().toJson(dictionaryMap))
         
         if (wasRemember) {
             prefs?.saveData("pref_remember_me", true)
@@ -286,17 +331,13 @@ class MainViewModel : ViewModel() {
                     prefs?.saveData("user_data", user); prefs?.saveData("profile_data", profile)
                 }
                 
-                // Fetch 2FA Status
                 try {
                     val v2fa = NetworkClient.api.verify2FA()
                     withContext(Dispatchers.Main) {
                         verify2FAStatus = v2fa
                         prefs?.saveData("verify_2fa_status", v2fa)
-                        DebugLogger.log("API", "2FA Status: Role=${v2fa.haveRole}, Bot=${v2fa.haveBot}, 2FA=${v2fa.have2fa}")
                     }
-                } catch (e: Exception) {
-                    DebugLogger.log("API_WARN", "verify2FA failed: ${e.message}")
-                }
+                } catch (e: Exception) {}
                 
                 if (profile != null) {
                     try { val news = NetworkClient.api.getNews(); withContext(Dispatchers.Main) { newsList = news; prefs?.saveList("news_list", news) } } catch (_: Exception) {}
@@ -416,12 +457,6 @@ class MainViewModel : ViewModel() {
     
     fun getTimeString(lessonId: Int): String = timeMap[lessonId] ?: "$lessonId"
 
-    private suspend fun fetchDictionaryIfNeeded() {
-        if (cachedDictionary.isEmpty() && dictionaryUrl.isNotBlank()) {
-            cachedDictionary = dictUtils.fetchDictionary(dictionaryUrl)
-        }
-    }
-    
     private fun getFormattedFileName(docType: String, lang: String? = null): String {
         val last = userData?.last_name ?: ""
         val first = userData?.name ?: ""
@@ -438,12 +473,15 @@ class MainViewModel : ViewModel() {
             isPdfGenerating = true
             pdfStatusMessage = context.getString(R.string.status_preparing_transcript)
             try {
-                fetchDictionaryIfNeeded()
+                // Ensure we have the latest dictionary
+                if (dictionaryMap.isEmpty()) loadLocalDictionary()
+                
                 var resources = if (lang == "en") cachedResourcesEn else cachedResourcesRu
                 if (resources == null) {
                     pdfStatusMessage = context.getString(R.string.status_fetching_scripts)
                     val fetcher = jsFetcher ?: JsResourceFetcher(context)
-                    resources = fetcher.fetchResources({ DebugLogger.log("JS_FETCHER", it) }, lang, cachedDictionary)
+                    // Pass current dictionary to fetcher
+                    resources = fetcher.fetchResources({ DebugLogger.log("JS_FETCHER", it) }, lang, dictionaryMap)
                     if (lang == "en") cachedResourcesEn = resources else cachedResourcesRu = resources
                 }
                 val infoRaw = withContext(Dispatchers.IO) { NetworkClient.api.getStudentInfoRaw(studentId).string() }
@@ -456,7 +494,7 @@ class MainViewModel : ViewModel() {
                 val keyObj = JSONObject(keyRaw)
                 
                 pdfStatusMessage = context.getString(R.string.generating_pdf)
-                val bytes = WebPdfGenerator(context).generatePdf(infoJson.toString(), transcriptRaw, keyObj.optLong("id"), keyObj.optString("url"), resources!!, lang, cachedDictionary) { 
+                val bytes = WebPdfGenerator(context).generatePdf(infoJson.toString(), transcriptRaw, keyObj.optLong("id"), keyObj.optString("url"), resources!!, lang, dictionaryMap) { 
                     println(it)
                     DebugLogger.log("JS_TRANSCRIPT", it)
                 }
@@ -483,12 +521,14 @@ class MainViewModel : ViewModel() {
             isPdfGenerating = true
             pdfStatusMessage = context.getString(R.string.status_preparing_reference)
             try {
-                fetchDictionaryIfNeeded()
+                // Ensure we have the latest dictionary
+                if (dictionaryMap.isEmpty()) loadLocalDictionary()
+
                 var resources = if (lang == "en") cachedRefResourcesEn else cachedRefResourcesRu
                 if (resources == null) {
                     pdfStatusMessage = context.getString(R.string.status_fetching_scripts)
                     val fetcher = refFetcher ?: ReferenceJsFetcher(context)
-                    resources = fetcher.fetchResources({ DebugLogger.log("JS_FETCHER", it) }, lang, cachedDictionary)
+                    resources = fetcher.fetchResources({ DebugLogger.log("JS_FETCHER", it) }, lang, dictionaryMap)
                     if (lang == "en") cachedRefResourcesEn = resources else cachedRefResourcesRu = resources
                 }
                 val infoRaw = withContext(Dispatchers.IO) { NetworkClient.api.getStudentInfoRaw(studentId).string() }
@@ -504,7 +544,7 @@ class MainViewModel : ViewModel() {
                 val linkObj = JSONObject(linkRaw)
                 
                 pdfStatusMessage = context.getString(R.string.generating_pdf)
-                val bytes = ReferencePdfGenerator(context).generatePdf(infoJson.toString(), licenseRaw, univRaw, linkObj.optLong("id"), linkObj.optString("url"), resources!!, prefs?.getToken() ?: "", lang, cachedDictionary) { 
+                val bytes = ReferencePdfGenerator(context).generatePdf(infoJson.toString(), licenseRaw, univRaw, linkObj.optLong("id"), linkObj.optString("url"), resources!!, prefs?.getToken() ?: "", lang, dictionaryMap) { 
                     println(it)
                     DebugLogger.log("JS_REF", it)
                 }

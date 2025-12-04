@@ -15,7 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -43,7 +43,6 @@ fun ClassDetailsSheet(vm: MainViewModel, item: ScheduleItem) {
     val context = LocalContext.current
     val lang = vm.language
     
-    // UPDATED: Use Resource ID mapping
     val typeResId = vm.getSubjectTypeResId(item)
     val typeName = if (typeResId != null) stringResource(typeResId) else item.subject_type?.get(lang) ?: stringResource(R.string.lesson_default)
     
@@ -55,7 +54,6 @@ fun ClassDetailsSheet(vm: MainViewModel, item: ScheduleItem) {
     val currentSemSession = session.find { it.semester?.id == activeSemester } ?: session.lastOrNull()
     val subjectGrades = currentSemSession?.subjects?.find { it.subject?.get(lang) == item.subject?.get(lang) }
     
-    // Load resources here for safe usage in callbacks
     val copiedStr = stringResource(R.string.copied)
     val noMapAppStr = stringResource(R.string.no_map_app)
     val unknownStr = stringResource(R.string.unknown)
@@ -179,6 +177,12 @@ fun ReferenceView(vm: MainViewModel, onClose: () -> Unit) {
     val lang = vm.language; val isWebsiteMode = vm.downloadMode == "WEBSITE"
     val facultyName = mov?.faculty?.get(lang) ?: mov?.speciality?.faculty?.get(lang) ?: "-"
 
+    LaunchedEffect(vm.pdfStatusMessage) {
+        vm.pdfStatusMessage?.let { msg ->
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     Scaffold(
         containerColor = Color.Transparent,
         topBar = { TopAppBar(title = { Text(stringResource(R.string.reference_title)) }, navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.Default.ArrowBack, stringResource(R.string.desc_back)) } }, actions = { if (isWebsiteMode) { IconButton(onClick = { vm.webDocumentUrl = "https://myedu.oshsu.kg/#/studentCertificate" }) { Icon(Icons.Default.Print, stringResource(R.string.print_download)) } } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)) }
@@ -198,7 +202,7 @@ fun ReferenceView(vm: MainViewModel, onClose: () -> Unit) {
                     }
                 }
                 Spacer(Modifier.height(24.dp)); Text(stringResource(R.string.preview_msg), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant); Text(stringResource(R.string.download_msg), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (vm.pdfStatusMessage != null) { Spacer(Modifier.height(16.dp)); Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.inverseSurface)) { Text(vm.pdfStatusMessage!!, color = MaterialTheme.colorScheme.inverseOnSurface, modifier = Modifier.padding(16.dp)) } }
+                
                 Spacer(Modifier.height(100.dp))
             }
             Box(modifier = Modifier.align(Alignment.BottomCenter)) { FloatingPdfBar(vm = vm, onGenerateRu = { vm.generateReferencePdf(context, "ru") }, onGenerateEn = { vm.generateReferencePdf(context, "en") }) }
@@ -210,6 +214,13 @@ fun ReferenceView(vm: MainViewModel, onClose: () -> Unit) {
 @Composable
 fun TranscriptView(vm: MainViewModel, onClose: () -> Unit) {
     val context = LocalContext.current; val isWebsiteMode = vm.downloadMode == "WEBSITE"
+    
+    LaunchedEffect(vm.pdfStatusMessage) {
+        vm.pdfStatusMessage?.let { msg ->
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     Scaffold(
         containerColor = Color.Transparent,
         topBar = { TopAppBar(title = { Text(stringResource(R.string.transcript_title)) }, navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.Default.ArrowBack, stringResource(R.string.desc_back)) } }, actions = { if (isWebsiteMode) { IconButton(onClick = { vm.webDocumentUrl = "https://myedu.oshsu.kg/#/Transcript" }) { Icon(Icons.Default.Print, stringResource(R.string.print_download)) } } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)) }
@@ -239,7 +250,7 @@ fun TranscriptView(vm: MainViewModel, onClose: () -> Unit) {
                     }
                 }
             }
-            if (vm.pdfStatusMessage != null) Card(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 100.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.inverseSurface)) { Text(vm.pdfStatusMessage!!, color = MaterialTheme.colorScheme.inverseOnSurface, modifier = Modifier.padding(16.dp)) }
+            
             Box(modifier = Modifier.align(Alignment.BottomCenter)) { FloatingPdfBar(vm = vm, onGenerateRu = { vm.generateTranscriptPdf(context, "ru") }, onGenerateEn = { vm.generateTranscriptPdf(context, "en") }) }
         }
     }
@@ -247,5 +258,8 @@ fun TranscriptView(vm: MainViewModel, onClose: () -> Unit) {
 
 @Composable
 fun RefDetailRow(label: String, value: String) { 
-    Column(Modifier.padding(bottom = 16.dp)) { Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary); Text(value, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface) } 
+    Column(Modifier.padding(bottom = 16.dp)) { 
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+        Text(value, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface) 
+    } 
 }

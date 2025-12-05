@@ -105,7 +105,6 @@ fun FloatingDayTabs(tabs: List<String>, selectedIndex: Int, themeMode: String, o
 fun ClassItem(item: ScheduleItem, timeString: String, vm: MainViewModel, onClick: () -> Unit) {
     val streamLabel = stringResource(R.string.stream); val groupLabel = stringResource(R.string.group_short); val roomLabel = stringResource(R.string.auditorium)
     
-    // UPDATED: Use Resource ID mapping + stringResource
     val typeResId = vm.getSubjectTypeResId(item)
     val typeName = if (typeResId != null) stringResource(typeResId) else item.subject_type?.get(vm.language) ?: stringResource(R.string.lesson_default)
 

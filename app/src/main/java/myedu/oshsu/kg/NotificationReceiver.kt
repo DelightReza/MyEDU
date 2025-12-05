@@ -24,11 +24,9 @@ class NotificationReceiver : BroadcastReceiver() {
     private fun showNotification(context: Context, title: String, message: String, id: Int) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         
-        // NEW Channel ID: Necessary to force Android to register the new Audio Attributes
         val channelId = "myedu_loud_notification_channel" 
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // Only create the channel if it doesn't exist yet
             if (manager.getNotificationChannel(channelId) == null) {
                 val channel = NotificationChannel(
                     channelId,
@@ -36,13 +34,11 @@ class NotificationReceiver : BroadcastReceiver() {
                     NotificationManager.IMPORTANCE_HIGH
                 )
 
-                // 1. Get the SHORT "Ding" sound (Default Notification)
                 val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
 
-                // 2. Route it through the ALARM stream (Bypasses Silent Mode)
                 val audioAttributes = AudioAttributes.Builder()
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .setUsage(AudioAttributes.USAGE_ALARM) // Key: Plays at Alarm Volume
+                    .setUsage(AudioAttributes.USAGE_ALARM)
                     .build()
 
                 channel.setSound(soundUri, audioAttributes)
@@ -60,7 +56,6 @@ class NotificationReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        // Ensure Pre-Oreo devices also use the Notification sound
         val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
 
         val notification = NotificationCompat.Builder(context, channelId)

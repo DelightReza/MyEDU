@@ -53,7 +53,7 @@ fun ProfileScreen(vm: MainViewModel) {
                     onClick = { vm.showSettingsScreen = true },
                     modifier = Modifier.secretDebugTrigger { 
                         vm.isDebugPipVisible = !vm.isDebugPipVisible
-                        val msg = if(vm.isDebugPipVisible) "Debug Mode Enabled" else "Debug Mode Disabled"
+                        val msg = if(vm.isDebugPipVisible) context.getString(R.string.debug_enabled) else context.getString(R.string.debug_disabled)
                         Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                         DebugLogger.log("UI", msg)
                     }

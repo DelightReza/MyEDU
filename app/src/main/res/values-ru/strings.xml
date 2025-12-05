@@ -178,4 +178,14 @@
     <string name="notif_class_title">Напоминание о занятии</string>
     <string name="notif_class_msg">%1$s\nВремя: %2$s\nАдрес: %3$s\nКомната: %4$s</string>
     <string name="class_default">Занятие</string>
+
+    <string name="update_available_title">Доступно обновление</string>
+    <string name="update_available_msg">Доступна новая версия (%1$s).\n\n%2$s</string>
+    <string name="update_btn_download">Скачать</string>
+    <string name="update_btn_later">Позже</string>
+    <string name="update_notif_title">Обновление MyEDU</string>
+    <string name="update_notif_desc">Скачивание версии %1$s</string>
+    <string name="update_status_downloading">Скачивание %1$s...</string>
+    <string name="update_error_download">Ошибка скачивания: %1$s</string>
+    <string name="install_prompt">Установить обновление</string>
 </resources>

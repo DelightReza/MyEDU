@@ -1,7 +1,9 @@
 package myedu.oshsu.kg
 
+import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Environment
 import android.widget.Toast
 import androidx.compose.runtime.*
@@ -92,6 +94,10 @@ class MainViewModel : ViewModel() {
     
     var isPdfGenerating by mutableStateOf(false)
     var pdfStatusMessage by mutableStateOf<String?>(null)
+    
+    // --- UPDATE STATE ---
+    var updateAvailableRelease by mutableStateOf<GitHubRelease?>(null)
+    var downloadId by mutableStateOf<Long?>(null)
 
     private var prefs: PrefsManager? = null
     private var jsFetcher: JsResourceFetcher? = null
@@ -132,7 +138,6 @@ class MainViewModel : ViewModel() {
             loginPass = prefs?.loadData("pref_saved_pass", String::class.java) ?: ""
         }
         
-        // Load Dictionary from Prefs or Default
         loadLocalDictionary()
 
         if (token != null) {
@@ -145,6 +150,71 @@ class MainViewModel : ViewModel() {
         } else {
             DebugLogger.log("AUTH", "No token, showing login")
             appState = "LOGIN"
+        }
+    }
+
+    // --- UPDATE LOGIC ---
+    fun checkForUpdates() {
+        if (appContext == null) return
+        viewModelScope.launch {
+            try {
+                val apiUrl = appContext!!.getString(R.string.update_repo_path)
+                val release = withContext(Dispatchers.IO) { NetworkClient.githubApi.getLatestRelease(apiUrl) }
+                val currentVer = BuildConfig.VERSION_NAME
+                
+                // Remove 'v' prefix for comparison if present (e.g., v1.1 vs 1.1)
+                val remoteVer = release.tagName.replace("v", "")
+                val localVer = currentVer.replace("v", "")
+                
+                if (remoteVer != localVer) {
+                    // Simple string comparison might fail for 1.10 vs 1.2, but assumes standard semantic versioning increasing
+                    if (isNewerVersion(remoteVer, localVer)) {
+                        DebugLogger.log("UPDATE", "New version found: $remoteVer")
+                        updateAvailableRelease = release
+                    }
+                }
+            } catch (e: Exception) {
+                DebugLogger.log("UPDATE_ERR", "Check failed: ${e.message}")
+            }
+        }
+    }
+
+    private fun isNewerVersion(remote: String, local: String): Boolean {
+        try {
+            val rParts = remote.split(".").map { it.toIntOrNull() ?: 0 }
+            val lParts = local.split(".").map { it.toIntOrNull() ?: 0 }
+            val length = maxOf(rParts.size, lParts.size)
+            for (i in 0 until length) {
+                val r = rParts.getOrElse(i) { 0 }
+                val l = lParts.getOrElse(i) { 0 }
+                if (r > l) return true
+                if (r < l) return false
+            }
+        } catch (e: Exception) { return false }
+        return false
+    }
+
+    fun downloadUpdate(context: Context) {
+        val release = updateAvailableRelease ?: return
+        val apkAsset = release.assets.find { it.name.endsWith(".apk") } ?: return
+        
+        try {
+            val url = apkAsset.downloadUrl
+            val fileName = apkAsset.name
+            
+            val request = DownloadManager.Request(Uri.parse(url))
+                .setTitle(context.getString(R.string.update_notif_title))
+                .setDescription(context.getString(R.string.update_notif_desc, release.tagName))
+                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+                .setMimeType("application/vnd.android.package-archive")
+
+            val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            downloadId = manager.enqueue(request)
+            Toast.makeText(context, context.getString(R.string.update_status_downloading, release.tagName), Toast.LENGTH_SHORT).show()
+            updateAvailableRelease = null // Close dialog
+        } catch (e: Exception) {
+            Toast.makeText(context, context.getString(R.string.update_error_download, e.message), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -195,6 +265,7 @@ class MainViewModel : ViewModel() {
 
     fun onAppResume() {
         attemptAutoRefresh()
+        checkForUpdates() // Check for updates on resume
     }
 
     fun onNetworkAvailable() {
@@ -307,7 +378,6 @@ class MainViewModel : ViewModel() {
         prefs?.saveData("theme_mode_pref", themeMode)
         prefs?.saveData("doc_download_mode", downloadMode)
         prefs?.saveData("language_pref", language)
-        // Keep dictionary
         prefs?.saveData("custom_dictionary_json", Gson().toJson(dictionaryMap))
         
         if (wasRemember) {
@@ -346,6 +416,7 @@ class MainViewModel : ViewModel() {
                     fetchSession(profile)
                 }
                 lastRefreshTime = System.currentTimeMillis()
+                checkForUpdates() // Check for updates during refresh
             } catch (e: Exception) {
                 DebugLogger.log("SYNC", "Refresh error: ${e.message}")
                 val isAuthError = e.message?.contains("401") == true || e.message?.contains("HTTP 401") == true
@@ -473,14 +544,12 @@ class MainViewModel : ViewModel() {
             isPdfGenerating = true
             pdfStatusMessage = context.getString(R.string.status_preparing_transcript)
             try {
-                // Ensure we have the latest dictionary
                 if (dictionaryMap.isEmpty()) loadLocalDictionary()
                 
                 var resources = if (lang == "en") cachedResourcesEn else cachedResourcesRu
                 if (resources == null) {
                     pdfStatusMessage = context.getString(R.string.status_fetching_scripts)
                     val fetcher = jsFetcher ?: JsResourceFetcher(context)
-                    // Pass current dictionary to fetcher
                     resources = fetcher.fetchResources({ DebugLogger.log("JS_FETCHER", it) }, lang, dictionaryMap)
                     if (lang == "en") cachedResourcesEn = resources else cachedResourcesRu = resources
                 }
@@ -521,7 +590,6 @@ class MainViewModel : ViewModel() {
             isPdfGenerating = true
             pdfStatusMessage = context.getString(R.string.status_preparing_reference)
             try {
-                // Ensure we have the latest dictionary
                 if (dictionaryMap.isEmpty()) loadLocalDictionary()
 
                 var resources = if (lang == "en") cachedRefResourcesEn else cachedRefResourcesRu

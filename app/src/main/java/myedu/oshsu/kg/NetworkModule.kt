@@ -29,19 +29,6 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
-// --- GITHUB UPDATE MODELS ---
-data class GitHubRelease(
-    @SerializedName("tag_name") val tagName: String,
-    @SerializedName("body") val body: String,
-    @SerializedName("assets") val assets: List<GitHubAsset>
-)
-
-data class GitHubAsset(
-    @SerializedName("browser_download_url") val downloadUrl: String,
-    @SerializedName("name") val name: String,
-    @SerializedName("content_type") val contentType: String
-)
-
 // --- AUTH MODELS ---
 data class LoginRequest(val email: String, val password: String)
 data class LoginResponse(val status: String?, val authorisation: AuthData?)
@@ -152,14 +139,26 @@ data class TranscriptSemester(@SerializedName("semester") val semesterName: Stri
 data class TranscriptSubject(@SerializedName("subject") val subjectName: String?, @SerializedName("code") val code: String?, @SerializedName("credit") val credit: Double?, @SerializedName("mark_list") val markList: MarkList?, @SerializedName("exam_rule") val examRule: ExamRule?)
 data class ExamRule(@SerializedName("alphabetic") val alphabetic: String?, @SerializedName("digital") val digital: Double?, @SerializedName("control_form") val controlForm: String?, @SerializedName("word_ru") val wordRu: String?)
 
-// --- 2FA ---
+// --- 2FA & SECURITY MODELS ---
 data class Verify2FAResponse(
     @SerializedName("have_role") val haveRole: Boolean?,
     @SerializedName("have_bot") val haveBot: Boolean?,
     @SerializedName("have_2fa") val have2fa: Boolean?
 )
 
-// --- API INTERFACES ---
+// --- GITHUB UPDATE MODELS ---
+data class GitHubRelease(
+    @SerializedName("tag_name") val tagName: String,
+    @SerializedName("body") val body: String,
+    @SerializedName("assets") val assets: List<GitHubAsset>
+)
+data class GitHubAsset(
+    @SerializedName("browser_download_url") val downloadUrl: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("content_type") val contentType: String
+)
+
+// --- API INTERFACE ---
 interface OshSuApi {
     @POST("public/api/login") suspend fun login(@Body request: LoginRequest): LoginResponse
     @GET("public/api/user") suspend fun getUser(): UserResponse
@@ -167,15 +166,19 @@ interface OshSuApi {
     @GET("public/api/control/regulations/eduyear") suspend fun getYears(): List<EduYear>
     @GET("public/api/studentPayStatus") suspend fun getPayStatus(): PayStatusResponse
     @GET("public/api/appupdate") suspend fun getNews(): List<NewsItem>
+    
     @POST("public/api/verify2FA") suspend fun verify2FA(): Verify2FAResponse
+
     @GET("public/api/ep/schedule/schedulelessontime") suspend fun getLessonTimes(@Query("id_speciality") specId: Int, @Query("id_edu_form") formId: Int, @Query("id_edu_year") yearId: Int): List<LessonTimeResponse>
     @GET("public/api/studentscheduleitem") suspend fun getSchedule(@Query("id_speciality") specId: Int, @Query("id_edu_form") formId: Int, @Query("id_edu_year") yearId: Int, @Query("id_semester") semId: Int): List<ScheduleWrapper>
     @GET("public/api/studentsession") suspend fun getSession(@Query("id_semester") semesterId: Int): List<SessionResponse>
     @GET("public/api/studenttranscript") suspend fun getTranscript(@Query("id_student") studentId: Long, @Query("id_movement") movementId: Long): List<TranscriptYear>
+
     @GET("public/api/searchstudentinfo") suspend fun getStudentInfoRaw(@Query("id_student") studentId: Long): ResponseBody
     @GET("public/api/studenttranscript") suspend fun getTranscriptDataRaw(@Query("id_student") sId: Long, @Query("id_movement") mId: Long): ResponseBody
     @GET("public/api/control/structure/specialitylicense") suspend fun getSpecialityLicense(@Query("id_speciality") sId: Int, @Query("id_edu_form") eId: Int): ResponseBody
     @GET("public/api/control/structure/university") suspend fun getUniversityInfo(): ResponseBody
+    
     @POST("public/api/student/doc/form13link") suspend fun getTranscriptLink(@Body req: DocIdRequest): ResponseBody
     @Multipart @POST("public/api/student/doc/form13") suspend fun uploadPdf(@Part("id") id: RequestBody, @Part("id_student") idStudent: RequestBody, @Part pdf: MultipartBody.Part): ResponseBody
     @POST("public/api/student/doc/form8link") suspend fun getReferenceLink(@Body req: DocIdRequest): ResponseBody
@@ -183,7 +186,7 @@ interface OshSuApi {
     @POST("public/api/open/doc/showlink") suspend fun resolveDocLink(@Body req: DocKeyRequest): ResponseBody
 }
 
-// Separate Interface for GitHub with Dynamic URL support
+// --- GITHUB API INTERFACE ---
 interface GitHubApi {
     @GET
     suspend fun getLatestRelease(@Url url: String): GitHubRelease
@@ -219,9 +222,50 @@ class WindowsInterceptor : Interceptor {
 
 class DeepSpyInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
-        val request = chain.request(); val url = request.url.toString()
-        // (Logging logic abbreviated)
-        return chain.proceed(request)
+        val request = chain.request()
+        val url = request.url.toString()
+        var reqLog = "REQ: ${request.method} $url"
+        val reqBody = request.body
+        if (reqBody != null) {
+            try {
+                val buffer = Buffer()
+                reqBody.writeTo(buffer)
+                val charset = reqBody.contentType()?.charset(Charset.forName("UTF-8")) ?: Charset.forName("UTF-8")
+                if (isPlaintext(buffer)) reqLog += "\nBODY: ${buffer.readString(charset)}"
+            } catch (e: Exception) {}
+        }
+        DebugLogger.log("NET_REQ", reqLog)
+        val response = chain.proceed(request)
+        var resLog = "RES: ${response.code} $url"
+        val resBody = response.body
+        if (resBody != null && response.code != 204) {
+            try {
+                val source = resBody.source()
+                source.request(Long.MAX_VALUE)
+                val buffer = source.buffer.clone()
+                val contentType = resBody.contentType()?.toString()
+                if (isPlaintext(buffer) && (contentType == null || !contentType.contains("pdf"))) {
+                    val charset = resBody.contentType()?.charset(Charset.forName("UTF-8")) ?: Charset.forName("UTF-8")
+                    val content = buffer.readString(charset)
+                    resLog += if (content.length > 3000) "\nBODY: ${content.take(3000)}... (Truncated)" else "\nBODY: $content"
+                }
+            } catch (e: Exception) {}
+        }
+        DebugLogger.log("NET_RES", resLog)
+        return response
+    }
+    private fun isPlaintext(buffer: Buffer): Boolean {
+        try {
+            val prefix = Buffer()
+            val byteCount = if (buffer.size < 64) buffer.size else 64
+            buffer.copyTo(prefix, 0, byteCount)
+            for (i in 0 until 16) {
+                if (prefix.exhausted()) break
+                val codePoint = prefix.readUtf8CodePoint()
+                if (Character.isISOControl(codePoint) && !Character.isWhitespace(codePoint)) return false
+            }
+            return true
+        } catch (e: Exception) { return false }
     }
 }
 
@@ -230,7 +274,6 @@ object NetworkClient {
     val interceptor = WindowsInterceptor()
     val deepSpy = DeepSpyInterceptor()
     
-    // Main API (Authenticated)
     val api: OshSuApi = Retrofit.Builder().baseUrl("https://api.myedu.oshsu.kg/")
         .client(OkHttpClient.Builder()
             .cookieJar(cookieJar)
@@ -242,10 +285,12 @@ object NetworkClient {
         .addConverterFactory(GsonConverterFactory.create(GsonBuilder().setLenient().create()))
         .build().create(OshSuApi::class.java)
 
-    // GitHub API (No Auth, Standard Client)
-    val githubApi: GitHubApi = Retrofit.Builder()
-        .baseUrl("https://api.github.com/") // Base URL still needed for Retrofit init, but overridden by @Url
-        .client(OkHttpClient.Builder().connectTimeout(30, TimeUnit.SECONDS).build())
+    // Separate Client for GitHub to avoid leaking headers/cookies
+    val githubApi: GitHubApi = Retrofit.Builder().baseUrl("https://api.github.com/")
+        .client(OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build())
         .addConverterFactory(GsonConverterFactory.create())
         .build().create(GitHubApi::class.java)
 }

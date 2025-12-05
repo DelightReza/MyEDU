@@ -178,4 +178,14 @@
     <string name="notif_class_title">Сабак эскертүүсү</string>
     <string name="notif_class_msg">%1$s\nУбакыт: %2$s\nЛокация: %3$s\nАудитория: %4$s</string>
     <string name="class_default">Сабак</string>
+
+    <string name="update_available_title">Жаңыртуу жеткиликтүү</string>
+    <string name="update_available_msg">Жаңы версия (%1$s) жеткиликтүү.\n\n%2$s</string>
+    <string name="update_btn_download">Жүктөө</string>
+    <string name="update_btn_later">Кийинчерээк</string>
+    <string name="update_notif_title">MyEDU Жаңыртуусу</string>
+    <string name="update_notif_desc">%1$s версиясы жүктөлүүдө</string>
+    <string name="update_status_downloading">Жүктөлүүдө %1$s...</string>
+    <string name="update_error_download">Жүктөө катасы: %1$s</string>
+    <string name="install_prompt">Жаңыртууну орнотуу</string>
 </resources>

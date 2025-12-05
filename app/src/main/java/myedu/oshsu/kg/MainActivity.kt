@@ -1,15 +1,21 @@
 package myedu.oshsu.kg
 
 import android.Manifest
+import android.app.DownloadManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.database.Cursor
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkRequest
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -41,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -55,6 +62,7 @@ import myedu.oshsu.kg.ui.screens.*
 import myedu.oshsu.kg.ui.theme.GlassWhite
 import myedu.oshsu.kg.ui.theme.MilkyGlass
 import myedu.oshsu.kg.ui.theme.MyEduTheme
+import java.io.File
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
@@ -63,6 +71,61 @@ class MainActivity : ComponentActivity() {
     private var connectivityManager: ConnectivityManager? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var mainViewModel: MainViewModel? = null
+
+    // --- IMMEDIATE INSTALL RECEIVER ---
+    private val installReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == DownloadManager.ACTION_DOWNLOAD_COMPLETE) {
+                val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
+                
+                // Only proceed if this matches our update download ID
+                if (mainViewModel != null && id == mainViewModel?.downloadId) {
+                    val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                    val query = DownloadManager.Query().setFilterById(id)
+                    var cursor: Cursor? = null
+                    
+                    try {
+                        cursor = downloadManager.query(query)
+                        if (cursor.moveToFirst()) {
+                            val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
+                            val status = cursor.getInt(statusIndex)
+
+                            if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                                // 1. Get the local file URI from DownloadManager
+                                val uriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
+                                val uriString = cursor.getString(uriIndex)
+                                
+                                if (uriString != null) {
+                                    val localFile = File(Uri.parse(uriString).path!!)
+                                    
+                                    // 2. Create the FileProvider URI (Secure Content URI)
+                                    val contentUri = FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.provider",
+                                        localFile
+                                    )
+
+                                    // 3. Build the Intent
+                                    val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                                        setDataAndType(contentUri, "application/vnd.android.package-archive")
+                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                        putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
+                                    }
+
+                                    // 4. Launch immediately
+                                    context.startActivity(installIntent)
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    } finally {
+                        cursor?.close()
+                    }
+                }
+            }
+        }
+    }
 
     override fun attachBaseContext(newBase: Context) {
         val prefs = newBase.getSharedPreferences("myedu_offline_cache", Context.MODE_PRIVATE)
@@ -77,20 +140,34 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) { requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) } }
-        setupNetworkMonitoring(); setupBackgroundWork()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { 
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) { 
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) 
+            } 
+        }
+        
+        setupNetworkMonitoring()
+        setupBackgroundWork()
+        
+        // Register the install receiver
+        registerReceiver(installReceiver, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), Context.RECEIVER_EXPORTED)
 
         setContent { 
             val vm: MainViewModel = viewModel(); mainViewModel = vm
             val context = LocalContext.current
             val lifecycleOwner = LocalLifecycleOwner.current
+            
             DisposableEffect(lifecycleOwner) {
                 val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) vm.onAppResume() }
                 lifecycleOwner.lifecycle.addObserver(observer)
                 onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
             }
             LaunchedEffect(Unit) { vm.initSession(context) }
-            LaunchedEffect(vm.fullSchedule, vm.timeMap, vm.language) { if (vm.fullSchedule.isNotEmpty() && vm.timeMap.isNotEmpty()) { ScheduleAlarmManager(context).scheduleNotifications(vm.fullSchedule, vm.timeMap, vm.language) } }
+            LaunchedEffect(vm.fullSchedule, vm.timeMap, vm.language) { 
+                if (vm.fullSchedule.isNotEmpty() && vm.timeMap.isNotEmpty()) { 
+                    ScheduleAlarmManager(context).scheduleNotifications(vm.fullSchedule, vm.timeMap, vm.language) 
+                } 
+            }
             MyEduTheme(themeMode = vm.themeMode) { ThemedBackground(themeMode = vm.themeMode) { AppContent(vm) } } 
         }
     }
@@ -112,11 +189,17 @@ class MainActivity : ComponentActivity() {
         WorkManager.getInstance(this).enqueueUniquePeriodicWork("MyEduGradeSync", ExistingPeriodicWorkPolicy.KEEP, syncRequest)
     }
 
-    override fun onDestroy() { super.onDestroy(); networkCallback?.let { connectivityManager?.unregisterNetworkCallback(it) } }
+    override fun onDestroy() { 
+        super.onDestroy()
+        networkCallback?.let { connectivityManager?.unregisterNetworkCallback(it) }
+        unregisterReceiver(installReceiver)
+    }
 }
 
 @Composable
 fun AppContent(vm: MainViewModel) {
+    val context = LocalContext.current
+    
     Box(Modifier.fillMaxSize()) {
         AnimatedContent(targetState = vm.appState, label = "Root", transitionSpec = { fadeIn(animationSpec = tween(500)) togetherWith fadeOut(animationSpec = tween(500)) }) { state ->
             when (state) { "LOGIN" -> LoginScreen(vm); "APP" -> MainAppStructure(vm); else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
@@ -132,17 +215,36 @@ fun AppContent(vm: MainViewModel) {
         if (vm.isDebugConsoleOpen) {
             DebugConsoleOverlay(onDismiss = { vm.isDebugConsoleOpen = false })
         }
+
+        // --- UPDATE DIALOG ---
+        if (vm.updateAvailableRelease != null) {
+            val release = vm.updateAvailableRelease!!
+            AlertDialog(
+                onDismissRequest = { vm.updateAvailableRelease = null },
+                title = { Text(stringResource(R.string.update_available_title)) },
+                text = { Text(stringResource(R.string.update_available_msg, release.tagName, release.body)) },
+                confirmButton = {
+                    Button(onClick = { vm.downloadUpdate(context) }) {
+                        Text(stringResource(R.string.update_btn_download))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { vm.updateAvailableRelease = null }) {
+                        Text(stringResource(R.string.update_btn_later))
+                    }
+                }
+            )
+        }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainAppStructure(vm: MainViewModel) {
-    // Priority: Dictionary > Settings > WebDoc > Transcript/Ref > ClassSheet > MainTabs
     BackHandler(enabled = vm.selectedClass != null || vm.showTranscriptScreen || vm.showReferenceScreen || vm.showSettingsScreen || vm.webDocumentUrl != null || vm.showDictionaryScreen) { 
         when { 
             vm.webDocumentUrl != null -> vm.webDocumentUrl = null
-            vm.showDictionaryScreen -> vm.showDictionaryScreen = false // Close Dict before Settings
+            vm.showDictionaryScreen -> vm.showDictionaryScreen = false 
             vm.showSettingsScreen -> vm.showSettingsScreen = false 
             vm.selectedClass != null -> vm.selectedClass = null
             vm.showTranscriptScreen -> vm.showTranscriptScreen = false
@@ -159,18 +261,11 @@ fun MainAppStructure(vm: MainViewModel) {
             val showNav = vm.selectedClass == null && !vm.showTranscriptScreen && !vm.showReferenceScreen && !vm.showSettingsScreen && vm.webDocumentUrl == null && !vm.showDictionaryScreen
             AnimatedVisibility(visible = showNav, enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut(), modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp, start = 16.dp, end = 16.dp).windowInsetsPadding(WindowInsets.navigationBars)) { FloatingNavBar(vm) }
             
-            // --- SCREENS LAYERED BY Z-INDEX (Lowest to Highest) ---
-            
             AnimatedVisibility(visible = vm.showTranscriptScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground(themeMode = vm.themeMode) { TranscriptView(vm) { vm.showTranscriptScreen = false } } }
             AnimatedVisibility(visible = vm.showReferenceScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground(themeMode = vm.themeMode) { ReferenceView(vm) { vm.showReferenceScreen = false } } }
-            
-            // Settings overlays main screens
             AnimatedVisibility(visible = vm.showSettingsScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground(themeMode = vm.themeMode) { SettingsScreen(vm) { vm.showSettingsScreen = false } } }
-            
-            // Dictionary overlays Settings (Z-Order FIX)
             AnimatedVisibility(visible = vm.showDictionaryScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground(themeMode = vm.themeMode) { DictionaryScreen(vm) { vm.showDictionaryScreen = false } } }
 
-            // Web Doc overlays everything (if needed)
             if (vm.webDocumentUrl != null) {
                 val isTranscript = vm.webDocumentUrl!!.contains("Transcript", true)
                 val docTitle = if (isTranscript) stringResource(R.string.transcript) else stringResource(R.string.reference)
@@ -180,7 +275,6 @@ fun MainAppStructure(vm: MainViewModel) {
                 ThemedBackground(themeMode = vm.themeMode) { WebDocumentScreen(url = vm.webDocumentUrl!!, title = docTitle, fileName = fileName, authToken = vm.getAuthToken(), themeMode = vm.themeMode, onClose = { vm.webDocumentUrl = null }) }
             }
             
-            // Bottom Sheets
             if (vm.selectedClass != null) {
                 val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
                 val sheetColor = if (vm.themeMode == "AQUA") MilkyGlass else if(vm.isGlass) Color(0xFF0F2027) else MaterialTheme.colorScheme.surface

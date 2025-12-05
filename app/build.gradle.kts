@@ -42,7 +42,10 @@ android {
     }
 
     // --- BUILD FEATURES ---
-    buildFeatures { compose = true }
+    buildFeatures { 
+        compose = true 
+        buildConfig = true
+    }
     
     // --- KOTLIN OPTIONS ---
     composeOptions { kotlinCompilerExtensionVersion = "1.5.10" }

@@ -191,9 +191,11 @@ class UniversalCookieJar : CookieJar {
     override fun loadForRequest(url: HttpUrl): List<Cookie> = ArrayList(cookieStore)
     fun injectSessionCookies(token: String) {
         val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.000000'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
-        cookieStore.removeAll { it.name == "myedu-jwt-token" || it.name == "my_edu_update" }
+        cookieStore.removeAll { it.name == "myedu-jwt-token" || it.name == "my_edu_update" || it.name == "have_2fa" }
         cookieStore.add(Cookie.Builder().domain("myedu.oshsu.kg").path("/").name("myedu-jwt-token").value(token).build())
         cookieStore.add(Cookie.Builder().domain("myedu.oshsu.kg").path("/").name("my_edu_update").value(sdf.format(Date())).build())
+        // Added 2FA cookie to ensure session valid on native requests too
+        cookieStore.add(Cookie.Builder().domain("myedu.oshsu.kg").path("/").name("have_2fa").value("yes").build())
     }
     fun clear() { cookieStore.clear() }
 }

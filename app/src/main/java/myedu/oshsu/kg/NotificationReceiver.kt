@@ -7,6 +7,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.RingtoneManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
@@ -18,13 +19,18 @@ class NotificationReceiver : BroadcastReceiver() {
         val message = intent.getStringExtra("MESSAGE") ?: context.getString(R.string.notif_default_msg)
         val id = intent.getIntExtra("ID", 0)
 
-        showNotification(context, title, message, id)
+        showAlarmNotification(context, title, message, id)
     }
 
-    private fun showNotification(context: Context, title: String, message: String, id: Int) {
+    private fun showAlarmNotification(context: Context, title: String, message: String, id: Int) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         
-        val channelId = "myedu_loud_notification_channel" 
+        // CRITICAL: Changed ID to force Android to register new settings.
+        // If you keep the old ID, Android ignores changes to sound/vibration.
+        val channelId = "myedu_alarm_channel_v3" 
+
+        // Use TYPE_ALARM to get the loud alarm sound instead of a short beep
+        val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (manager.getNotificationChannel(channelId) == null) {
@@ -34,15 +40,22 @@ class NotificationReceiver : BroadcastReceiver() {
                     NotificationManager.IMPORTANCE_HIGH
                 )
 
-                val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-
+                // 1. Force the sound to play through the ALARM stream (bypasses silent mode)
                 val audioAttributes = AudioAttributes.Builder()
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setUsage(AudioAttributes.USAGE_ALARM) 
                     .build()
 
                 channel.setSound(soundUri, audioAttributes)
+                
+                // 2. Enable vibration and lights
                 channel.enableVibration(true)
+                channel.vibrationPattern = longArrayOf(0, 500, 200, 500)
+                channel.enableLights(true)
+                
+                // 3. Bypass Do Not Disturb (Optional, requires special permission on some devices, 
+                // but IMPORTANCE_HIGH + USAGE_ALARM usually works)
+                // channel.setBypassDnd(true) 
                 
                 manager.createNotificationChannel(channel)
             }
@@ -56,19 +69,18 @@ class NotificationReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-
-        val notification = NotificationCompat.Builder(context, channelId)
+        val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle(title)
             .setContentText(message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_MAX) // Max priority for pre-Oreo
+            .setCategory(NotificationCompat.CATEGORY_ALARM) // Tells system this is an alarm
             .setContentIntent(pendingIntent)
-            .setSound(soundUri)
             .setAutoCancel(true)
-            .build()
+            .setSound(soundUri, AudioManager.STREAM_ALARM) // Force Stream for pre-Oreo
+            .setVibrate(longArrayOf(0, 500, 200, 500))
 
-        manager.notify(id, notification)
+        manager.notify(id, builder.build())
     }
 }

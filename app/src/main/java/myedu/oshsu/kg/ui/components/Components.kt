@@ -36,7 +36,14 @@ fun OshSuLogo(modifier: Modifier = Modifier, themeMode: String = "SYSTEM") {
     val url = "file:///android_asset/logo-dark4.svg"
     val imageLoader = remember { ImageLoader.Builder(context).components { add(SvgDecoder.Factory()) }.build() }
     val isGlassDark = themeMode == "GLASS"; val isDarkMode = themeMode == "DARK"
-    AsyncImage(model = url, imageLoader = imageLoader, contentDescription = stringResource(R.string.desc_logo), modifier = modifier, contentScale = ContentScale.Fit, colorFilter = if (isGlassDark || isDarkMode) ColorFilter.tint(Color.White) else null)
+    AsyncImage(
+        model = url, 
+        imageLoader = imageLoader, 
+        contentDescription = stringResource(R.string.desc_logo), 
+        modifier = modifier, 
+        contentScale = ContentScale.Fit, 
+        colorFilter = if (isGlassDark || isDarkMode) ColorFilter.tint(Color.White) else null
+    )
 }
 
 @Composable
@@ -60,14 +67,63 @@ fun MyEduPullToRefreshBox(isRefreshing: Boolean, onRefresh: () -> Unit, themeMod
 }
 
 @Composable
-fun ThemedCard(modifier: Modifier = Modifier, themeMode: String, onClick: (() -> Unit)? = null, materialColor: Color = MaterialTheme.colorScheme.surfaceContainer, content: @Composable ColumnScope.() -> Unit) {
+fun ThemedCard(
+    modifier: Modifier = Modifier, 
+    themeMode: String, 
+    onClick: (() -> Unit)? = null, 
+    materialColor: Color = MaterialTheme.colorScheme.surfaceContainer, 
+    content: @Composable ColumnScope.() -> Unit
+) {
     if (themeMode == "GLASS" || themeMode == "AQUA") {
-        val glassColor = if (themeMode == "AQUA") MilkyGlass else GlassWhite; val borderColor = if (themeMode == "AQUA") MilkyBorder else GlassBorder
-        Surface(modifier = modifier.border(1.dp, borderColor, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)), color = glassColor, shape = RoundedCornerShape(24.dp), onClick = onClick ?: {}, content = { Column(Modifier.padding(16.dp), content = content) })
+        val glassColor = if (themeMode == "AQUA") MilkyGlass else GlassWhite
+        val borderColor = if (themeMode == "AQUA") MilkyBorder else GlassBorder
+        val shape = RoundedCornerShape(24.dp)
+        
+        // --- FIXED LOGIC FOR GLASS/AQUA ---
+        // Explicitly choose the clickable Surface overload if onClick is present
+        if (onClick != null) {
+            Surface(
+                onClick = onClick,
+                modifier = modifier
+                    .border(1.dp, borderColor, shape)
+                    .clip(shape),
+                color = glassColor,
+                shape = shape
+            ) {
+                Column(Modifier.padding(16.dp), content = content)
+            }
+        } else {
+            Surface(
+                modifier = modifier
+                    .border(1.dp, borderColor, shape)
+                    .clip(shape),
+                color = glassColor,
+                shape = shape
+            ) {
+                Column(Modifier.padding(16.dp), content = content)
+            }
+        }
     } else {
+        // --- STANDARD MATERIAL THEME ---
         val shape = RoundedCornerShape(16.dp)
-        if (onClick != null) ElevatedCard(onClick = onClick, modifier = modifier, shape = shape, colors = CardDefaults.elevatedCardColors(containerColor = materialColor), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp), content = { Column(Modifier.padding(16.dp), content = content) })
-        else ElevatedCard(modifier = modifier, shape = shape, colors = CardDefaults.elevatedCardColors(containerColor = materialColor), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp), content = { Column(Modifier.padding(16.dp), content = content) })
+        if (onClick != null) {
+            ElevatedCard(
+                onClick = onClick, 
+                modifier = modifier, 
+                shape = shape, 
+                colors = CardDefaults.elevatedCardColors(containerColor = materialColor), 
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp), 
+                content = { Column(Modifier.padding(16.dp), content = content) }
+            )
+        } else {
+            ElevatedCard(
+                modifier = modifier, 
+                shape = shape, 
+                colors = CardDefaults.elevatedCardColors(containerColor = materialColor), 
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp), 
+                content = { Column(Modifier.padding(16.dp), content = content) }
+            )
+        }
     }
 }
 

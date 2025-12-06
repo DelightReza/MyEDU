@@ -1,5 +1,6 @@
 package myedu.oshsu.kg.ui.screens
 
+import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -87,9 +88,13 @@ fun SettingsScreen(vm: MainViewModel, onClose: () -> Unit) {
             
             Spacer(modifier = Modifier.height(32.dp))
             
-            // --- NEW DICTIONARY BUTTON ---
             InfoSection(stringResource(R.string.dict_tools_section), vm.themeMode)
-            ThemedCard(modifier = Modifier.fillMaxWidth().clickable { vm.showDictionaryScreen = true }, themeMode = vm.themeMode) {
+            ThemedCard(
+                modifier = Modifier.fillMaxWidth(), 
+                themeMode = vm.themeMode,
+                // --- FIXED: Pass click logic here ---
+                onClick = { vm.showDictionaryScreen = true } 
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Translate, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(16.dp))

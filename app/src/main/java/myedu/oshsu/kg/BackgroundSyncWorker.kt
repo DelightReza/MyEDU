@@ -138,12 +138,18 @@ class BackgroundSyncWorker(appContext: Context, workerParams: WorkerParameters) 
     private fun checkForUpdates(oldList: List<SessionResponse>, newList: List<SessionResponse>, context: Context): List<String> {
         val updates = ArrayList<String>()
         val lang = context.resources.configuration.locales.get(0).language
-        val oldMap = oldList.flatMap { it.subjects ?: emptyList() }.associate { (it.subject?.get(lang) ?: context.getString(R.string.unknown)) to it.marklist }
+        
+        // Map old subjects to their wrapper to access marklist AND graphic
+        val oldMap = oldList.flatMap { it.subjects ?: emptyList() }
+            .associateBy { it.subject?.get(lang) ?: context.getString(R.string.unknown) }
 
-        newList.flatMap { it.subjects ?: emptyList() }.forEach { newSub ->
-            val name = newSub.subject?.get(lang) ?: return@forEach
-            val oldMarks = oldMap[name]
-            val newMarks = newSub.marklist
+        newList.flatMap { it.subjects ?: emptyList() }.forEach { newWrapper ->
+            val name = newWrapper.subject?.get(lang) ?: return@forEach
+            val oldWrapper = oldMap[name]
+            
+            // 1. CHECK GRADES
+            val oldMarks = oldWrapper?.marklist
+            val newMarks = newWrapper.marklist
             fun check(label: String, oldVal: Double?, newVal: Double?) {
                 val v2 = newVal ?: 0.0
                 if (v2 > (oldVal ?: 0.0) && v2 > 0) updates.add(context.getString(R.string.notif_grades_msg_single, name, label, v2.toInt()))
@@ -152,6 +158,15 @@ class BackgroundSyncWorker(appContext: Context, workerParams: WorkerParameters) 
                 check(context.getString(R.string.m1), oldMarks.point1, newMarks.point1)
                 check(context.getString(R.string.m2), oldMarks.point2, newMarks.point2)
                 check(context.getString(R.string.exam_short), oldMarks.finally, newMarks.finally)
+            }
+
+            // 2. CHECK EXAM PORTAL STATUS
+            val oldGraphic = oldWrapper?.graphic
+            val newGraphic = newWrapper.graphic
+
+            // Case: Portal was closed (null), now it is open (not null)
+            if (oldGraphic == null && newGraphic != null) {
+                updates.add(context.getString(R.string.notif_portal_opened, name))
             }
         }
         return updates

@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">MyEDU</string>
     <string name="unknown">Неизвестно</string>
@@ -67,6 +68,8 @@
 
     <string name="current_session">Текущая сессия</string>
     <string name="semester_not_found">Данные семестра не найдены</string>
+    <string name="portal_active">Портал открыт: %s</string>
+    <string name="portal_inactive">Не активен</string>
 
     <string name="profile">Профиль</string>
     <string name="tuition_contract">Контракт на обучение</string>
@@ -178,6 +181,8 @@
     <string name="notif_class_title">Напоминание о занятии</string>
     <string name="notif_class_msg">%1$s\nВремя: %2$s\nАдрес: %3$s\nКомната: %4$s</string>
     <string name="class_default">Занятие</string>
+    
+    <string name="notif_portal_opened">Экзаменационный портал открыт: %1$s</string>
 
     <string name="update_available_title">Доступно обновление</string>
     <string name="update_available_msg">Доступна новая версия (%1$s).\n\n%2$s</string>

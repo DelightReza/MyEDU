@@ -126,9 +126,22 @@ data class LessonNum(val num: Int)
 // --- GRADES & OTHER MODELS ---
 data class PayStatusResponse(val paid_summa: Double?, val need_summa: Double?, val access_message: List<String>?) { fun getDebt(): Double = (need_summa ?: 0.0) - (paid_summa ?: 0.0) }
 data class NewsItem(val id: Int, val title: String?, val message: String?, val created_at: String?)
+
 data class SessionResponse(val semester: SemesterObj?, val subjects: List<SessionSubjectWrapper>?)
 data class SemesterObj(val id: Int, val name_en: String?)
-data class SessionSubjectWrapper(val subject: NameObj?, val marklist: MarkList?)
+
+// UPDATED TO INCLUDE GRAPHIC
+data class SessionSubjectWrapper(
+    val subject: NameObj?, 
+    val marklist: MarkList?, 
+    @SerializedName("graphic") val graphic: GraphicObj?
+)
+
+data class GraphicObj(
+    val begin: String?, 
+    val end: String?
+)
+
 data class MarkList(val point1: Double?, val point2: Double?, val point3: Double?, val finally: Double?, val total: Double?)
 
 // --- DOCUMENT MODELS ---
@@ -285,7 +298,6 @@ object NetworkClient {
         .addConverterFactory(GsonConverterFactory.create(GsonBuilder().setLenient().create()))
         .build().create(OshSuApi::class.java)
 
-    // Separate Client for GitHub to avoid leaking headers/cookies
     val githubApi: GitHubApi = Retrofit.Builder().baseUrl("https://api.github.com/")
         .client(OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)

@@ -12,8 +12,8 @@ android {
         applicationId = "myedu.oshsu.kg"
         minSdk = 24
         targetSdk = 34
-        versionCode = 130
-        versionName = "1.3"
+        versionCode = 140
+        versionName = "1.4"
     }
 
     // --- SIGNING CONFIGURATION ---

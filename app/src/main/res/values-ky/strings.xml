@@ -68,8 +68,8 @@
 
     <string name="current_session">Учурдагы сессия</string>
     <string name="semester_not_found">Семестр маалыматы табылган жок</string>
-    <string name="portal_active">Портал ачык: %s</string>
-    <string name="portal_inactive">Активдүү эмес</string>
+    <string name="label_active">Активдүү: %s</string>
+    <string name="label_updated">Жаңыртылды: %s</string>
 
     <string name="profile">Профиль</string>
     <string name="tuition_contract">Окуу келишими</string>
@@ -182,7 +182,7 @@
     <string name="notif_class_msg">%1$s\nУбакыт: %2$s\nЛокация: %3$s\nАудитория: %4$s</string>
     <string name="class_default">Сабак</string>
 
-    <string name="notif_portal_opened">Экзамендик портал ачылды: %1$s</string>
+    <string name="notif_portal_opened">Портал ачылды: %1$s</string>
 
     <string name="update_available_title">Жаңыртуу жеткиликтүү</string>
     <string name="update_available_msg">Жаңы версия (%1$s) жеткиликтүү.\n\n%2$s</string>

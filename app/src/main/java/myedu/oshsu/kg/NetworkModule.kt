@@ -130,7 +130,6 @@ data class NewsItem(val id: Int, val title: String?, val message: String?, val c
 data class SessionResponse(val semester: SemesterObj?, val subjects: List<SessionSubjectWrapper>?)
 data class SemesterObj(val id: Int, val name_en: String?)
 
-// UPDATED TO INCLUDE GRAPHIC
 data class SessionSubjectWrapper(
     val subject: NameObj?, 
     val marklist: MarkList?, 
@@ -142,7 +141,14 @@ data class GraphicObj(
     val end: String?
 )
 
-data class MarkList(val point1: Double?, val point2: Double?, val point3: Double?, val finally: Double?, val total: Double?)
+data class MarkList(
+    val point1: Double?, 
+    val point2: Double?, 
+    val point3: Double?, 
+    val finally: Double?, 
+    val total: Double?,
+    @SerializedName("updated_at") val updatedAt: String? // Added this field
+)
 
 // --- DOCUMENT MODELS ---
 data class DocIdRequest(val id: Long)

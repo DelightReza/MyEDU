@@ -74,8 +74,8 @@
     <!-- Grades Screen -->
     <string name="current_session">Current Session</string>
     <string name="semester_not_found">Semester data not found</string>
-    <string name="portal_active">Portal Open: %s</string>
-    <string name="portal_inactive">Not active</string>
+    <string name="label_active">Active: %s</string>
+    <string name="label_updated">Updated: %s</string>
 
     <!-- Profile Screen -->
     <string name="profile">Profile</string>
@@ -196,7 +196,7 @@
     <string name="class_default">Class</string>
     
     <!-- PORTAL NOTIFICATIONS -->
-    <string name="notif_portal_opened">Exam Portal Opened: %1$s</string>
+    <string name="notif_portal_opened">Portal Opened: %1$s</string>
 
     <!-- AUTO UPDATE STRINGS -->
     <string name="update_api_url" translatable="false">https://api.github.com/</string>

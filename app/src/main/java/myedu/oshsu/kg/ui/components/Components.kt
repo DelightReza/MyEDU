@@ -79,8 +79,6 @@ fun ThemedCard(
         val borderColor = if (themeMode == "AQUA") MilkyBorder else GlassBorder
         val shape = RoundedCornerShape(24.dp)
         
-        // --- FIXED LOGIC FOR GLASS/AQUA ---
-        // Explicitly choose the clickable Surface overload if onClick is present
         if (onClick != null) {
             Surface(
                 onClick = onClick,
@@ -104,7 +102,6 @@ fun ThemedCard(
             }
         }
     } else {
-        // --- STANDARD MATERIAL THEME ---
         val shape = RoundedCornerShape(16.dp)
         if (onClick != null) {
             ElevatedCard(
@@ -146,16 +143,38 @@ fun BeautifulDocButton(text: String, icon: ImageVector, themeMode: String, modif
 fun InfoSection(title: String, themeMode: String) { Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp, start = 4.dp)) }
 
 @Composable
-fun DetailCard(icon: ImageVector, title: String, value: String, themeMode: String) {
+fun DetailCard(icon: ImageVector, title: String, value: String?, themeMode: String) {
+    val cleaned = value?.trim()
+    // --- GLOBAL DATA HIDING LOGIC ---
+    // Hides if null, empty, "-", "0", or "Unknown"
+    if (cleaned.isNullOrEmpty() || 
+        cleaned.equals("null", true) || 
+        cleaned == "-" || 
+        cleaned == "0" || 
+        cleaned == "Unknown" || 
+        cleaned == "Неизвестно" || 
+        cleaned == "Белгисиз"
+    ) return
+
     ThemedCard(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), themeMode = themeMode, materialColor = MaterialTheme.colorScheme.surfaceContainerLow) { 
-        Row(verticalAlignment = Alignment.CenterVertically) { Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp)); Spacer(Modifier.width(16.dp)); Column { Text(title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant); Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface) } } 
+        Row(verticalAlignment = Alignment.CenterVertically) { 
+            Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+            Spacer(Modifier.width(16.dp)) 
+            Column { 
+                Text(title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(cleaned, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface) 
+            } 
+        } 
     }
 }
 
 @Composable
 fun ScoreColumn(label: String, score: Double?, isTotal: Boolean = false) {
+    // Scores are usually valid even if 0, but if null we can hide or show "-"
+    // Keeping existing logic for Scores, but formatting it nicely
+    val text = score?.toInt()?.toString() ?: "-"
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text("${score?.toInt() ?: 0}", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = if (isTotal && (score ?: 0.0) >= 50) Color(0xFF4CAF50) else if (isTotal) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+        Text(text, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = if (isTotal && (score ?: 0.0) >= 50) Color(0xFF4CAF50) else if (isTotal) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
     }
 }

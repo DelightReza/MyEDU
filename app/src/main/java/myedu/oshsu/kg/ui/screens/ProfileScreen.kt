@@ -1,13 +1,17 @@
 package myedu.oshsu.kg.ui.screens
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -16,37 +20,55 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import myedu.oshsu.kg.DebugLogger
 import myedu.oshsu.kg.MainViewModel
 import myedu.oshsu.kg.R
 import myedu.oshsu.kg.secretDebugTrigger
 import myedu.oshsu.kg.ui.components.*
 import myedu.oshsu.kg.ui.theme.AccentGradient
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import myedu.oshsu.kg.ui.theme.GlassWhite
+import myedu.oshsu.kg.ui.theme.MilkyBorder
+import myedu.oshsu.kg.ui.theme.MilkyGlass
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(vm: MainViewModel) {
     val context = LocalContext.current
-    val user = vm.userData; val profile = vm.profileData; val pay = vm.payStatus
+    val user = vm.userData
+    val profile = vm.profileData
+    val pay = vm.payStatus
     val lang = vm.language
-    val fullName = "${user?.last_name ?: ""} ${user?.name ?: ""}".trim().ifEmpty { stringResource(R.string.student_default) }
+
+    val displayPhoto = vm.customPhotoUri ?: profile?.avatar
+    val displayName = vm.customName ?: "${user?.last_name ?: ""} ${user?.name ?: ""}".trim().ifEmpty { stringResource(R.string.student_default) }
+
     val facultyName = profile?.studentMovement?.faculty?.get(lang) ?: profile?.studentMovement?.speciality?.faculty?.get(lang) ?: "-"
     val specialityName = profile?.studentMovement?.speciality?.get(lang) ?: "-"
-    val dateFormat = stringResource(R.string.config_date_format)
-    val dateStr = SimpleDateFormat(dateFormat, Locale.US).format(Date())
 
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-        Column(Modifier.fillMaxSize().widthIn(max = 840.dp).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .widthIn(max = 840.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(top = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(stringResource(R.string.profile), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 
                 IconButton(
@@ -57,16 +79,67 @@ fun ProfileScreen(vm: MainViewModel) {
                         Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                         DebugLogger.log("UI", msg)
                     }
-                ) { 
-                    Icon(Icons.Outlined.Settings, stringResource(R.string.desc_settings), tint = MaterialTheme.colorScheme.onSurface) 
+                ) { Icon(Icons.Outlined.Settings, stringResource(R.string.desc_settings), tint = MaterialTheme.colorScheme.onSurface) }
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(128.dp)
+                    .background(AccentGradient, CircleShape)
+                    .padding(3.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surface)
+            ) {
+                key(displayPhoto, vm.avatarRefreshTrigger) {
+                        AsyncImage(
+                        model = ImageRequest.Builder(context).data(displayPhoto).crossfade(true).setParameter("retry_hash", vm.avatarRefreshTrigger).build(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize().clip(CircleShape)
+                    )
                 }
             }
-            Spacer(Modifier.height(24.dp))
-            val imgMod = Modifier.size(128.dp).background(AccentGradient, CircleShape).padding(3.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface)
-            Box(contentAlignment = Alignment.Center, modifier = imgMod) { AsyncImage(model = profile?.avatar, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape)) }
+
             Spacer(Modifier.height(16.dp))
-            Text(fullName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface); Text(user?.email ?: "", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            Text(displayName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.Center)
+            Text(user?.email ?: "", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
             Spacer(Modifier.height(24.dp))
+
+            // --- ACTION BUTTONS (Personal Info / Edit Profile) ---
+            // CHANGED: Added height(IntrinsicSize.Max) to ensure both buttons are the same height
+            Row(
+                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
+                horizontalArrangement = Arrangement.Center, 
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ProfileActionButton(
+                    text = stringResource(R.string.personal),
+                    icon = Icons.Default.Person,
+                    themeMode = vm.themeMode,
+                    onClick = { vm.showPersonalInfoScreen = true },
+                    // CHANGED: Added fillMaxHeight to expand to the taller sibling
+                    modifier = Modifier.weight(1f).fillMaxHeight()
+                )
+                
+                Spacer(Modifier.width(16.dp))
+                
+                ProfileActionButton(
+                    text = stringResource(R.string.edit_profile),
+                    icon = Icons.Default.Edit,
+                    themeMode = vm.themeMode,
+                    onClick = { vm.showEditProfileScreen = true },
+                    // CHANGED: Added fillMaxHeight to expand to the taller sibling
+                    modifier = Modifier.weight(1f).fillMaxHeight()
+                )
+            }
+
+            Spacer(Modifier.height(32.dp))
+
             if (pay != null) {
                 ThemedCard(Modifier.fillMaxWidth(), vm.themeMode) {
                     Column {
@@ -79,6 +152,7 @@ fun ProfileScreen(vm: MainViewModel) {
                 }
                 Spacer(Modifier.height(24.dp))
             }
+
             InfoSection(stringResource(R.string.documents), vm.themeMode)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 BeautifulDocButton(text = stringResource(R.string.reference), icon = Icons.Default.Description, themeMode = vm.themeMode, modifier = Modifier.weight(1f), onClick = { vm.showReferenceScreen = true })
@@ -89,6 +163,79 @@ fun ProfileScreen(vm: MainViewModel) {
             Spacer(Modifier.height(24.dp)); InfoSection(stringResource(R.string.personal), vm.themeMode)
             DetailCard(Icons.Outlined.Badge, stringResource(R.string.passport), profile?.pdsstudentinfo?.getFullPassport() ?: "-", vm.themeMode); DetailCard(Icons.Outlined.Phone, stringResource(R.string.phone), profile?.pdsstudentinfo?.phone ?: "-", vm.themeMode)
             Spacer(Modifier.height(32.dp)); Button(onClick = { vm.logout() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer), modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.log_out)) }; Spacer(Modifier.height(130.dp))
+        }
+    }
+}
+
+@Composable
+fun ProfileActionButton(
+    text: String,
+    icon: ImageVector,
+    themeMode: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isGlass = themeMode == "GLASS" || themeMode == "AQUA"
+    val shape = RoundedCornerShape(16.dp)
+    
+    // CHANGED: Changed from fixed .height(48.dp) to .defaultMinSize(minHeight = 48.dp)
+    // This allows the button to expand vertically if text wraps.
+    val sizeModifier = modifier.defaultMinSize(minHeight = 48.dp)
+
+    if (isGlass) {
+        val containerColor = if (themeMode == "AQUA") MilkyGlass else GlassWhite
+        val borderColor = if (themeMode == "AQUA") MilkyBorder else GlassWhite
+        
+        Surface(
+            onClick = onClick,
+            modifier = sizeModifier,
+            shape = shape,
+            color = containerColor,
+            border = BorderStroke(1.dp, borderColor)
+        ) {
+            // CHANGED: Added vertical padding to the Row to accommodate multi-line text safely
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 12.dp)
+            ) {
+                Icon(icon, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurface)
+                Spacer(Modifier.width(8.dp))
+                // CHANGED: Added TextAlign.Center and line height for better multi-line appearance
+                Text(
+                    text = text, 
+                    fontWeight = FontWeight.Medium, 
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 16.sp
+                )
+            }
+        }
+    } else {
+        // Standard Material Button
+        Button(
+            onClick = onClick,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ),
+            shape = shape,
+            modifier = sizeModifier
+        ) {
+            // CHANGED: Use Column or centered arrangement for text
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxSize() // Ensure content fills button to center it
+            ) {
+                Icon(icon, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = text,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 16.sp
+                )
+            }
         }
     }
 }

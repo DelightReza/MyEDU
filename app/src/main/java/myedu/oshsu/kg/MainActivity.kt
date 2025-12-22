@@ -72,56 +72,33 @@ class MainActivity : ComponentActivity() {
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var mainViewModel: MainViewModel? = null
 
-    // --- IMMEDIATE INSTALL RECEIVER ---
     private val installReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == DownloadManager.ACTION_DOWNLOAD_COMPLETE) {
                 val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
-                
-                // Only proceed if this matches our update download ID
                 if (mainViewModel != null && id == mainViewModel?.downloadId) {
                     val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
                     val query = DownloadManager.Query().setFilterById(id)
                     var cursor: Cursor? = null
-                    
                     try {
                         cursor = downloadManager.query(query)
                         if (cursor.moveToFirst()) {
-                            val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
-                            val status = cursor.getInt(statusIndex)
-
+                            val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
                             if (status == DownloadManager.STATUS_SUCCESSFUL) {
-                                // 1. Get the local file URI from DownloadManager
-                                val uriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
-                                val uriString = cursor.getString(uriIndex)
-                                
+                                val uriString = cursor.getString(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_LOCAL_URI))
                                 if (uriString != null) {
                                     val localFile = File(Uri.parse(uriString).path!!)
-                                    
-                                    // 2. Create the FileProvider URI (Secure Content URI)
-                                    val contentUri = FileProvider.getUriForFile(
-                                        context,
-                                        "${context.packageName}.provider",
-                                        localFile
-                                    )
-
-                                    // 3. Build the Intent
+                                    val contentUri = FileProvider.getUriForFile(context, "${context.packageName}.provider", localFile)
                                     val installIntent = Intent(Intent.ACTION_VIEW).apply {
                                         setDataAndType(contentUri, "application/vnd.android.package-archive")
                                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
                                         putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
                                     }
-
-                                    // 4. Launch immediately
                                     context.startActivity(installIntent)
                                 }
                             }
                         }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    } finally {
-                        cursor?.close()
-                    }
+                    } catch (e: Exception) { e.printStackTrace() } finally { cursor?.close() }
                 }
             }
         }
@@ -141,22 +118,16 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { 
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) { 
-                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) 
-            } 
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) { requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) } 
         }
-        
         setupNetworkMonitoring()
         setupBackgroundWork()
-        
-        // Register the install receiver
         registerReceiver(installReceiver, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), Context.RECEIVER_EXPORTED)
 
         setContent { 
             val vm: MainViewModel = viewModel(); mainViewModel = vm
             val context = LocalContext.current
             val lifecycleOwner = LocalLifecycleOwner.current
-            
             DisposableEffect(lifecycleOwner) {
                 val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) vm.onAppResume() }
                 lifecycleOwner.lifecycle.addObserver(observer)
@@ -164,9 +135,7 @@ class MainActivity : ComponentActivity() {
             }
             LaunchedEffect(Unit) { vm.initSession(context) }
             LaunchedEffect(vm.fullSchedule, vm.timeMap, vm.language) { 
-                if (vm.fullSchedule.isNotEmpty() && vm.timeMap.isNotEmpty()) { 
-                    ScheduleAlarmManager(context).scheduleNotifications(vm.fullSchedule, vm.timeMap, vm.language) 
-                } 
+                if (vm.fullSchedule.isNotEmpty() && vm.timeMap.isNotEmpty()) { ScheduleAlarmManager(context).scheduleNotifications(vm.fullSchedule, vm.timeMap, vm.language) } 
             }
             MyEduTheme(themeMode = vm.themeMode) { ThemedBackground(themeMode = vm.themeMode) { AppContent(vm) } } 
         }
@@ -199,39 +168,55 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppContent(vm: MainViewModel) {
     val context = LocalContext.current
-    
     Box(Modifier.fillMaxSize()) {
-        AnimatedContent(targetState = vm.appState, label = "Root", transitionSpec = { fadeIn(animationSpec = tween(500)) togetherWith fadeOut(animationSpec = tween(500)) }) { state ->
+        AnimatedContent(targetState = vm.appState, label = "Root") { state ->
             when (state) { "LOGIN" -> LoginScreen(vm); "APP" -> MainAppStructure(vm); else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
         }
+        if (vm.isDebugPipVisible) { DebugPipButton(onClick = { vm.isDebugConsoleOpen = true }, modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)) }
+        if (vm.isDebugConsoleOpen) { DebugConsoleOverlay(onDismiss = { vm.isDebugConsoleOpen = false }) }
         
-        if (vm.isDebugPipVisible) {
-            DebugPipButton(
-                onClick = { vm.isDebugConsoleOpen = true },
-                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)
-            )
-        }
-        
-        if (vm.isDebugConsoleOpen) {
-            DebugConsoleOverlay(onDismiss = { vm.isDebugConsoleOpen = false })
-        }
-
         // --- UPDATE DIALOG ---
         if (vm.updateAvailableRelease != null) {
             val release = vm.updateAvailableRelease!!
+            
+            // --- FIX FOR DIALOG VISIBILITY IN CUSTOM THEMES ---
+            val containerColor = when(vm.themeMode) {
+                "GLASS" -> Color(0xFF232323) // Solid dark grey to stand out on glass
+                "AQUA" -> Color(0xFFE0F2F1)  // Solid light teal
+                else -> AlertDialogDefaults.containerColor
+            }
+            
+            val contentColor = when(vm.themeMode) {
+                "GLASS" -> Color.White
+                "AQUA" -> Color(0xFF004D40)  // Dark Teal
+                else -> AlertDialogDefaults.textContentColor
+            }
+
             AlertDialog(
+                containerColor = containerColor,
+                titleContentColor = contentColor,
+                textContentColor = contentColor,
                 onDismissRequest = { vm.updateAvailableRelease = null },
-                title = { Text(stringResource(R.string.update_available_title)) },
+                title = { Text(stringResource(R.string.update_available_title), fontWeight = FontWeight.Bold) },
                 text = { Text(stringResource(R.string.update_available_msg, release.tagName, release.body)) },
-                confirmButton = {
-                    Button(onClick = { vm.downloadUpdate(context) }) {
-                        Text(stringResource(R.string.update_btn_download))
-                    }
+                confirmButton = { 
+                    Button(
+                        onClick = { vm.downloadUpdate(context) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if(vm.themeMode == "AQUA") Color(0xFF00796B) else MaterialTheme.colorScheme.primary,
+                            contentColor = Color.White
+                        )
+                    ) { 
+                        Text(stringResource(R.string.update_btn_download)) 
+                    } 
                 },
-                dismissButton = {
-                    TextButton(onClick = { vm.updateAvailableRelease = null }) {
-                        Text(stringResource(R.string.update_btn_later))
-                    }
+                dismissButton = { 
+                    TextButton(
+                        onClick = { vm.updateAvailableRelease = null },
+                        colors = ButtonDefaults.textButtonColors(contentColor = contentColor)
+                    ) { 
+                        Text(stringResource(R.string.update_btn_later)) 
+                    } 
                 }
             )
         }
@@ -241,7 +226,7 @@ fun AppContent(vm: MainViewModel) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainAppStructure(vm: MainViewModel) {
-    BackHandler(enabled = vm.selectedClass != null || vm.showTranscriptScreen || vm.showReferenceScreen || vm.showSettingsScreen || vm.webDocumentUrl != null || vm.showDictionaryScreen) { 
+    BackHandler(enabled = vm.selectedClass != null || vm.showTranscriptScreen || vm.showReferenceScreen || vm.showSettingsScreen || vm.webDocumentUrl != null || vm.showDictionaryScreen || vm.showPersonalInfoScreen || vm.showEditProfileScreen) { 
         when { 
             vm.webDocumentUrl != null -> vm.webDocumentUrl = null
             vm.showDictionaryScreen -> vm.showDictionaryScreen = false 
@@ -249,22 +234,37 @@ fun MainAppStructure(vm: MainViewModel) {
             vm.selectedClass != null -> vm.selectedClass = null
             vm.showTranscriptScreen -> vm.showTranscriptScreen = false
             vm.showReferenceScreen -> vm.showReferenceScreen = false
+            vm.showEditProfileScreen -> vm.showEditProfileScreen = false
+            vm.showPersonalInfoScreen -> vm.showPersonalInfoScreen = false
         }
     }
+
     Scaffold(containerColor = Color.Transparent, contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
         Box(Modifier.padding(padding).fillMaxSize()) {
             MyEduPullToRefreshBox(isRefreshing = vm.isLoading, onRefresh = { vm.refresh() }, themeMode = vm.themeMode) {
-                AnimatedContent(targetState = vm.currentTab, label = "TabContent", transitionSpec = { (fadeIn(animationSpec = tween(400)) + scaleIn(initialScale = 0.96f, animationSpec = tween(400))).togetherWith(fadeOut(animationSpec = tween(200))) }, modifier = Modifier.fillMaxSize()) { targetTab ->
-                    when(targetTab) { 0 -> HomeScreen(vm); 1 -> ScheduleScreen(vm); 2 -> GradesScreen(vm); 3 -> ProfileScreen(vm) }
+                AnimatedContent(targetState = vm.currentTab, label = "TabContent") { targetTab ->
+                    when(targetTab) { 
+                        0 -> HomeScreen(vm); 1 -> ScheduleScreen(vm); 2 -> GradesScreen(vm); 
+                        3 -> ProfileScreen(vm) 
+                    }
                 }
             }
-            val showNav = vm.selectedClass == null && !vm.showTranscriptScreen && !vm.showReferenceScreen && !vm.showSettingsScreen && vm.webDocumentUrl == null && !vm.showDictionaryScreen
+            
+            val showNav = vm.selectedClass == null && !vm.showTranscriptScreen && !vm.showReferenceScreen && !vm.showSettingsScreen && vm.webDocumentUrl == null && !vm.showDictionaryScreen && !vm.showPersonalInfoScreen && !vm.showEditProfileScreen
             AnimatedVisibility(visible = showNav, enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut(), modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp, start = 16.dp, end = 16.dp).windowInsetsPadding(WindowInsets.navigationBars)) { FloatingNavBar(vm) }
             
             AnimatedVisibility(visible = vm.showTranscriptScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground(themeMode = vm.themeMode) { TranscriptView(vm) { vm.showTranscriptScreen = false } } }
             AnimatedVisibility(visible = vm.showReferenceScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground(themeMode = vm.themeMode) { ReferenceView(vm) { vm.showReferenceScreen = false } } }
             AnimatedVisibility(visible = vm.showSettingsScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground(themeMode = vm.themeMode) { SettingsScreen(vm) { vm.showSettingsScreen = false } } }
             AnimatedVisibility(visible = vm.showDictionaryScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground(themeMode = vm.themeMode) { DictionaryScreen(vm) { vm.showDictionaryScreen = false } } }
+
+            AnimatedVisibility(visible = vm.showPersonalInfoScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { 
+                ThemedBackground(themeMode = vm.themeMode) { PersonalInfoScreen(vm, { vm.showPersonalInfoScreen = false }) } 
+            }
+            
+            AnimatedVisibility(visible = vm.showEditProfileScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { 
+                ThemedBackground(themeMode = vm.themeMode) { EditProfileScreen(vm, { vm.showEditProfileScreen = false }) } 
+            }
 
             if (vm.webDocumentUrl != null) {
                 val isTranscript = vm.webDocumentUrl!!.contains("Transcript", true)

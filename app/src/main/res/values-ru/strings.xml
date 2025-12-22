@@ -70,6 +70,17 @@
     <string name="semester_not_found">Данные семестра не найдены</string>
     <string name="label_active">Активен: %s</string>
     <string name="label_updated">Обновлено: %s</string>
+    <string name="status_not_active">Не активен</string>
+    <string name="status_active">Активен</string>
+    <string name="status_updated">Обновлено</string>
+    <string name="semesters_label">Семестры</string>
+    <string name="sort_label">Сортировка</string>
+    <string name="sort_default">По умолчанию</string>
+    <string name="sort_az">А-Я</string>
+    <string name="sort_date">По дате</string>
+    <string name="sort_low">Низк.</string>
+    <string name="sort_high">Выс.</string>
+    <string name="semester_format">%1$d-Семестр</string>
 
     <string name="profile">Профиль</string>
     <string name="tuition_contract">Контракт на обучение</string>
@@ -78,15 +89,21 @@
     <string name="remaining">Остаток: %d</string>
     <string name="currency_kgs">сом</string>
     <string name="documents">Документы</string>
-    <string name="reference">Справка (Форма 8)</string>
+    <string name="reference">Справка</string>
     <string name="transcript">Транскрипт</string>
     <string name="academic">Академическая инфо</string>
     <string name="faculty">Факультет</string>
     <string name="speciality">Специальность</string>
-    <string name="personal">Личная инфо</string>
+    <string name="personal">Личная информация</string>
     <string name="passport">Паспорт</string>
     <string name="phone">Телефон</string>
     <string name="log_out">Выйти</string>
+    <string name="edit_profile">Редактировать профиль</string>
+    <string name="onboard_add_photo">Добавить фото</string>
+    <string name="onboard_change_photo">Изменить фото</string>
+    <string name="onboard_display_name">Отображаемое имя</string>
+    <string name="male">Мужской</string>
+    <string name="female">Женский</string>
 
     <string name="settings">Настройки</string>
     <string name="appearance">Оформление</string>
@@ -159,6 +176,9 @@
     <string name="status_download_desc">Скачивание %s из MyEDU</string>
     <string name="status_download_failed">Ошибка скачивания: %s</string>
     <string name="university_addr_default">г. Ош, ул. Ленина 331</string>
+    <string name="cancel">Отмена</string>
+    <string name="open">Открыть</string>
+    <string name="update_error_generic">Ошибка загрузки</string>
 
     <string name="error_main_js_missing">Главный JS не найден</string>
     <string name="error_transcript_js_missing">Скрипт транскрипта не найден</string>
@@ -193,4 +213,164 @@
     <string name="update_status_downloading">Скачивание %1$s...</string>
     <string name="update_error_download">Ошибка скачивания: %1$s</string>
     <string name="install_prompt">Установить обновление</string>
+
+    <string name="personal_error_load">Не удалось загрузить данные</string>
+    <string name="personal_retry">Повторить</string>
+    <string name="personal_identity_bio">Личность и Биография</string>
+    <string name="birthday">Дата рождения</string>
+    <string name="gender">Пол</string>
+    <string name="personal_phone">Телефон</string>
+    <string name="personal_residence_phone">Дом. телефон</string>
+    <string name="personal_alt_email">Доп. Email</string>
+    <string name="personal_profile_status">Статус профиля</string>
+    <string name="personal_marital_status">Семейное положение</string>
+    <string name="personal_is_ethnic">Этнический кыргыз</string>
+    <string name="personal_academic_status">Академический статус</string>
+    <string name="personal_faculty_short">Факультет (Кратко)</string>
+    <string name="personal_faculty_info">Инфо о факультете</string>
+    <string name="personal_spec_short">Спец. (Кратко)</string>
+    <string name="personal_spec_code">Код специальности</string>
+    <string name="personal_spec_info">Инфо о специальности</string>
+    <string name="personal_group">Группа</string>
+    <string name="personal_enrollment">Дата зачисления</string>
+    <string name="personal_edu_form">Форма обучения</string>
+    <string name="personal_edu_short">Форма (Кратко)</string>
+    <string name="personal_active_status">Активен</string>
+    <string name="personal_payment">Тип оплаты</string>
+    <string name="personal_language">Язык</string>
+    <string name="personal_lang_short">Язык (Кратко)</string>
+    <string name="personal_current_semester">Текущий семестр</string>
+    <string name="personal_active_semesters_list">Список активных семестров</string>
+    <string name="personal_sem">Сем</string>
+    <string name="personal_legal_citizenship">Правовой статус и Гражданство</string>
+    <string name="personal_citizenship">Гражданство</string>
+    <string name="personal_nationality">Национальность</string>
+    <string name="personal_pin">ПИН / ИНН</string>
+    <string name="personal_has_documents">Документы сданы</string>
+    <string name="personal_passport">Паспорт</string>
+    <string name="personal_authority">Орган выдачи</string>
+    <string name="personal_issued">Дата выдачи</string>
+    <string name="personal_pds_info">Инфо ПДС</string>
+    
+    <string name="personal_family_info">Информация о семье</string>
+    <string name="personal_father">Отец</string>
+    <string name="personal_mother">Мать</string>
+    <string name="personal_name">ФИО</string>
+    <string name="personal_info">Доп. информация</string>
+    
+    <string name="personal_geography">География</string>
+    <string name="personal_main_address">Основной адрес</string>
+    <string name="personal_address">Адрес</string>
+    <string name="personal_country">Страна</string>
+    <string name="personal_state">Область</string>
+    <string name="personal_region">Район</string>
+    <string name="personal_birth_place">Место рождения</string>
+    <string name="personal_birth_addr">Адрес рождения</string>
+    <string name="personal_b_country">Страна (Рожд.)</string>
+    <string name="personal_b_state">Область (Рожд.)</string>
+    <string name="personal_b_region">Район (Рожд.)</string>
+    <string name="personal_residence_place">Место жительства</string>
+    <string name="personal_res_addr">Адрес прож.</string>
+    <string name="personal_r_country">Страна (Прож.)</string>
+    <string name="personal_r_state">Область (Прож.)</string>
+    <string name="personal_r_region">Район (Прож.)</string>
+    
+    <string name="personal_military_service">Воинский учет</string>
+    <string name="personal_service">Служба</string>
+    <string name="personal_rank">Звание</string>
+    <string name="personal_serial">Серийный №</string>
+    <string name="personal_date">Дата</string>
+    
+    <string name="personal_record_created">Запись создана</string>
+    <string name="personal_id">ID</string>
+    <string name="personal_student_id">ID Студента</string>
+    <string name="personal_user_id">ID Пользователя</string>
+    <string name="personal_updated">Обновлено</string>
+    
+    <string name="personal_movement_finance">Движение и Финансы</string>
+    <string name="personal_movement">Информация о движении</string>
+    <string name="personal_type">Тип</string>
+    <string name="personal_is_student">Является студентом</string>
+    <string name="personal_desc">Описание</string>
+    <string name="personal_period">Период</string>
+    <string name="personal_start_date">Дата начала</string>
+    <string name="personal_period_active">Период активен</string>
+    <string name="personal_order">Приказ</string>
+    <string name="personal_itngyrg">IT NGYRG</string>
+    <string name="personal_state_lang_lvl">Уровень гос. языка</string>
+    <string name="personal_mov_edu_year">ID учебного года</string>
+    <string name="personal_archive_user_id">ID архивного пользователя</string>
+    <string name="personal_mov_citizenship">ID гражданства (движ.)</string>
+    <string name="personal_mov_oo1_id">ID ОО1 (Движ.)</string>
+    <string name="personal_mov_zo1_id">ID ЗО1 (Движ.)</string>
+    
+    <string name="personal_library_finance">Библиотека и Финансы</string>
+    <string name="personal_library">Статус библиотеки</string>
+    <string name="personal_debt_credits">Кредиты долга</string>
+    <string name="personal_lib_items">Книги на руках</string>
+    <string name="personal_debt_trans">Транскрипты долга</string>
+    <string name="personal_total_price">Общая стоимость</string>
+    
+    <string name="personal_system_metadata">Системные метаданные</string>
+    <string name="personal_user_profile">Профиль пользователя</string>
+    <string name="personal_uni_id_user">ID Универ. (Польз.)</string>
+    <string name="personal_uni_id_mov">ID Универ. (Движ.)</string>
+    <string name="personal_pds_id">ID ПДС</string>
+    <string name="personal_pds_user_id">ID Польз. ПДС</string>
+    <string name="personal_movement_id">ID Движения</string>
+    <string name="personal_legacy_avn_id">Старый ID AVN</string>
+    <string name="personal_legacy_aryz_id">Старый ID Aryz</string>
+    
+    <string name="personal_timestamps">Временные метки</string>
+    <string name="personal_user_created">Польз. создан</string>
+    <string name="personal_user_updated">Польз. обновлен</string>
+    <string name="personal_pds_created">ПДС создан</string>
+    <string name="personal_pds_updated">ПДС обновлен</string>
+    <string name="personal_mov_created">Движение создано</string>
+    <string name="personal_mov_updated">Движение обновлено</string>
+    
+    <string name="personal_structure_ids">Түзүм IDлери</string>
+    <string name="personal_fac_type_id">ID Типа Факультета</string>
+    <string name="personal_direction_id">ID Направления</string>
+    <string name="personal_group_edu_form">ID Формы обуч. группы</string>
+    <string name="personal_oo1_id">ID ОО1</string>
+    <string name="personal_zo1_id">ID ЗО1</string>
+    <string name="personal_exam_type_id">ID Типа экзамена</string>
+    <string name="personal_round_id">ID Раунда</string>
+    <string name="personal_tariff_type_id">ID Типа тарифа</string>
+    <string name="personal_avn_group_id">ID Группы AVN</string>
+    
+    <string name="personal_registry_data">Данные реестра</string>
+    <string name="personal_faculty_id">ID Факультета</string>
+    <string name="personal_fac_user_id">ID Польз. Факультета</string>
+    <string name="personal_fac_uni_id">ID Универ. Факультета</string>
+    <string name="personal_fac_created">Фак. создан</string>
+    <string name="personal_spec_id">ID Специальности</string>
+    <string name="personal_spec_user_id">ID Польз. Специальности</string>
+    <string name="personal_spec_uni_id">ID Универ. Специальности</string>
+    <string name="personal_spec_created">Спец. создана</string>
+    <string name="personal_edu_id">ID Обучения</string>
+    <string name="personal_edu_user_id">ID Польз. Обучения</string>
+    <string name="personal_edu_uni_id">ID Универ. Обучения</string>
+    <string name="personal_edu_created">Обучение создано</string>
+    <string name="personal_pay_id">ID Оплаты</string>
+    <string name="personal_pay_user_id">ID Польз. Оплаты</string>
+    <string name="personal_pay_uni_id">ID Универ. Оплаты</string>
+    <string name="personal_pay_created">Оплата создана</string>
+    <string name="personal_lang_id">ID Языка</string>
+    <string name="personal_lang_user_id">ID Польз. Языка</string>
+    <string name="personal_lang_uni_id">ID Универ. Языка</string>
+    <string name="personal_citizenship_id">ID Гражданства</string>
+    <string name="personal_nationality_id">ID Национальности</string>
+    <string name="personal_view_details">Подробнее</string>
+
+    <string name="status_approved">Одобрено</string>
+    <string name="status_pending">В ожидании</string>
+    <string name="lib_has_debt">Есть долг</string>
+    <string name="lib_clean">Чисто</string>
+    <string name="desc_profile_photo">Фото профиля</string>
+    <string name="desc_revert">Вернуть</string>
+    <string name="fmt_id_val">ID: %s</string>
+    <string name="fmt_name_id">%1$s (ID: %2$s)</string>
 </resources>
+

@@ -22,27 +22,46 @@ import androidx.compose.ui.unit.dp
 import myedu.oshsu.kg.MainViewModel
 import myedu.oshsu.kg.R
 import myedu.oshsu.kg.ui.components.*
-import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(vm: MainViewModel) {
-    val user = vm.userData; val profile = vm.profileData; var showNewsSheet by remember { mutableStateOf(false) }
+    val user = vm.userData
+    val profile = vm.profileData
+    var showNewsSheet by remember { mutableStateOf(false) }
     val currentHour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
-    val greetingText = remember(currentHour) { if(currentHour in 4..11) R.string.good_morning else if(currentHour in 12..16) R.string.good_afternoon else R.string.good_evening }
+    val greetingText = remember(currentHour) { if (currentHour in 4..11) R.string.good_morning else if (currentHour in 12..16) R.string.good_afternoon else R.string.good_evening }
     
+    // --- FIX: Use customName if available, otherwise use API name ---
+    val displayName = vm.customName ?: user?.name ?: stringResource(R.string.student_default)
+
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(Modifier.fillMaxSize().widthIn(max = 840.dp).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-            Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars)); Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
+            Spacer(Modifier.height(16.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) { 
                     Text(stringResource(greetingText), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(text = user?.name ?: stringResource(R.string.student_default), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface) 
+                    Text(
+                        text = displayName, 
+                        style = MaterialTheme.typography.titleMedium, 
+                        fontWeight = FontWeight.Bold, 
+                        maxLines = 1, 
+                        overflow = TextOverflow.Ellipsis, 
+                        color = MaterialTheme.colorScheme.onSurface
+                    ) 
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    OshSuLogo(modifier = Modifier.width(100.dp).height(40.dp), themeMode = vm.themeMode); Spacer(Modifier.width(8.dp))
+                    OshSuLogo(modifier = Modifier.width(100.dp).height(40.dp), themeMode = vm.themeMode)
+                    Spacer(Modifier.width(8.dp))
                     Box(modifier = Modifier.size(40.dp).clickable { showNewsSheet = true }, contentAlignment = Alignment.Center) {
-                        if (vm.newsList.isNotEmpty()) { BadgedBox(badge = { Badge(containerColor = MaterialTheme.colorScheme.primary, contentColor = Color.White) { Text("${vm.newsList.size}") } }) { Icon(Icons.Outlined.Notifications, contentDescription = stringResource(R.string.desc_announcements), tint = MaterialTheme.colorScheme.onSurface) } } else { Icon(Icons.Outlined.Notifications, contentDescription = stringResource(R.string.desc_announcements), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        if (vm.newsList.isNotEmpty()) {
+                            BadgedBox(badge = { Badge(containerColor = MaterialTheme.colorScheme.primary, contentColor = Color.White) { Text("${vm.newsList.size}") } }) {
+                                Icon(Icons.Outlined.Notifications, contentDescription = stringResource(R.string.desc_announcements), tint = MaterialTheme.colorScheme.onSurface)
+                            }
+                        } else {
+                            Icon(Icons.Outlined.Notifications, contentDescription = stringResource(R.string.desc_announcements), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
             }
@@ -50,7 +69,8 @@ fun HomeScreen(vm: MainViewModel) {
             val streamLabel = stringResource(R.string.stream)
             val activeSemesterNum = profile?.active_semester?.toString() ?: "-"
             val streamText = vm.determinedStream?.let { "$streamLabel $it" }
-            val rawGroupNum = vm.determinedGroup; val rawAvnName = profile?.studentMovement?.avn_group_name
+            val rawGroupNum = vm.determinedGroup
+            val rawAvnName = profile?.studentMovement?.avn_group_name
             val displayGroupValue = rawGroupNum?.toString() ?: rawAvnName ?: "-"
             val groupSecondaryText = if (rawGroupNum != null && rawAvnName != null && rawAvnName != rawGroupNum.toString() && rawAvnName != "0") rawAvnName else null
 

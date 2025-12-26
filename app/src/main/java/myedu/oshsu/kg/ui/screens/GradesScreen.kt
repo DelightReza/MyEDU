@@ -4,7 +4,6 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,8 +28,7 @@ import myedu.oshsu.kg.MainViewModel
 import myedu.oshsu.kg.R
 import myedu.oshsu.kg.SortOption
 import myedu.oshsu.kg.ui.components.OshSuLogo
-import myedu.oshsu.kg.ui.theme.GlassWhite
-import myedu.oshsu.kg.ui.theme.MilkyGlass
+import myedu.oshsu.kg.ui.components.ScoreColumn
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -138,14 +136,8 @@ fun FloatingGradeHeader(
     session: List<myedu.oshsu.kg.SessionResponse>, 
     modifier: Modifier = Modifier
 ) {
-    val containerColor = when(vm.themeMode) { 
-        "AQUA" -> MilkyGlass 
-        "GLASS" -> Color(0xFF0F2027).copy(alpha = 0.85f) 
-        else -> MaterialTheme.colorScheme.surfaceContainerHigh
-    }
-    
-    val border = if (vm.isGlass) BorderStroke(1.dp, if(vm.themeMode == "AQUA") Color.White.copy(0.5f) else GlassWhite) else null
-    val elevation = if (vm.isGlass) 0.dp else 4.dp
+    val containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+    val elevation = 4.dp
     val activeSemId = vm.profileData?.active_semester
     val sortedSession = remember(session, activeSemId) {
         session.sortedWith(compareByDescending<myedu.oshsu.kg.SessionResponse> { 
@@ -172,7 +164,6 @@ fun FloatingGradeHeader(
         modifier = modifier.wrapContentHeight().fillMaxWidth().widthIn(max = 600.dp),
         shape = RoundedCornerShape(24.dp),
         color = containerColor,
-        border = border,
         shadowElevation = elevation
     ) {
         Column(
@@ -261,24 +252,9 @@ fun GradeItemCard(
         } catch (e: Exception) { false }
     }
 
-    // --- CARD STYLE MATCHING SCREENSHOT ---
-    val containerColor = when(themeMode) {
-        "GLASS" -> Color(0xFF1E1E1E).copy(alpha = 0.7f) 
-        "AQUA" -> Color(0xFFF1F8E9) // Very light mint/white
-        else -> MaterialTheme.colorScheme.surfaceContainer
-    }
-    
-    val textColor = when(themeMode) {
-        "GLASS" -> Color.White
-        "AQUA" -> Color(0xFF004D40) 
-        else -> MaterialTheme.colorScheme.onSurface
-    }
-    
-    val dividerColor = when(themeMode) {
-        "GLASS" -> Color.White.copy(alpha = 0.2f)
-        "AQUA" -> Color(0xFF004D40).copy(alpha = 0.1f)
-        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-    }
+    val containerColor = MaterialTheme.colorScheme.surfaceContainer
+    val textColor = MaterialTheme.colorScheme.onSurface
+    val dividerColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
 
     Card(
         modifier = Modifier
@@ -287,11 +263,9 @@ fun GradeItemCard(
             .animateContentSize(spring(stiffness = Spring.StiffnessLow)),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp), 
-        border = if (themeMode == "GLASS" || themeMode == "AQUA") BorderStroke(1.dp, dividerColor) else null
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(Modifier.padding(16.dp)) {
-            // Subject Name
             Text(
                 text = subjectName,
                 style = MaterialTheme.typography.titleMedium,
@@ -307,22 +281,20 @@ fun GradeItemCard(
                 thickness = 1.dp
             )
 
-            // Scores Grid
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                ScoreItem(stringResource(R.string.m1), p1, themeMode)
-                ScoreItem(stringResource(R.string.m2), p2, themeMode)
-                ScoreItem(stringResource(R.string.exam_short), exam, themeMode)
+                ScoreColumn(stringResource(R.string.m1), p1)
+                ScoreColumn(stringResource(R.string.m2), p2)
+                ScoreColumn(stringResource(R.string.exam_short), exam)
 
-                // Total Column (Bigger)
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = stringResource(R.string.total_short),
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (themeMode == "GLASS" || themeMode == "AQUA") textColor.copy(alpha=0.7f) else MaterialTheme.colorScheme.outline
+                        color = MaterialTheme.colorScheme.outline
                     )
                     Text(
                         text = "${total?.toInt() ?: 0}",
@@ -335,7 +307,6 @@ fun GradeItemCard(
 
             Spacer(Modifier.height(12.dp))
 
-            // Footer
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -354,7 +325,7 @@ fun GradeItemCard(
                     }
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        val inactiveColor = if (themeMode == "GLASS" || themeMode == "AQUA") textColor.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outline
+                        val inactiveColor = MaterialTheme.colorScheme.outline
                         Icon(Icons.Outlined.EventBusy, null, tint = inactiveColor, modifier = Modifier.size(14.dp))
                         Spacer(Modifier.width(4.dp))
                         Text(
@@ -369,39 +340,12 @@ fun GradeItemCard(
                     Text(
                         text = "${formatDateFull(updatedAt)}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (themeMode == "GLASS" || themeMode == "AQUA") textColor.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outline,
+                        color = MaterialTheme.colorScheme.outline,
                         fontSize = 10.sp
                     )
                 }
             }
         }
-    }
-}
-
-@Composable
-fun ScoreItem(label: String, score: Double?, themeMode: String) {
-    val textColor = when(themeMode) {
-        "GLASS" -> Color.White
-        "AQUA" -> Color(0xFF004D40)
-        else -> MaterialTheme.colorScheme.onSurface
-    }
-    val labelColor = if (themeMode == "GLASS" || themeMode == "AQUA") textColor.copy(alpha=0.7f) else MaterialTheme.colorScheme.outline
-
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = labelColor,
-            modifier = Modifier.padding(bottom = 4.dp),
-            fontSize = 11.sp
-        )
-        // Explicitly handle null as "-" and 0 as "0"
-        Text(
-            text = if (score != null) "${score.toInt()}" else "-",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = textColor
-        )
     }
 }
 

@@ -110,8 +110,6 @@
     <string name="follow_system">Системная</string>
     <string name="light_mode">Светлая</string>
     <string name="dark_mode">Темная</string>
-    <string name="liquid_glass">Жидкое Стекло</string>
-    <string name="aqua_flow">Аква Поток</string>
     <string name="language">Язык</string>
     <string name="docs_download">Скачивание документов</string>
     <string name="in_app_pdf">В приложении (PDF)</string>

@@ -33,17 +33,3 @@ val SecondaryBlueDark = Color(0xFFBFC6DC)
 val OnSecondaryBlueDark = Color(0xFF293041)
 val SecondaryContainerDark = Color(0xFF3F4759)
 val OnSecondaryContainerDark = Color(0xFFDBE2F9)
-
-// --- GLASS THEME (DARK) ---
-val GlassWhite = Color.White.copy(alpha = 0.10f)
-val GlassBorder = Color.White.copy(alpha = 0.20f)
-val TextWhite = Color.White
-
-// --- AQUA THEME (LIGHT GLASS) ---
-val AquaLightStart = Color(0xFFE0F7FA) // Very pale cyan
-val AquaLightEnd = Color(0xFF80DEEA)   // Cyan 200
-
-// Milky Glass (Semi-transparent White)
-val MilkyGlass = Color.White.copy(alpha = 0.65f)
-val MilkyBorder = Color.White.copy(alpha = 0.50f)
-val TextDarkTeal = Color(0xFF004D40)   // Dark Teal for text contrast

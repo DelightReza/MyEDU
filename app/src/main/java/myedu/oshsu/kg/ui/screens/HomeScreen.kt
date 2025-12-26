@@ -32,7 +32,6 @@ fun HomeScreen(vm: MainViewModel) {
     val currentHour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
     val greetingText = remember(currentHour) { if (currentHour in 4..11) R.string.good_morning else if (currentHour in 12..16) R.string.good_afternoon else R.string.good_evening }
     
-    // --- FIX: Use customName if available, otherwise use API name ---
     val displayName = vm.customName ?: user?.name ?: stringResource(R.string.student_default)
 
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
@@ -75,14 +74,14 @@ fun HomeScreen(vm: MainViewModel) {
             val groupSecondaryText = if (rawGroupNum != null && rawAvnName != null && rawAvnName != rawGroupNum.toString() && rawAvnName != "0") rawAvnName else null
 
             Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) { 
-                StatCard(icon = Icons.Outlined.CalendarToday, label = stringResource(R.string.semester), value = activeSemesterNum, secondaryText = streamText, themeMode = vm.themeMode, modifier = Modifier.weight(1f).fillMaxHeight())
-                StatCard(icon = Icons.Outlined.Groups, label = stringResource(R.string.group), value = displayGroupValue, secondaryText = groupSecondaryText, themeMode = vm.themeMode, modifier = Modifier.weight(1f).fillMaxHeight()) 
+                StatCard(icon = Icons.Outlined.CalendarToday, label = stringResource(R.string.semester), value = activeSemesterNum, secondaryText = streamText, modifier = Modifier.weight(1f).fillMaxHeight())
+                StatCard(icon = Icons.Outlined.Groups, label = stringResource(R.string.group), value = displayGroupValue, secondaryText = groupSecondaryText, modifier = Modifier.weight(1f).fillMaxHeight()) 
             }
             Spacer(Modifier.height(32.dp))
             Text("${vm.todayDayName}: ${stringResource(R.string.todays_classes)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(16.dp))
             if (vm.todayClasses.isEmpty()) {
-                ThemedCard(modifier = Modifier.fillMaxWidth(), themeMode = vm.themeMode) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Outlined.Weekend, null, tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(16.dp)); Text(stringResource(R.string.no_classes_today), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface) } } 
+                ThemedCard(modifier = Modifier.fillMaxWidth()) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Outlined.Weekend, null, tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(16.dp)); Text(stringResource(R.string.no_classes_today), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface) } } 
             } else {
                 vm.todayClasses.forEach { item -> ClassItem(item, vm.getTimeString(item.id_lesson), vm) { vm.selectedClass = item } } 
             }
@@ -90,19 +89,18 @@ fun HomeScreen(vm: MainViewModel) {
         }
     }    
     if (showNewsSheet) {
-        val containerColor = if(vm.isGlass) Color(0xFF16213E) else BottomSheetDefaults.ContainerColor
-        ModalBottomSheet(onDismissRequest = { showNewsSheet = false }, containerColor = containerColor) { 
+        ModalBottomSheet(onDismissRequest = { showNewsSheet = false }, containerColor = BottomSheetDefaults.ContainerColor) { 
             Column(Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) { 
                 Text(stringResource(R.string.announcements), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                LazyColumn { items(vm.newsList) { news -> ThemedCard(Modifier.padding(top=8.dp).fillMaxWidth(), themeMode = vm.themeMode, materialColor = MaterialTheme.colorScheme.surfaceVariant) { Column { Text(news.title?:"", fontWeight=FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface); Text(news.message?:"", color = MaterialTheme.colorScheme.onSurfaceVariant) } } } } 
+                LazyColumn { items(vm.newsList) { news -> ThemedCard(Modifier.padding(top=8.dp).fillMaxWidth(), materialColor = MaterialTheme.colorScheme.surfaceVariant) { Column { Text(news.title?:"", fontWeight=FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface); Text(news.message?:"", color = MaterialTheme.colorScheme.onSurfaceVariant) } } } } 
             } 
         } 
     }
 }
 
 @Composable
-fun StatCard(icon: ImageVector, label: String, value: String, secondaryText: String? = null, themeMode: String, modifier: Modifier = Modifier) {
-    ThemedCard(modifier = modifier, themeMode = themeMode) { 
+fun StatCard(icon: ImageVector, label: String, value: String, secondaryText: String? = null, modifier: Modifier = Modifier) {
+    ThemedCard(modifier = modifier) { 
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) { 
                 Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp)); Spacer(Modifier.height(8.dp))

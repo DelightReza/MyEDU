@@ -76,7 +76,6 @@ class MainActivity : ComponentActivity() {
             if (intent.action == DownloadManager.ACTION_DOWNLOAD_COMPLETE) {
                 val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
                 if (mainViewModel != null && id == mainViewModel?.downloadId) {
-                    // Logic is also handled in ViewModel polling, but this ensures system intent works
                     val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
                     val query = DownloadManager.Query().setFilterById(id)
                     var cursor: Cursor? = null
@@ -175,10 +174,8 @@ fun AppContent(vm: MainViewModel) {
         if (vm.isDebugPipVisible) { DebugPipButton(onClick = { vm.isDebugConsoleOpen = true }, modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)) }
         if (vm.isDebugConsoleOpen) { DebugConsoleOverlay(onDismiss = { vm.isDebugConsoleOpen = false }) }
         
-        // --- UPDATE DIALOG ---
         if (vm.updateAvailableRelease != null) {
             val release = vm.updateAvailableRelease!!
-            
             AlertDialog(
                 onDismissRequest = { vm.updateAvailableRelease = null; vm.cancelUpdate(context) },
                 title = { Text(stringResource(R.string.update_available_title), fontWeight = FontWeight.Bold) },
@@ -195,23 +192,14 @@ fun AppContent(vm: MainViewModel) {
                 },
                 confirmButton = { 
                     if (vm.isUpdateReady) {
-                        Button(
-                            onClick = { vm.triggerInstallUpdate(context) }
-                        ) { Text(stringResource(R.string.install_prompt)) }
-                    } else if (vm.isUpdateDownloading) {
-                        // Show nothing here, handled by dismiss button
-                    } else {
-                        Button(
-                            onClick = { vm.downloadUpdate(context) }
-                        ) { Text(stringResource(R.string.update_btn_download)) } 
+                        Button(onClick = { vm.triggerInstallUpdate(context) }) { Text(stringResource(R.string.install_prompt)) }
+                    } else if (vm.isUpdateDownloading) { } else {
+                        Button(onClick = { vm.downloadUpdate(context) }) { Text(stringResource(R.string.update_btn_download)) } 
                     }
                 },
                 dismissButton = { 
-                    if (vm.isUpdateDownloading) {
-                        TextButton(onClick = { vm.cancelUpdate(context) }) { Text(stringResource(R.string.cancel)) }
-                    } else {
-                        TextButton(onClick = { vm.updateAvailableRelease = null }) { Text(stringResource(R.string.update_btn_later)) } 
-                    }
+                    if (vm.isUpdateDownloading) { TextButton(onClick = { vm.cancelUpdate(context) }) { Text(stringResource(R.string.cancel)) }
+                    } else { TextButton(onClick = { vm.updateAvailableRelease = null }) { Text(stringResource(R.string.update_btn_later)) } }
                 }
             )
         }
@@ -238,10 +226,7 @@ fun MainAppStructure(vm: MainViewModel) {
         Box(Modifier.padding(padding).fillMaxSize()) {
             MyEduPullToRefreshBox(isRefreshing = vm.isLoading, onRefresh = { vm.refresh() }) {
                 AnimatedContent(targetState = vm.currentTab, label = "TabContent") { targetTab ->
-                    when(targetTab) { 
-                        0 -> HomeScreen(vm); 1 -> ScheduleScreen(vm); 2 -> GradesScreen(vm); 
-                        3 -> ProfileScreen(vm) 
-                    }
+                    when(targetTab) { 0 -> HomeScreen(vm); 1 -> ScheduleScreen(vm); 2 -> GradesScreen(vm); 3 -> ProfileScreen(vm) }
                 }
             }
             
@@ -252,14 +237,8 @@ fun MainAppStructure(vm: MainViewModel) {
             AnimatedVisibility(visible = vm.showReferenceScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground { ReferenceView(vm) { vm.showReferenceScreen = false; vm.clearPdfState() } } }
             AnimatedVisibility(visible = vm.showSettingsScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground { SettingsScreen(vm) { vm.showSettingsScreen = false } } }
             AnimatedVisibility(visible = vm.showDictionaryScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground { DictionaryScreen(vm) { vm.showDictionaryScreen = false } } }
-
-            AnimatedVisibility(visible = vm.showPersonalInfoScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { 
-                ThemedBackground { PersonalInfoScreen(vm, { vm.showPersonalInfoScreen = false }) } 
-            }
-            
-            AnimatedVisibility(visible = vm.showEditProfileScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { 
-                ThemedBackground { EditProfileScreen(vm, { vm.showEditProfileScreen = false }) } 
-            }
+            AnimatedVisibility(visible = vm.showPersonalInfoScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground { PersonalInfoScreen(vm, { vm.showPersonalInfoScreen = false }) } }
+            AnimatedVisibility(visible = vm.showEditProfileScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground { EditProfileScreen(vm, { vm.showEditProfileScreen = false }) } }
 
             if (vm.webDocumentUrl != null) {
                 val isTranscript = vm.webDocumentUrl!!.contains("Transcript", true)
@@ -267,7 +246,19 @@ fun MainAppStructure(vm: MainViewModel) {
                 val filePrefix = if (isTranscript) stringResource(R.string.transcript_filename) else stringResource(R.string.reference_filename)
                 val cleanName = "${vm.userData?.last_name?:""} ${vm.userData?.name?:""}".trim().replace(" ", "_").replace(".", "")
                 val fileName = "${cleanName}_$filePrefix.pdf"
-                ThemedBackground { WebDocumentScreen(url = vm.webDocumentUrl!!, title = docTitle, fileName = fileName, authToken = vm.getAuthToken(), themeMode = vm.themeMode, onClose = { vm.webDocumentUrl = null }) }
+                
+                ThemedBackground { 
+                    WebDocumentScreen(
+                        url = vm.webDocumentUrl!!, 
+                        title = docTitle, 
+                        fileName = fileName, 
+                        authToken = vm.getAuthToken(),
+                        loginEmail = vm.loginEmail,
+                        loginPass = vm.loginPass,
+                        themeMode = vm.themeMode, 
+                        onClose = { vm.webDocumentUrl = null }
+                    ) 
+                }
             }
             
             if (vm.selectedClass != null) {

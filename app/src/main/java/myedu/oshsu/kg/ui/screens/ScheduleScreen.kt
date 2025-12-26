@@ -32,8 +32,6 @@ import myedu.oshsu.kg.R
 import myedu.oshsu.kg.ScheduleItem
 import myedu.oshsu.kg.ui.components.OshSuLogo
 import myedu.oshsu.kg.ui.components.ThemedCard
-import myedu.oshsu.kg.ui.theme.GlassWhite
-import myedu.oshsu.kg.ui.theme.MilkyGlass
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -72,19 +70,18 @@ fun ScheduleScreen(vm: MainViewModel) {
                 }
             }
             Box(modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp, start = 16.dp, end = 16.dp)) {
-                FloatingDayTabs(tabs = tabs, selectedIndex = pagerState.currentPage, themeMode = vm.themeMode, onTabSelected = { index -> scope.launch { pagerState.animateScrollToPage(index) } })
+                FloatingDayTabs(tabs = tabs, selectedIndex = pagerState.currentPage, onTabSelected = { index -> scope.launch { pagerState.animateScrollToPage(index) } })
             }
         }
     }
 }
 
 @Composable
-fun FloatingDayTabs(tabs: List<String>, selectedIndex: Int, themeMode: String, onTabSelected: (Int) -> Unit) {
-    val containerColor = when(themeMode) { "AQUA" -> MilkyGlass; "GLASS" -> Color(0xFF0F2027).copy(alpha = 0.85f); else -> MaterialTheme.colorScheme.surface }
-    val border = if (themeMode == "GLASS" || themeMode == "AQUA") BorderStroke(1.dp, if(themeMode == "AQUA") Color.White.copy(0.5f) else GlassWhite) else null
-    val elevation = if (themeMode == "GLASS" || themeMode == "AQUA") 0.dp else 4.dp
+fun FloatingDayTabs(tabs: List<String>, selectedIndex: Int, onTabSelected: (Int) -> Unit) {
+    val containerColor = MaterialTheme.colorScheme.surface
+    val elevation = 4.dp
 
-    Surface(modifier = Modifier.height(56.dp).fillMaxWidth().widthIn(max = 600.dp), shape = RoundedCornerShape(28.dp), color = containerColor, border = border, shadowElevation = elevation) {
+    Surface(modifier = Modifier.height(56.dp).fillMaxWidth().widthIn(max = 600.dp), shape = RoundedCornerShape(28.dp), color = containerColor, shadowElevation = elevation) {
         Row(modifier = Modifier.fillMaxSize().padding(4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             tabs.forEachIndexed { index, title ->
                 val isSelected = selectedIndex == index
@@ -113,10 +110,10 @@ fun ClassItem(item: ScheduleItem, timeString: String, vm: MainViewModel, onClick
     } else ""
     val fullTime = if (!timeString.contains(":") && !timeString.contains("-")) stringResource(R.string.pair) + " $timeString" else timeString
 
-    ThemedCard(onClick = onClick, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp), themeMode = vm.themeMode) { 
+    ThemedCard(onClick = onClick, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) { 
         Row(verticalAlignment = Alignment.CenterVertically) { 
-            val timeBg = if (vm.themeMode == "AQUA") Color.White.copy(alpha = 0.5f) else if (vm.themeMode == "GLASS") GlassWhite else MaterialTheme.colorScheme.surfaceContainerHigh
-            val contentColor = if (vm.themeMode == "AQUA") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+            val timeBg = MaterialTheme.colorScheme.surfaceContainerHigh
+            val contentColor = MaterialTheme.colorScheme.onSurface
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(50.dp).background(timeBg, RoundedCornerShape(8.dp)).padding(vertical = 8.dp)) { 
                 Text("${item.id_lesson}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 Text(fullTime.split("-").firstOrNull()?.trim() ?: "", style = MaterialTheme.typography.labelSmall, color = contentColor) 

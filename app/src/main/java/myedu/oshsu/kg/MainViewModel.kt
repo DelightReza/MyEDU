@@ -56,7 +56,6 @@ class MainViewModel : ViewModel() {
 
     // --- THEME ---
     var themeMode by mutableStateOf("SYSTEM")
-    val isGlass: Boolean get() = themeMode == "GLASS" || themeMode == "AQUA"
 
     // --- SETTINGS ---
     var downloadMode by mutableStateOf("IN_APP") 

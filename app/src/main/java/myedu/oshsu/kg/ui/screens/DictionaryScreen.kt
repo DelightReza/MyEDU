@@ -90,7 +90,6 @@ fun DictionaryScreen(vm: MainViewModel, onClose: () -> Unit) {
                         DictionaryItem(
                             original = entry.key,
                             translation = entry.value,
-                            themeMode = vm.themeMode,
                             onEdit = { editingItem = entry.toPair() },
                             onDelete = { itemToDelete = entry.key }
                         )
@@ -158,8 +157,9 @@ fun DictionaryScreen(vm: MainViewModel, onClose: () -> Unit) {
 }
 
 @Composable
-fun DictionaryItem(original: String, translation: String, themeMode: String, onEdit: () -> Unit, onDelete: () -> Unit) {
-    ThemedCard(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), themeMode = themeMode) {
+fun DictionaryItem(original: String, translation: String, themeMode: String = "SYSTEM", onEdit: () -> Unit, onDelete: () -> Unit) {
+    // Fixed: Removed themeMode param from ThemedCard call
+    ThemedCard(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = original, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)

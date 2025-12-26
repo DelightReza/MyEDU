@@ -35,10 +35,6 @@ import myedu.oshsu.kg.MainViewModel
 import myedu.oshsu.kg.R
 import myedu.oshsu.kg.secretDebugTrigger
 import myedu.oshsu.kg.ui.components.*
-import myedu.oshsu.kg.ui.theme.AccentGradient
-import myedu.oshsu.kg.ui.theme.GlassWhite
-import myedu.oshsu.kg.ui.theme.MilkyBorder
-import myedu.oshsu.kg.ui.theme.MilkyGlass
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,8 +84,6 @@ fun ProfileScreen(vm: MainViewModel) {
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .size(128.dp)
-                    .background(AccentGradient, CircleShape)
-                    .padding(3.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surface)
             ) {
@@ -111,7 +105,6 @@ fun ProfileScreen(vm: MainViewModel) {
             Spacer(Modifier.height(24.dp))
 
             // --- ACTION BUTTONS (Personal Info / Edit Profile) ---
-            // CHANGED: Added height(IntrinsicSize.Max) to ensure both buttons are the same height
             Row(
                 modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
                 horizontalArrangement = Arrangement.Center, 
@@ -120,9 +113,7 @@ fun ProfileScreen(vm: MainViewModel) {
                 ProfileActionButton(
                     text = stringResource(R.string.personal),
                     icon = Icons.Default.Person,
-                    themeMode = vm.themeMode,
                     onClick = { vm.showPersonalInfoScreen = true },
-                    // CHANGED: Added fillMaxHeight to expand to the taller sibling
                     modifier = Modifier.weight(1f).fillMaxHeight()
                 )
                 
@@ -131,9 +122,7 @@ fun ProfileScreen(vm: MainViewModel) {
                 ProfileActionButton(
                     text = stringResource(R.string.edit_profile),
                     icon = Icons.Default.Edit,
-                    themeMode = vm.themeMode,
                     onClick = { vm.showEditProfileScreen = true },
-                    // CHANGED: Added fillMaxHeight to expand to the taller sibling
                     modifier = Modifier.weight(1f).fillMaxHeight()
                 )
             }
@@ -141,7 +130,8 @@ fun ProfileScreen(vm: MainViewModel) {
             Spacer(Modifier.height(32.dp))
 
             if (pay != null) {
-                ThemedCard(Modifier.fillMaxWidth(), vm.themeMode) {
+                // Fixed: Removed themeMode
+                ThemedCard(Modifier.fillMaxWidth()) {
                     Column {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(stringResource(R.string.tuition_contract), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface); Icon(Icons.Outlined.Payments, null, tint = MaterialTheme.colorScheme.primary) }
                         Spacer(Modifier.height(12.dp))
@@ -171,71 +161,33 @@ fun ProfileScreen(vm: MainViewModel) {
 fun ProfileActionButton(
     text: String,
     icon: ImageVector,
-    themeMode: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isGlass = themeMode == "GLASS" || themeMode == "AQUA"
     val shape = RoundedCornerShape(16.dp)
-    
-    // CHANGED: Changed from fixed .height(48.dp) to .defaultMinSize(minHeight = 48.dp)
-    // This allows the button to expand vertically if text wraps.
     val sizeModifier = modifier.defaultMinSize(minHeight = 48.dp)
 
-    if (isGlass) {
-        val containerColor = if (themeMode == "AQUA") MilkyGlass else GlassWhite
-        val borderColor = if (themeMode == "AQUA") MilkyBorder else GlassWhite
-        
-        Surface(
-            onClick = onClick,
-            modifier = sizeModifier,
-            shape = shape,
-            color = containerColor,
-            border = BorderStroke(1.dp, borderColor)
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ),
+        shape = shape,
+        modifier = sizeModifier
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxSize() 
         ) {
-            // CHANGED: Added vertical padding to the Row to accommodate multi-line text safely
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 12.dp)
-            ) {
-                Icon(icon, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurface)
-                Spacer(Modifier.width(8.dp))
-                // CHANGED: Added TextAlign.Center and line height for better multi-line appearance
-                Text(
-                    text = text, 
-                    fontWeight = FontWeight.Medium, 
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 16.sp
-                )
-            }
-        }
-    } else {
-        // Standard Material Button
-        Button(
-            onClick = onClick,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                contentColor = MaterialTheme.colorScheme.onSurface
-            ),
-            shape = shape,
-            modifier = sizeModifier
-        ) {
-            // CHANGED: Use Column or centered arrangement for text
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.fillMaxSize() // Ensure content fills button to center it
-            ) {
-                Icon(icon, null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = text,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 16.sp
-                )
-            }
+            Icon(icon, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = text,
+                textAlign = TextAlign.Center,
+                lineHeight = 16.sp
+            )
         }
     }
 }

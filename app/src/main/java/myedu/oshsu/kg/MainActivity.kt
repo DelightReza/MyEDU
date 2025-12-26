@@ -60,8 +60,6 @@ import androidx.work.WorkManager
 import myedu.oshsu.kg.ui.components.MyEduPullToRefreshBox
 import myedu.oshsu.kg.ui.components.ThemedBackground
 import myedu.oshsu.kg.ui.screens.*
-import myedu.oshsu.kg.ui.theme.GlassWhite
-import myedu.oshsu.kg.ui.theme.MilkyGlass
 import myedu.oshsu.kg.ui.theme.MyEduTheme
 import java.io.File
 import java.util.Locale
@@ -139,7 +137,7 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(vm.fullSchedule, vm.timeMap, vm.language) { 
                 if (vm.fullSchedule.isNotEmpty() && vm.timeMap.isNotEmpty()) { ScheduleAlarmManager(context).scheduleNotifications(vm.fullSchedule, vm.timeMap, vm.language) } 
             }
-            MyEduTheme(themeMode = vm.themeMode) { ThemedBackground(themeMode = vm.themeMode) { AppContent(vm) } } 
+            MyEduTheme(themeMode = vm.themeMode) { ThemedBackground { AppContent(vm) } } 
         }
     }
 
@@ -180,13 +178,8 @@ fun AppContent(vm: MainViewModel) {
         // --- UPDATE DIALOG ---
         if (vm.updateAvailableRelease != null) {
             val release = vm.updateAvailableRelease!!
-            val containerColor = when(vm.themeMode) { "GLASS" -> Color(0xFF232323); "AQUA" -> Color(0xFFE0F2F1); else -> AlertDialogDefaults.containerColor }
-            val contentColor = when(vm.themeMode) { "GLASS" -> Color.White; "AQUA" -> Color(0xFF004D40); else -> AlertDialogDefaults.textContentColor }
-
+            
             AlertDialog(
-                containerColor = containerColor,
-                titleContentColor = contentColor,
-                textContentColor = contentColor,
                 onDismissRequest = { vm.updateAvailableRelease = null; vm.cancelUpdate(context) },
                 title = { Text(stringResource(R.string.update_available_title), fontWeight = FontWeight.Bold) },
                 text = { 
@@ -196,30 +189,28 @@ fun AppContent(vm: MainViewModel) {
                             Spacer(Modifier.height(16.dp))
                             LinearProgressIndicator(progress = vm.updateProgress, modifier = Modifier.fillMaxWidth())
                             Spacer(Modifier.height(4.dp))
-                            Text("${(vm.updateProgress * 100).toInt()}%", style = MaterialTheme.typography.bodySmall, color = contentColor)
+                            Text("${(vm.updateProgress * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 },
                 confirmButton = { 
                     if (vm.isUpdateReady) {
                         Button(
-                            onClick = { vm.triggerInstallUpdate(context) },
-                            colors = ButtonDefaults.buttonColors(containerColor = if(vm.themeMode == "AQUA") Color(0xFF00796B) else MaterialTheme.colorScheme.primary)
+                            onClick = { vm.triggerInstallUpdate(context) }
                         ) { Text(stringResource(R.string.install_prompt)) }
                     } else if (vm.isUpdateDownloading) {
                         // Show nothing here, handled by dismiss button
                     } else {
                         Button(
-                            onClick = { vm.downloadUpdate(context) },
-                            colors = ButtonDefaults.buttonColors(containerColor = if(vm.themeMode == "AQUA") Color(0xFF00796B) else MaterialTheme.colorScheme.primary)
+                            onClick = { vm.downloadUpdate(context) }
                         ) { Text(stringResource(R.string.update_btn_download)) } 
                     }
                 },
                 dismissButton = { 
                     if (vm.isUpdateDownloading) {
-                        TextButton(onClick = { vm.cancelUpdate(context) }, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text(stringResource(R.string.cancel)) }
+                        TextButton(onClick = { vm.cancelUpdate(context) }) { Text(stringResource(R.string.cancel)) }
                     } else {
-                        TextButton(onClick = { vm.updateAvailableRelease = null }, colors = ButtonDefaults.textButtonColors(contentColor = contentColor)) { Text(stringResource(R.string.update_btn_later)) } 
+                        TextButton(onClick = { vm.updateAvailableRelease = null }) { Text(stringResource(R.string.update_btn_later)) } 
                     }
                 }
             )
@@ -245,7 +236,7 @@ fun MainAppStructure(vm: MainViewModel) {
 
     Scaffold(containerColor = Color.Transparent, contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
         Box(Modifier.padding(padding).fillMaxSize()) {
-            MyEduPullToRefreshBox(isRefreshing = vm.isLoading, onRefresh = { vm.refresh() }, themeMode = vm.themeMode) {
+            MyEduPullToRefreshBox(isRefreshing = vm.isLoading, onRefresh = { vm.refresh() }) {
                 AnimatedContent(targetState = vm.currentTab, label = "TabContent") { targetTab ->
                     when(targetTab) { 
                         0 -> HomeScreen(vm); 1 -> ScheduleScreen(vm); 2 -> GradesScreen(vm); 
@@ -257,17 +248,17 @@ fun MainAppStructure(vm: MainViewModel) {
             val showNav = vm.selectedClass == null && !vm.showTranscriptScreen && !vm.showReferenceScreen && !vm.showSettingsScreen && vm.webDocumentUrl == null && !vm.showDictionaryScreen && !vm.showPersonalInfoScreen && !vm.showEditProfileScreen
             AnimatedVisibility(visible = showNav, enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut(), modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp, start = 16.dp, end = 16.dp).windowInsetsPadding(WindowInsets.navigationBars)) { FloatingNavBar(vm) }
             
-            AnimatedVisibility(visible = vm.showTranscriptScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground(themeMode = vm.themeMode) { TranscriptView(vm) { vm.showTranscriptScreen = false; vm.clearPdfState() } } }
-            AnimatedVisibility(visible = vm.showReferenceScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground(themeMode = vm.themeMode) { ReferenceView(vm) { vm.showReferenceScreen = false; vm.clearPdfState() } } }
-            AnimatedVisibility(visible = vm.showSettingsScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground(themeMode = vm.themeMode) { SettingsScreen(vm) { vm.showSettingsScreen = false } } }
-            AnimatedVisibility(visible = vm.showDictionaryScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground(themeMode = vm.themeMode) { DictionaryScreen(vm) { vm.showDictionaryScreen = false } } }
+            AnimatedVisibility(visible = vm.showTranscriptScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground { TranscriptView(vm) { vm.showTranscriptScreen = false; vm.clearPdfState() } } }
+            AnimatedVisibility(visible = vm.showReferenceScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground { ReferenceView(vm) { vm.showReferenceScreen = false; vm.clearPdfState() } } }
+            AnimatedVisibility(visible = vm.showSettingsScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground { SettingsScreen(vm) { vm.showSettingsScreen = false } } }
+            AnimatedVisibility(visible = vm.showDictionaryScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground { DictionaryScreen(vm) { vm.showDictionaryScreen = false } } }
 
             AnimatedVisibility(visible = vm.showPersonalInfoScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { 
-                ThemedBackground(themeMode = vm.themeMode) { PersonalInfoScreen(vm, { vm.showPersonalInfoScreen = false }) } 
+                ThemedBackground { PersonalInfoScreen(vm, { vm.showPersonalInfoScreen = false }) } 
             }
             
             AnimatedVisibility(visible = vm.showEditProfileScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { 
-                ThemedBackground(themeMode = vm.themeMode) { EditProfileScreen(vm, { vm.showEditProfileScreen = false }) } 
+                ThemedBackground { EditProfileScreen(vm, { vm.showEditProfileScreen = false }) } 
             }
 
             if (vm.webDocumentUrl != null) {
@@ -276,13 +267,12 @@ fun MainAppStructure(vm: MainViewModel) {
                 val filePrefix = if (isTranscript) stringResource(R.string.transcript_filename) else stringResource(R.string.reference_filename)
                 val cleanName = "${vm.userData?.last_name?:""} ${vm.userData?.name?:""}".trim().replace(" ", "_").replace(".", "")
                 val fileName = "${cleanName}_$filePrefix.pdf"
-                ThemedBackground(themeMode = vm.themeMode) { WebDocumentScreen(url = vm.webDocumentUrl!!, title = docTitle, fileName = fileName, authToken = vm.getAuthToken(), themeMode = vm.themeMode, onClose = { vm.webDocumentUrl = null }) }
+                ThemedBackground { WebDocumentScreen(url = vm.webDocumentUrl!!, title = docTitle, fileName = fileName, authToken = vm.getAuthToken(), themeMode = vm.themeMode, onClose = { vm.webDocumentUrl = null }) }
             }
             
             if (vm.selectedClass != null) {
                 val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-                val sheetColor = if (vm.themeMode == "AQUA") MilkyGlass else if(vm.isGlass) Color(0xFF0F2027) else MaterialTheme.colorScheme.surface
-                ModalBottomSheet(onDismissRequest = { vm.selectedClass = null }, sheetState = sheetState, containerColor = sheetColor, contentColor = MaterialTheme.colorScheme.onSurface, dragHandle = { BottomSheetDefaults.DragHandle(color = MaterialTheme.colorScheme.onSurfaceVariant) }, windowInsets = WindowInsets.statusBars) { vm.selectedClass?.let { ClassDetailsSheet(vm, it) } }
+                ModalBottomSheet(onDismissRequest = { vm.selectedClass = null }, sheetState = sheetState, containerColor = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurface, dragHandle = { BottomSheetDefaults.DragHandle(color = MaterialTheme.colorScheme.onSurfaceVariant) }, windowInsets = WindowInsets.statusBars) { vm.selectedClass?.let { ClassDetailsSheet(vm, it) } }
             }
         }
     }
@@ -290,9 +280,9 @@ fun MainAppStructure(vm: MainViewModel) {
 
 @Composable
 fun FloatingNavBar(vm: MainViewModel) {
-    val containerColor = when(vm.themeMode) { "AQUA" -> MilkyGlass; "GLASS" -> Color(0xFF0F2027).copy(alpha = 0.90f); else -> MaterialTheme.colorScheme.surfaceContainer }
-    val border = if (vm.isGlass) BorderStroke(1.dp, if(vm.themeMode == "AQUA") Color.White.copy(0.5f) else GlassWhite) else null
-    val elevation = if (vm.isGlass) 0.dp else 4.dp
+    val containerColor = MaterialTheme.colorScheme.surface
+    val border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+    val elevation = 4.dp
     Surface(modifier = Modifier.height(72.dp).widthIn(max = 400.dp).fillMaxWidth(), shape = RoundedCornerShape(36.dp), color = containerColor, border = border, shadowElevation = elevation) {
         Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.CenterVertically) {
             FloatingNavItem(vm, 0, Icons.Default.Home, stringResource(R.string.nav_home))

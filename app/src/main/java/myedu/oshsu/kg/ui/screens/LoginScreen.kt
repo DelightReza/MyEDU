@@ -13,6 +13,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import myedu.oshsu.kg.DebugLogger
 import myedu.oshsu.kg.MainActivity
@@ -57,14 +58,20 @@ fun LoginScreen(vm: MainViewModel) {
                 }
                 if (vm.errorMsg != null) { Spacer(Modifier.height(16.dp)); Text(vm.errorMsg!!, color = MaterialTheme.colorScheme.error) }
                 Spacer(Modifier.height(32.dp))
+                
+                // CHANGED: Use defaultMinSize for flexible button height
                 Button(
                     onClick = { vm.login(vm.loginEmail, vm.loginPass) }, 
-                    modifier = Modifier.fillMaxWidth().height(56.dp), 
+                    modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 56.dp), 
                     enabled = !vm.isLoading, 
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
                 ) { 
-                    if (vm.isLoading) CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary) else Text(stringResource(R.string.sign_in), fontWeight = FontWeight.Bold) 
+                    if (vm.isLoading) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
+                    } else {
+                        Text(stringResource(R.string.sign_in), fontWeight = FontWeight.Bold, textAlign = TextAlign.Center) 
+                    }
                 }
             }
         }

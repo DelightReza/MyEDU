@@ -32,7 +32,7 @@ import myedu.oshsu.kg.MainViewModel
 import myedu.oshsu.kg.R
 import myedu.oshsu.kg.ScheduleItem
 import myedu.oshsu.kg.ui.components.OshSuLogo
-import myedu.oshsu.kg.ui.components.ScoreColumn // Added Import
+import myedu.oshsu.kg.ui.components.ScoreColumn 
 import myedu.oshsu.kg.ui.components.ThemedCard
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -170,7 +170,12 @@ fun FloatingPdfBar(vm: MainViewModel, onGenerateRu: () -> Unit, onGenerateEn: ()
     val elevation = 12.dp
 
     Surface(
-        modifier = Modifier.padding(bottom = 24.dp, start = 16.dp, end = 16.dp).height(72.dp).widthIn(max = 400.dp).fillMaxWidth(),
+        // CHANGED: Use defaultMinSize for flexible height
+        modifier = Modifier
+            .padding(bottom = 24.dp, start = 16.dp, end = 16.dp)
+            .defaultMinSize(minHeight = 72.dp)
+            .widthIn(max = 400.dp)
+            .fillMaxWidth(),
         shape = RoundedCornerShape(36.dp),
         color = containerColor,
         shadowElevation = elevation
@@ -186,8 +191,12 @@ fun FloatingPdfBar(vm: MainViewModel, onGenerateRu: () -> Unit, onGenerateEn: ()
         ) { state ->
             when (state) {
                 "SUCCESS" -> {
+                    // CHANGED: Use IntrinsicSize.Max for symmetric expansion
                     Row(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp)
+                            .height(IntrinsicSize.Max),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
@@ -199,18 +208,24 @@ fun FloatingPdfBar(vm: MainViewModel, onGenerateRu: () -> Unit, onGenerateEn: ()
                                 } catch (e: Exception) { Toast.makeText(context, context.getString(R.string.error_no_pdf_viewer), Toast.LENGTH_SHORT).show() }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                            modifier = Modifier.weight(1f).height(48.dp)
-                        ) { Text(stringResource(R.string.open)) }
+                            // CHANGED: Use weight and fillMaxHeight
+                            modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp).fillMaxHeight()
+                        ) { Text(stringResource(R.string.open), textAlign = TextAlign.Center) }
+                        
                         Spacer(Modifier.width(12.dp))
+                        
                         IconButton(
                             onClick = { vm.clearPdfState() },
-                            colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                            modifier = Modifier.fillMaxHeight()
                         ) { Icon(Icons.Default.Close, contentDescription = stringResource(R.string.desc_close)) }
                     }
                 }
                 "LOADING" -> {
                     Row(
-                        modifier = Modifier.fillMaxSize().padding(start = 24.dp, end = 8.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(vertical = 16.dp, horizontal = 24.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
@@ -223,14 +238,37 @@ fun FloatingPdfBar(vm: MainViewModel, onGenerateRu: () -> Unit, onGenerateEn: ()
                     }
                 }
                 else -> {
+                    // CHANGED: Use IntrinsicSize.Max for symmetric expansion
                     Row(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(8.dp)
+                            .height(IntrinsicSize.Max),
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         val buttonColors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)
-                        Button(onClick = onGenerateRu, colors = buttonColors, modifier = Modifier.weight(1f).padding(horizontal = 4.dp).height(48.dp)) { Icon(Icons.Default.Download, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.pdf_ru)) }
-                        Button(onClick = onGenerateEn, colors = buttonColors, modifier = Modifier.weight(1f).padding(horizontal = 4.dp).height(48.dp)) { Icon(Icons.Default.Download, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.pdf_en)) }
+                        
+                        // CHANGED: Use weight and fillMaxHeight with center text align
+                        Button(
+                            onClick = onGenerateRu, 
+                            colors = buttonColors, 
+                            modifier = Modifier.weight(1f).padding(horizontal = 4.dp).defaultMinSize(minHeight = 48.dp).fillMaxHeight()
+                        ) { 
+                            Icon(Icons.Default.Download, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.pdf_ru), textAlign = TextAlign.Center) 
+                        }
+                        
+                        Button(
+                            onClick = onGenerateEn, 
+                            colors = buttonColors, 
+                            modifier = Modifier.weight(1f).padding(horizontal = 4.dp).defaultMinSize(minHeight = 48.dp).fillMaxHeight()
+                        ) { 
+                            Icon(Icons.Default.Download, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.pdf_en), textAlign = TextAlign.Center) 
+                        }
                     }
                 }
             }

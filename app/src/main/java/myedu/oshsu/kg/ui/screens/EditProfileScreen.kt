@@ -30,6 +30,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -98,10 +99,23 @@ fun EditProfileScreen(vm: MainViewModel, onClose: () -> Unit) {
                     OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.onboard_display_name)) }, singleLine = true, shape = RoundedCornerShape(50), modifier = Modifier.fillMaxWidth(), colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = MaterialTheme.colorScheme.surface, unfocusedContainerColor = MaterialTheme.colorScheme.surface, focusedBorderColor = MaterialTheme.colorScheme.primary, unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant), trailingIcon = if (showRevertName) { { IconButton(onClick = { name = apiName }) { Icon(Icons.Default.Restore, stringResource(R.string.desc_revert), tint = MaterialTheme.colorScheme.primary) } } } else null)
                 }
                 Spacer(Modifier.height(48.dp))
-                Button(onClick = { vm.saveLocalProfile(name, photoUri); onClose() }, modifier = Modifier.fillMaxWidth().widthIn(max = 400.dp).height(56.dp).graphicsLayer { alpha = uiAlpha; translationY = with(density) { uiTranslationY.toPx() } }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary), shape = RoundedCornerShape(50)) { Text(stringResource(R.string.dict_btn_save), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+                
+                // CHANGED: Use defaultMinSize for flexible button height
+                Button(
+                    onClick = { vm.saveLocalProfile(name, photoUri); onClose() }, 
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 400.dp)
+                        .defaultMinSize(minHeight = 56.dp)
+                        .graphicsLayer { alpha = uiAlpha; translationY = with(density) { uiTranslationY.toPx() } }, 
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary), 
+                    shape = RoundedCornerShape(50)
+                ) { 
+                    Text(stringResource(R.string.dict_btn_save), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center) 
+                }
+                
                 Spacer(Modifier.height(32.dp))
             }
         }
     }
 }
-

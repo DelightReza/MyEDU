@@ -1,7 +1,6 @@
 package myedu.oshsu.kg.ui.screens
 
 import android.widget.Toast
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -130,7 +129,6 @@ fun ProfileScreen(vm: MainViewModel) {
             Spacer(Modifier.height(32.dp))
 
             if (pay != null) {
-                // Fixed: Removed themeMode
                 ThemedCard(Modifier.fillMaxWidth()) {
                     Column {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(stringResource(R.string.tuition_contract), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface); Icon(Icons.Outlined.Payments, null, tint = MaterialTheme.colorScheme.primary) }
@@ -144,10 +142,33 @@ fun ProfileScreen(vm: MainViewModel) {
             }
 
             InfoSection(stringResource(R.string.documents), vm.themeMode)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                BeautifulDocButton(text = stringResource(R.string.reference), icon = Icons.Default.Description, themeMode = vm.themeMode, modifier = Modifier.weight(1f), onClick = { vm.showReferenceScreen = true })
-                BeautifulDocButton(text = stringResource(R.string.transcript), icon = Icons.Default.School, themeMode = vm.themeMode, isLoading = vm.isTranscriptLoading, modifier = Modifier.weight(1f), onClick = { vm.fetchTranscript() })
+            
+            // CHANGED: Use IntrinsicSize.Max to match heights
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Max), 
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                BeautifulDocButton(
+                    text = stringResource(R.string.reference), 
+                    icon = Icons.Default.Description, 
+                    themeMode = vm.themeMode, 
+                    // CHANGED: Use fillMaxHeight
+                    modifier = Modifier.weight(1f).fillMaxHeight(), 
+                    onClick = { vm.showReferenceScreen = true }
+                )
+                BeautifulDocButton(
+                    text = stringResource(R.string.transcript), 
+                    icon = Icons.Default.School, 
+                    themeMode = vm.themeMode, 
+                    isLoading = vm.isTranscriptLoading, 
+                    // CHANGED: Use fillMaxHeight
+                    modifier = Modifier.weight(1f).fillMaxHeight(), 
+                    onClick = { vm.fetchTranscript() }
+                )
             }
+            
             Spacer(Modifier.height(24.dp)); InfoSection(stringResource(R.string.academic), vm.themeMode)
             DetailCard(Icons.Outlined.School, stringResource(R.string.faculty), facultyName, vm.themeMode); DetailCard(Icons.Outlined.Book, stringResource(R.string.speciality), specialityName, vm.themeMode)
             Spacer(Modifier.height(24.dp)); InfoSection(stringResource(R.string.personal), vm.themeMode)

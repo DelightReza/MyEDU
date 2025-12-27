@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.ImageLoader
 import coil.compose.AsyncImage
@@ -80,7 +81,6 @@ fun MyEduPullToRefreshBox(
 @Composable
 fun ThemedCard(
     modifier: Modifier = Modifier,
-    // Removed themeMode parameter entirely to prevent errors
     onClick: (() -> Unit)? = null,
     materialColor: Color = MaterialTheme.colorScheme.surfaceContainer,
     content: @Composable ColumnScope.() -> Unit
@@ -126,7 +126,8 @@ fun BeautifulDocButton(
 ) {
     Button(
         onClick = onClick,
-        modifier = modifier.height(56.dp),
+        // CHANGED: Use defaultMinSize to allow vertical expansion
+        modifier = modifier.defaultMinSize(minHeight = 56.dp),
         enabled = !isLoading,
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(
@@ -141,9 +142,11 @@ fun BeautifulDocButton(
                 strokeWidth = 2.dp
             )
         } else {
+            // CHANGED: Fill max size to center content
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxSize()
             ) {
                 Icon(
                     icon,
@@ -152,11 +155,13 @@ fun BeautifulDocButton(
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(Modifier.width(8.dp))
+                // CHANGED: Center text alignment
                 Text(
                     text,
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    textAlign = TextAlign.Center
                 )
             }
         }
@@ -250,7 +255,6 @@ fun SettingsDropdown(
     Column {
         InfoSection(label, themeMode)
         
-        // Use Box with onSizeChanged to effectively behave like a "Full Drop-Down Card"
         Box(
             modifier = Modifier
                 .fillMaxWidth()

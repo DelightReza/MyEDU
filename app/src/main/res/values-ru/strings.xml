@@ -66,15 +66,8 @@
     <string name="map">Карта</string>
     <string name="no_map_app">Приложение карт не найдено</string>
 
-    <string name="current_session">Текущая сессия</string>
     <string name="semester_not_found">Данные семестра не найдены</string>
-    <string name="label_active">Активен: %s</string>
-    <string name="label_updated">Обновлено: %s</string>
     <string name="status_not_active">Не активен</string>
-    <string name="status_active">Активен</string>
-    <string name="status_updated">Обновлено</string>
-    <string name="semesters_label">Семестры</string>
-    <string name="sort_label">Сортировка</string>
     <string name="sort_default">По умолчанию</string>
     <string name="sort_az">А-Я</string>
     <string name="sort_date">По дате</string>
@@ -99,11 +92,7 @@
     <string name="phone">Телефон</string>
     <string name="log_out">Выйти</string>
     <string name="edit_profile">Редактировать профиль</string>
-    <string name="onboard_add_photo">Добавить фото</string>
-    <string name="onboard_change_photo">Изменить фото</string>
     <string name="onboard_display_name">Отображаемое имя</string>
-    <string name="male">Мужской</string>
-    <string name="female">Женский</string>
 
     <string name="settings">Настройки</string>
     <string name="appearance">Оформление</string>
@@ -182,10 +171,7 @@
     <string name="error_transcript_js_missing">Скрипт транскрипта не найден</string>
     <string name="error_ref_script_missing">Скрипт справки не найден</string>
     <string name="error_js_logic">Ошибка JS логики: %s</string>
-    <string name="debug_console_title">КОНСОЛЬ ОТЛАДКИ</string>
     <string name="desc_close">Закрыть</string>
-    <string name="desc_clear">Очистить</string>
-    <string name="desc_copy">Копировать</string>
     <string name="desc_logo">Логотип ОшГУ</string>
 
     <string name="notif_new_grades_title">Доступны новые оценки</string>
@@ -201,6 +187,8 @@
     <string name="class_default">Занятие</string>
     
     <string name="notif_portal_opened">Портал открыт: %1$s</string>
+    <string name="notif_portal_opened_title">Портал открыт</string>
+    <string name="notif_portal_opened_multiple">%d порталов открыто</string>
 
     <string name="update_available_title">Доступно обновление</string>
     <string name="update_available_msg">Доступна новая версия (%1$s).\n\n%2$s</string>
@@ -208,7 +196,6 @@
     <string name="update_btn_later">Позже</string>
     <string name="update_notif_title">Обновление MyEDU</string>
     <string name="update_notif_desc">Скачивание версии %1$s</string>
-    <string name="update_status_downloading">Скачивание %1$s...</string>
     <string name="update_error_download">Ошибка скачивания: %1$s</string>
     <string name="install_prompt">Установить обновление</string>
 
@@ -275,7 +262,6 @@
     
     <string name="personal_military_service">Воинский учет</string>
     <string name="personal_service">Служба</string>
-    <string name="personal_rank">Звание</string>
     <string name="personal_serial">Серийный №</string>
     <string name="personal_date">Дата</string>
     

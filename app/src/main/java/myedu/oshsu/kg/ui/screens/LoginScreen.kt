@@ -59,7 +59,6 @@ fun LoginScreen(vm: MainViewModel) {
                 if (vm.errorMsg != null) { Spacer(Modifier.height(16.dp)); Text(vm.errorMsg!!, color = MaterialTheme.colorScheme.error) }
                 Spacer(Modifier.height(32.dp))
                 
-                // CHANGED: Use defaultMinSize for flexible button height
                 Button(
                     onClick = { vm.login(vm.loginEmail, vm.loginPass) }, 
                     modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 56.dp), 

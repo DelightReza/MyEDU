@@ -467,9 +467,12 @@ class MainViewModel : ViewModel() {
         viewModelScope.launch {
             isLoading = true; errorMsg = null; NetworkClient.cookieJar.clear(); NetworkClient.interceptor.authToken = null
             
+            // Normalize email to ensure it has @oshsu.kg domain
+            val normalizedEmail = EmailHelper.normalizeEmail(email)
+            
             if (rememberMe) {
                 prefs?.saveData("pref_remember_me", true)
-                prefs?.saveData("pref_saved_email", email)
+                prefs?.saveData("pref_saved_email", normalizedEmail)
                 prefs?.saveData("pref_saved_pass", pass)
             } else {
                 prefs?.saveData("pref_remember_me", false)
@@ -478,7 +481,7 @@ class MainViewModel : ViewModel() {
             }
 
             try {
-                val resp = withContext(Dispatchers.IO) { NetworkClient.api.login(LoginRequest(email.trim(), pass.trim())) }
+                val resp = withContext(Dispatchers.IO) { NetworkClient.api.login(LoginRequest(normalizedEmail.trim(), pass.trim())) }
                 val token = resp.authorisation?.token
                 if (token != null) {
                     prefs?.saveToken(token)
@@ -568,7 +571,7 @@ class MainViewModel : ViewModel() {
         val mov = profile.studentMovement ?: return
         try {
             val years = NetworkClient.api.getYears()
-            val activeYearId = years.find { it.active }?.id ?: 25
+            val activeYearId = years.find { it.active }?.id ?: AcademicYearHelper.getDefaultActiveYearId()
             val times = try { NetworkClient.api.getLessonTimes(mov.id_speciality!!, mov.id_edu_form!!, activeYearId) } catch (e: Exception) { emptyList() }
             val wrappers = NetworkClient.api.getSchedule(mov.id_speciality!!, mov.id_edu_form!!, activeYearId, profile.active_semester ?: 1)
             withContext(Dispatchers.Main) {
@@ -616,7 +619,19 @@ class MainViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 withContext(Dispatchers.Main) { isGradesLoading = true }
+                val oldSession = prefs?.loadList<SessionResponse>("session_list") ?: emptyList()
                 val session = NetworkClient.api.getSession(profile.active_semester ?: 1)
+                
+                // Check for updates and send notifications
+                val currentContext = appContext
+                val currentPrefs = prefs
+                if (oldSession.isNotEmpty() && session.isNotEmpty() && currentContext != null && currentPrefs != null) {
+                    val localizedContext = NotificationHelper.getLocalizedContext(currentContext, currentPrefs)
+                    val (gradeUpdates, portalUpdates) = NotificationHelper.checkForUpdates(oldSession, session, localizedContext)
+                    if (gradeUpdates.isNotEmpty()) NotificationHelper.sendNotification(localizedContext, gradeUpdates, isPortalOpening = false)
+                    if (portalUpdates.isNotEmpty()) NotificationHelper.sendNotification(localizedContext, portalUpdates, isPortalOpening = true)
+                }
+                
                 withContext(Dispatchers.Main) { sessionData = session; prefs?.saveList("session_list", session) }
             } catch (_: Exception) {} finally { withContext(Dispatchers.Main) { isGradesLoading = false } }
         }

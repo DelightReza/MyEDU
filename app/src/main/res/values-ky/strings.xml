@@ -66,15 +66,8 @@
     <string name="map">Карта</string>
     <string name="no_map_app">Карта тиркемеси табылган жок</string>
 
-    <string name="current_session">Учурдагы сессия</string>
     <string name="semester_not_found">Семестр маалыматы табылган жок</string>
-    <string name="label_active">Активдүү: %s</string>
-    <string name="label_updated">Жаңыртылды: %s</string>
     <string name="status_not_active">Активдүү эмес</string>
-    <string name="status_active">Активдүү</string>
-    <string name="status_updated">Жаңыртылган</string>
-    <string name="semesters_label">Семестрлер</string>
-    <string name="sort_label">Сорттоо</string>
     <string name="sort_default">Жарыялангандай</string>
     <string name="sort_az">А-Я</string>
     <string name="sort_date">Дата</string>
@@ -99,11 +92,7 @@
     <string name="phone">Телефон</string>
     <string name="log_out">Чыгуу</string>
     <string name="edit_profile">Профилди оңдоо</string>
-    <string name="onboard_add_photo">Сүрөт кошуу</string>
-    <string name="onboard_change_photo">Сүрөт өзгөртүү</string>
     <string name="onboard_display_name">Көрүнүүчү аты</string>
-    <string name="male">Эркек</string>
-    <string name="female">Аял</string>
 
     <string name="settings">Орнотуулар</string>
     <string name="appearance">Көрүнүш</string>
@@ -182,10 +171,7 @@
     <string name="error_transcript_js_missing">Транскрипт скрипти табылган жок</string>
     <string name="error_ref_script_missing">Маалымкат скрипти табылган жок</string>
     <string name="error_js_logic">JS Логика катасы: %s</string>
-    <string name="debug_console_title">ОҢДОО КОНСОЛУ</string>
     <string name="desc_close">Жабуу</string>
-    <string name="desc_clear">Тазалоо</string>
-    <string name="desc_copy">Көчүрүү</string>
     <string name="desc_logo">ОшМУ Логотиби</string>
 
     <string name="notif_new_grades_title">Жаңы баалар бар</string>
@@ -201,6 +187,8 @@
     <string name="class_default">Сабак</string>
 
     <string name="notif_portal_opened">Портал ачылды: %1$s</string>
+    <string name="notif_portal_opened_title">Портал ачылды</string>
+    <string name="notif_portal_opened_multiple">%d порталдар ачылды</string>
 
     <string name="update_available_title">Жаңыртуу жеткиликтүү</string>
     <string name="update_available_msg">Жаңы версия (%1$s) жеткиликтүү.\n\n%2$s</string>
@@ -208,7 +196,6 @@
     <string name="update_btn_later">Кийинчерээк</string>
     <string name="update_notif_title">MyEDU Жаңыртуусу</string>
     <string name="update_notif_desc">%1$s версиясы жүктөлүүдө</string>
-    <string name="update_status_downloading">Жүктөлүүдө %1$s...</string>
     <string name="update_error_download">Жүктөө катасы: %1$s</string>
     <string name="install_prompt">Жаңыртууну орнотуу</string>
 
@@ -275,7 +262,6 @@
     
     <string name="personal_military_service">Аскердик каттоо</string>
     <string name="personal_service">Кызмат</string>
-    <string name="personal_rank">Наам</string>
     <string name="personal_serial">Сериялык №</string>
     <string name="personal_date">Дата</string>
     

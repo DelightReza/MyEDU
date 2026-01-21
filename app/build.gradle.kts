@@ -11,8 +11,8 @@ android {
         applicationId = "myedu.oshsu.kg"
         minSdk = 24
         targetSdk = 34
-        versionCode = 180
-        versionName = "1.8"
+        versionCode = 190
+        versionName = "1.9"
     }
 
     signingConfigs {
@@ -57,6 +57,7 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material")
     implementation("androidx.compose.material:material-icons-extended")
     
     implementation("androidx.graphics:graphics-shapes:1.0.0-alpha05")

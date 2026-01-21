@@ -100,7 +100,6 @@ fun EditProfileScreen(vm: MainViewModel, onClose: () -> Unit) {
                 }
                 Spacer(Modifier.height(48.dp))
                 
-                // CHANGED: Use defaultMinSize for flexible button height
                 Button(
                     onClick = { vm.saveLocalProfile(name, photoUri); onClose() }, 
                     modifier = Modifier

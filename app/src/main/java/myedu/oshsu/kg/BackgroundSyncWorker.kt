@@ -47,9 +47,10 @@ class BackgroundSyncWorker(appContext: Context, workerParams: WorkerParameters) 
                 val newSession = NetworkClient.api.getSession(activeSemester)
 
                 if (oldSession.isNotEmpty() && newSession.isNotEmpty()) {
-                    val localizedContext = getLocalizedContext(context, prefs)
-                    val updates = checkForUpdates(oldSession, newSession, localizedContext)
-                    if (updates.isNotEmpty()) sendNotification(localizedContext, updates)
+                    val localizedContext = NotificationHelper.getLocalizedContext(context, prefs)
+                    val (gradeUpdates, portalUpdates) = NotificationHelper.checkForUpdates(oldSession, newSession, localizedContext)
+                    if (gradeUpdates.isNotEmpty()) NotificationHelper.sendNotification(localizedContext, gradeUpdates, isPortalOpening = false)
+                    if (portalUpdates.isNotEmpty()) NotificationHelper.sendNotification(localizedContext, portalUpdates, isPortalOpening = true)
                 }
                 prefs.saveList("session_list", newSession)
             } catch (e: Exception) { e.printStackTrace() }
@@ -58,7 +59,7 @@ class BackgroundSyncWorker(appContext: Context, workerParams: WorkerParameters) 
             if (mov != null) {
                 try {
                     val years = NetworkClient.api.getYears()
-                    val activeYearId = years.find { it.active }?.id ?: 25
+                    val activeYearId = years.find { it.active }?.id ?: AcademicYearHelper.getDefaultActiveYearId()
                     val times = try { NetworkClient.api.getLessonTimes(mov.id_speciality!!, mov.id_edu_form!!, activeYearId) } catch (e: Exception) { emptyList() }
                     val wrappers = NetworkClient.api.getSchedule(mov.id_speciality!!, mov.id_edu_form!!, activeYearId, profile.active_semester ?: 1)
                     val fullSchedule = wrappers.flatMap { it.schedule_items ?: emptyList() }.sortedBy { it.id_lesson }
@@ -67,7 +68,7 @@ class BackgroundSyncWorker(appContext: Context, workerParams: WorkerParameters) 
                         prefs.saveList("schedule_list", fullSchedule)
                         if (times.isNotEmpty()) {
                             val timeMap = times.associate { (it.lesson?.num ?: 0) to "${it.begin_time ?: ""} - ${it.end_time ?: ""}" }
-                            val localizedContext = getLocalizedContext(context, prefs)
+                            val localizedContext = NotificationHelper.getLocalizedContext(context, prefs)
                             ScheduleAlarmManager(localizedContext).scheduleNotifications(fullSchedule, timeMap, prefs.loadData("language_pref", String::class.java)?.replace("\"", "") ?: "en")
                         }
                     }
@@ -93,49 +94,5 @@ class BackgroundSyncWorker(appContext: Context, workerParams: WorkerParameters) 
                 true
             } else false
         } catch (e: Exception) { false }
-    }
-
-    private fun getLocalizedContext(context: Context, prefs: PrefsManager): Context {
-        val lang = prefs.loadData("language_pref", String::class.java)?.replace("\"", "") ?: "en"
-        val locale = Locale(lang)
-        Locale.setDefault(locale)
-        val config = Configuration(context.resources.configuration)
-        config.setLocale(locale)
-        return context.createConfigurationContext(config)
-    }
-
-    private fun checkForUpdates(oldList: List<SessionResponse>, newList: List<SessionResponse>, context: Context): List<String> {
-        val updates = ArrayList<String>()
-        val lang = context.resources.configuration.locales.get(0).language
-        val oldMap = oldList.flatMap { it.subjects ?: emptyList() }.associateBy { it.subject?.get(lang) ?: context.getString(R.string.unknown) }
-
-        newList.flatMap { it.subjects ?: emptyList() }.forEach { newWrapper ->
-            val name = newWrapper.subject?.get(lang) ?: return@forEach
-            val oldWrapper = oldMap[name]
-            val oldMarks = oldWrapper?.marklist
-            val newMarks = newWrapper.marklist
-            
-            fun check(label: String, oldVal: Double?, newVal: Double?) {
-                val v2 = newVal ?: 0.0
-                if (v2 > (oldVal ?: 0.0) && v2 > 0) updates.add(context.getString(R.string.notif_grades_msg_single, name, label, v2.toInt()))
-            }
-            if (oldMarks != null && newMarks != null) {
-                check(context.getString(R.string.m1), oldMarks.point1, newMarks.point1)
-                check(context.getString(R.string.m2), oldMarks.point2, newMarks.point2)
-                // FIX: Use finalScore instead of finally
-                check(context.getString(R.string.exam_short), oldMarks.finalScore, newMarks.finalScore)
-            }
-            if (oldWrapper?.graphic == null && newWrapper.graphic != null) updates.add(context.getString(R.string.notif_portal_opened, name))
-        }
-        return updates
-    }
-
-    private fun sendNotification(context: Context, updates: List<String>) {
-        val intent = android.content.Intent(context, NotificationReceiver::class.java).apply {
-            putExtra("TITLE", context.getString(R.string.notif_new_grades_title))
-            putExtra("MESSAGE", if (updates.size > 4) context.getString(R.string.notif_grades_msg_multiple, updates.size) else updates.joinToString("\n"))
-            putExtra("ID", 777)
-        }
-        context.sendBroadcast(intent)
     }
 }

@@ -6,6 +6,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
@@ -61,6 +65,7 @@ fun ThemedBackground(themeMode: String = "SYSTEM", content: @Composable BoxScope
     )
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun MyEduPullToRefreshBox(
     isRefreshing: Boolean,
@@ -68,13 +73,23 @@ fun MyEduPullToRefreshBox(
     themeMode: String = "SYSTEM",
     content: @Composable BoxScope.() -> Unit
 ) {
-    Box(modifier = Modifier.fillMaxSize()) {
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = isRefreshing,
+        onRefresh = onRefresh
+    )
+    
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pullRefresh(pullRefreshState)
+    ) {
         content()
-        if (isRefreshing) {
-            CircularProgressIndicator(
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = 16.dp)
-            )
-        }
+        
+        PullRefreshIndicator(
+            refreshing = isRefreshing,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
     }
 }
 

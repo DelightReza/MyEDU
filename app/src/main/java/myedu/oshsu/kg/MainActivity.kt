@@ -224,7 +224,7 @@ fun MainAppStructure(vm: MainViewModel) {
 
     Scaffold(containerColor = Color.Transparent, contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
         Box(Modifier.padding(padding).fillMaxSize()) {
-            MyEduPullToRefreshBox(isRefreshing = vm.isLoading, onRefresh = { vm.refresh() }) {
+            MyEduPullToRefreshBox(isRefreshing = vm.isRefreshing, onRefresh = { vm.refresh() }) {
                 AnimatedContent(targetState = vm.currentTab, label = "TabContent") { targetTab ->
                     when(targetTab) { 0 -> HomeScreen(vm); 1 -> ScheduleScreen(vm); 2 -> GradesScreen(vm); 3 -> ProfileScreen(vm) }
                 }
@@ -253,7 +253,7 @@ fun MainAppStructure(vm: MainViewModel) {
                         title = docTitle, 
                         fileName = fileName, 
                         authToken = vm.getAuthToken(),
-                        loginEmail = vm.loginEmail,
+                        loginEmail = EmailHelper.normalizeEmail(vm.loginEmail),
                         loginPass = vm.loginPass,
                         themeMode = vm.themeMode, 
                         onClose = { vm.webDocumentUrl = null }

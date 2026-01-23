@@ -93,6 +93,11 @@
     <string name="log_out">Чыгуу</string>
     <string name="edit_profile">Профилди оңдоо</string>
     <string name="onboard_display_name">Көрүнүүчү аты</string>
+    
+    <string name="access_msg_contract">Келишим төлөнгөн эмес</string>
+    <string name="access_msg_insurance">Сактандыруу жок</string>
+    <string name="access_msg_academic">Академиялык карыз: %d</string>
+    <string name="access_msg_library">Китепкана карызы: %d</string>
 
     <string name="settings">Орнотуулар</string>
     <string name="appearance">Көрүнүш</string>
@@ -266,7 +271,7 @@
     <string name="personal_date">Дата</string>
     
     <string name="personal_record_created">Жазуу түзүлгөн</string>
-    <string name="personal_id">Жазуу ID</string>
+    <string name="personal_id">ID</string>
     <string name="personal_student_id">Студент ID</string>
     <string name="personal_user_id">Колд. ID</string>
     <string name="personal_updated">Жаңыртылган</string>
@@ -357,4 +362,3 @@
     <string name="fmt_id_val">ID: %s</string>
     <string name="fmt_name_id">%1$s (ID: %2$s)</string>
 </resources>
-

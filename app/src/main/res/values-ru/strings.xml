@@ -93,6 +93,11 @@
     <string name="log_out">Выйти</string>
     <string name="edit_profile">Редактировать профиль</string>
     <string name="onboard_display_name">Отображаемое имя</string>
+    
+    <string name="access_msg_contract">Контракт не оплачен</string>
+    <string name="access_msg_insurance">Нет страховки</string>
+    <string name="access_msg_academic">Академическая задолженность: %d</string>
+    <string name="access_msg_library">Библиотечная задолженность: %d</string>
 
     <string name="settings">Настройки</string>
     <string name="appearance">Оформление</string>
@@ -357,4 +362,3 @@
     <string name="fmt_id_val">ID: %s</string>
     <string name="fmt_name_id">%1$s (ID: %2$s)</string>
 </resources>
-

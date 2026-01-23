@@ -137,7 +137,72 @@ fun ProfileScreen(vm: MainViewModel) {
                         Spacer(Modifier.height(12.dp))
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Column { Text(stringResource(R.string.paid), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant); Text("${pay.paid_summa?.toInt() ?: 0} ${stringResource(R.string.currency_kgs)}", style = MaterialTheme.typography.titleMedium, color = Color(0xFF00FF88)) }; Column(horizontalAlignment = Alignment.End) { Text(stringResource(R.string.total), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant); Text("${pay.need_summa?.toInt() ?: 0} ${stringResource(R.string.currency_kgs)}", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) } }
                         val debt = pay.getDebt(); if (debt > 0) { Spacer(Modifier.height(8.dp)); HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant); Spacer(Modifier.height(8.dp)); Text(stringResource(R.string.remaining, debt.toInt()), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold) }
-                        if (!pay.access_message.isNullOrEmpty()) { Spacer(Modifier.height(12.dp)); HorizontalDivider(Modifier.padding(bottom=8.dp), color=MaterialTheme.colorScheme.outlineVariant); pay.access_message.forEach { msg -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) { Icon(Icons.Outlined.Warning, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(8.dp)); Text(msg, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Medium) } } }
+                        
+                        // Combine warnings from Pay API and Profile Data
+                        val combinedWarnings = remember(pay, profile) {
+                            val list = pay.access_message?.toMutableList() ?: mutableListOf()
+                            
+                            // Check Library Debt from Profile (if not already reported by API)
+                            if (profile?.is_library_debt == true) {
+                                if (list.none { it.contains("библиотек", true) }) {
+                                    list.add("FORCE_LIB_DEBT")
+                                }
+                            }
+                            
+                            // Check Academic Debt from Profile (if not already reported by API)
+                            if (!profile?.student_debt_transcript.isNullOrEmpty()) {
+                                if (list.none { it.contains("академ", true) }) {
+                                    list.add("FORCE_ACADEM_DEBT")
+                                }
+                            }
+                            list
+                        }
+
+                        if (combinedWarnings.isNotEmpty()) { 
+                            Spacer(Modifier.height(12.dp)); 
+                            HorizontalDivider(Modifier.padding(bottom=8.dp), color=MaterialTheme.colorScheme.outlineVariant); 
+                            
+                            combinedWarnings.forEach { rawMsg ->
+                                // TRANSLATION LOGIC
+                                val localizedMsg = remember(rawMsg, lang) {
+                                    val lowerMsg = rawMsg.lowercase()
+                                    when {
+                                        rawMsg == "FORCE_ACADEM_DEBT" -> {
+                                             val count = profile?.student_debt_transcript?.size ?: 0
+                                             context.getString(R.string.access_msg_academic, count)
+                                        }
+                                        rawMsg == "FORCE_LIB_DEBT" -> {
+                                             val count = profile?.studentlibrary?.size ?: 0
+                                             if (count > 0) context.getString(R.string.access_msg_library, count)
+                                             else context.getString(R.string.access_msg_library, 1)
+                                        }
+                                        lowerMsg.contains("контракт") -> {
+                                            val percentage = Regex("""\(\d+%\)""").find(rawMsg)?.value ?: ""
+                                            val base = context.getString(R.string.access_msg_contract)
+                                            if (percentage.isNotEmpty()) "$base $percentage" else base
+                                        }
+                                        lowerMsg.contains("страховк") -> context.getString(R.string.access_msg_insurance)
+                                        lowerMsg.contains("академ") -> {
+                                             val count = profile?.student_debt_transcript?.size ?: 0
+                                             if (count > 0) context.getString(R.string.access_msg_academic, count)
+                                             else context.getString(R.string.access_msg_academic, 1)
+                                        }
+                                        lowerMsg.contains("библиотек") -> {
+                                             val count = profile?.studentlibrary?.size ?: 0
+                                             if (count > 0) context.getString(R.string.access_msg_library, count)
+                                             else context.getString(R.string.access_msg_library, 1)
+                                        }
+                                        else -> rawMsg
+                                    }
+                                }
+
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) { 
+                                    Icon(Icons.Outlined.Warning, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp)); 
+                                    Spacer(Modifier.width(8.dp)); 
+                                    Text(localizedMsg, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Medium) 
+                                } 
+                            } 
+                        }
                     }
                 }
                 Spacer(Modifier.height(24.dp))

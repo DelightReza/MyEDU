@@ -100,6 +100,7 @@ data class MilitaryInfo(
 
 data class PdsInfo(
     val id: Long?,
+    val id_student: Long?,
     val passport_number: String?, 
     val serial: String?,
     val birthday: String?, 

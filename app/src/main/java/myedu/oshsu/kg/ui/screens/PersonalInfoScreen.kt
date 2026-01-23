@@ -178,7 +178,7 @@ fun PersonalInfoScreen(vm: MainViewModel, onClose: () -> Unit) {
     val military = profile?.pdsstudentmilitary
 
     val apiFullName = listOfNotNull(user?.last_name, user?.name, user?.father_name).joinToString(" ").ifBlank { "-" }
-    val studentId = user?.id_avn_student?.toString() ?: user?.id?.toString() ?: "-"
+    val studentId = pds?.id_student?.toString() ?: user?.id?.toString() ?: "-"
     val profileStatus = if (user?.is_pds_approval == true) stringResource(R.string.status_approved) else stringResource(R.string.status_pending)
     
     val cookiePolygon = remember { RoundedPolygon.star(12, innerRadius = 0.8f, rounding = CornerRounding(0.2f)) }

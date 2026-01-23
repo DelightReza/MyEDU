@@ -24,32 +24,50 @@ object NotificationHelper {
         val gradeUpdates = ArrayList<String>()
         val portalUpdates = ArrayList<String>()
         val lang = context.resources.configuration.locales.get(0).language
+        
+        // FIX: Map by Marklist ID to handle duplicate subjects (e.g. retakes vs main course)
+        // If marklist is null (rare), we fall back to a composite key of subject ID to attempt uniqueness
         val oldMap = oldList.flatMap { it.subjects ?: emptyList() }
-            .associateBy { it.subject?.get(lang) ?: context.getString(R.string.unknown) }
+            .associateBy { wrapper ->
+                wrapper.marklist?.id?.toString() ?: "sub_${wrapper.subject?.id ?: -1}"
+            }
 
         newList.flatMap { it.subjects ?: emptyList() }.forEach { newWrapper ->
-            val name = newWrapper.subject?.get(lang) ?: return@forEach
-            val oldWrapper = oldMap[name]
+            val key = newWrapper.marklist?.id?.toString() ?: "sub_${newWrapper.subject?.id ?: -1}"
+            val name = newWrapper.subject?.get(lang) ?: context.getString(R.string.unknown)
+            
+            val oldWrapper = oldMap[key]
+            
             val oldMarks = oldWrapper?.marklist
             val newMarks = newWrapper.marklist
             
             fun check(label: String, oldVal: Double?, newVal: Double?) {
                 val v2 = newVal ?: 0.0
-                if (v2 > (oldVal ?: 0.0) && v2 > 0) {
-                    gradeUpdates.add(
-                        context.getString(R.string.notif_grades_msg_single, name, label, v2.toInt())
-                    )
+                val v1 = oldVal ?: 0.0
+                
+                if (v2 > v1 && v2 > 0) {
+                    // STRICT CHECK: Only notify if we found a matching previous record.
+                    // This prevents notifications when the app is first installed or data is cleared,
+                    // and crucially prevents "0 -> >0 " spam if the sorting of duplicates flips.
+                    if (oldWrapper != null) {
+                        gradeUpdates.add(
+                            context.getString(R.string.notif_grades_msg_single, name, label, v2.toInt())
+                        )
+                    }
                 }
             }
             
-            if (oldMarks != null && newMarks != null) {
-                check(context.getString(R.string.m1), oldMarks.point1, newMarks.point1)
-                check(context.getString(R.string.m2), oldMarks.point2, newMarks.point2)
-                check(context.getString(R.string.exam_short), oldMarks.finalScore, newMarks.finalScore)
+            if (newMarks != null) {
+                check(context.getString(R.string.m1), oldMarks?.point1, newMarks.point1)
+                check(context.getString(R.string.m2), oldMarks?.point2, newMarks.point2)
+                check(context.getString(R.string.exam_short), oldMarks?.finalScore, newMarks.finalScore)
             }
             
             if (oldWrapper?.graphic == null && newWrapper.graphic != null) {
-                portalUpdates.add(context.getString(R.string.notif_portal_opened, name))
+                // For portals, we also check if oldWrapper existed to avoid spam on first sync
+                if (oldWrapper != null) {
+                    portalUpdates.add(context.getString(R.string.notif_portal_opened, name))
+                }
             }
         }
         

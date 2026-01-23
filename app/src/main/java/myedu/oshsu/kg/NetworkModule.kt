@@ -267,6 +267,7 @@ data class SessionSubjectWrapper(val subject: NameObj?, val marklist: MarkList?,
 data class GraphicInfo(val begin: String?, val end: String?)
 
 data class MarkList(
+    val id: Long?,
     val point1: Double?, 
     val point2: Double?, 
     val point3: Double?, 

@@ -9,6 +9,7 @@ import okio.Buffer
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.*
+import java.io.IOException
 import java.nio.charset.Charset
 import java.text.SimpleDateFormat
 import java.util.*
@@ -396,14 +397,66 @@ class DeepSpyInterceptor : Interceptor {
     }
 }
 
+class FailoverInterceptor : Interceptor {
+    @Volatile private var isBackup = false
+    
+    private val primaryHost = "api3.myedu.oshsu.kg"
+    private val backupHost = "api.myedu.oshsu.kg"
+
+    override fun intercept(chain: Interceptor.Chain): Response {
+        var request = chain.request()
+        request = rewriteUrl(request, isBackup)
+
+        try {
+            val response = chain.proceed(request)
+            if (response.code >= 500) {
+                response.close()
+                throw IOException("Server Error ${response.code} on ${request.url}")
+            }
+            return response
+        } catch (e: IOException) {
+            DebugLogger.log("FAILOVER", "Failed on ${request.url}: ${e.message}. Switching host.")
+            synchronized(this) { isBackup = !isBackup }
+            val retryRequest = rewriteUrl(request, isBackup)
+            return chain.proceed(retryRequest)
+        }
+    }
+
+    private fun rewriteUrl(request: Request, useBackup: Boolean): Request {
+        val oldUrl = request.url
+        val newBuilder = oldUrl.newBuilder()
+
+        if (useBackup) {
+            newBuilder.host(backupHost)
+            val segments = oldUrl.pathSegments
+            if (segments.isEmpty() || segments[0] != "public") {
+                newBuilder.encodedPath("/") // FIX: Ensure path starts with /
+                newBuilder.addPathSegment("public")
+                segments.forEach { newBuilder.addPathSegment(it) }
+            }
+        } else {
+            newBuilder.host(primaryHost)
+            val segments = oldUrl.pathSegments
+            if (segments.isNotEmpty() && segments[0] == "public") {
+                newBuilder.encodedPath("/") // FIX: Ensure path starts with /
+                for (i in 1 until segments.size) { newBuilder.addPathSegment(segments[i]) }
+            }
+        }
+        return request.newBuilder().url(newBuilder.build()).build()
+    }
+}
+
 object NetworkClient {
     val cookieJar = UniversalCookieJar()
     val interceptor = WindowsInterceptor()
     val deepSpy = DeepSpyInterceptor()
+    val failover = FailoverInterceptor()
     
-    val api: OshSuApi = Retrofit.Builder().baseUrl("https://api.myedu.oshsu.kg/public/")
+    val api: OshSuApi = Retrofit.Builder()
+        .baseUrl("https://api3.myedu.oshsu.kg/")
         .client(OkHttpClient.Builder()
             .cookieJar(cookieJar)
+            .addInterceptor(failover)
             .addInterceptor(interceptor)
             .addInterceptor(deepSpy)
             .connectTimeout(60, TimeUnit.SECONDS)

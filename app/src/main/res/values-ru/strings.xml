@@ -104,6 +104,8 @@
     <string name="follow_system">Системная</string>
     <string name="light_mode">Светлая</string>
     <string name="dark_mode">Темная</string>
+    <string name="glass_mode">Светлый Стекло</string>
+    <string name="glass_dark_mode">Темный Стекло</string>
     <string name="language">Язык</string>
     <string name="docs_download">Скачивание документов</string>
     <string name="in_app_pdf">В приложении (PDF)</string>

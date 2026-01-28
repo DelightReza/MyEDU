@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -67,9 +68,9 @@ fun ClassDetailsSheet(vm: MainViewModel, item: ScheduleItem) {
 
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         Column(Modifier.fillMaxWidth().widthIn(max = 840.dp).verticalScroll(rememberScrollState()).padding(16.dp)) {
-            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) { 
+            ThemedCard(Modifier.fillMaxWidth(), materialColor = MaterialTheme.colorScheme.surfaceContainer, glassmorphismEnabled = vm.glassmorphismEnabled) { 
                  Column(Modifier.padding(24.dp)) { 
-                    Text(item.subject?.get(lang) ?: subjectDefaultStr, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(item.subject?.get(lang) ?: subjectDefaultStr, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     Spacer(Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(imageVector = Icons.Default.AccessTime, contentDescription = descTimeStr, tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f), modifier = Modifier.size(18.dp))
@@ -78,7 +79,7 @@ fun ClassDetailsSheet(vm: MainViewModel, item: ScheduleItem) {
                     Spacer(Modifier.height(16.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { 
                         AssistChip(onClick = {}, label = { Text(typeName) })
-                        if (item.stream?.numeric != null) { AssistChip(onClick = {}, label = { Text("$groupLabel $groupValue") }, colors = AssistChipDefaults.assistChipColors(containerColor = MaterialTheme.colorScheme.surface)) } 
+                        if (item.stream?.numeric != null) { AssistChip(onClick = {}, label = { Text("$groupLabel $groupValue") }, colors = AssistChipDefaults.assistChipColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) } 
                     } 
                 } 
             }
@@ -86,7 +87,7 @@ fun ClassDetailsSheet(vm: MainViewModel, item: ScheduleItem) {
             Spacer(Modifier.height(16.dp))
             Text(stringResource(R.string.current_performance), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(8.dp))
-            ThemedCard(modifier = Modifier.fillMaxWidth()) {
+            ThemedCard(modifier = Modifier.fillMaxWidth(), glassmorphismEnabled = vm.glassmorphismEnabled) {
                 if (subjectGrades != null) {
                     Column { 
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { 
@@ -110,7 +111,7 @@ fun ClassDetailsSheet(vm: MainViewModel, item: ScheduleItem) {
                 Spacer(Modifier.height(16.dp))
                 Text(stringResource(R.string.teacher), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.height(8.dp))
-                ThemedCard(modifier = Modifier.fillMaxWidth()) { 
+                ThemedCard(modifier = Modifier.fillMaxWidth(), glassmorphismEnabled = vm.glassmorphismEnabled) { 
                     Row(verticalAlignment = Alignment.CenterVertically) { 
                         Icon(Icons.Outlined.Person, null, tint = MaterialTheme.colorScheme.secondary); Spacer(Modifier.width(16.dp))
                         Text(teacherName!!, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface)
@@ -127,7 +128,7 @@ fun ClassDetailsSheet(vm: MainViewModel, item: ScheduleItem) {
                 Spacer(Modifier.height(16.dp))
                 Text(stringResource(R.string.location), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.height(8.dp))
-                ThemedCard(modifier = Modifier.fillMaxWidth()) { 
+                ThemedCard(modifier = Modifier.fillMaxWidth(), glassmorphismEnabled = vm.glassmorphismEnabled) { 
                     Column { 
                         if (isValid(roomName)) {
                             Row(verticalAlignment = Alignment.CenterVertically) { 
@@ -166,16 +167,25 @@ fun ClassDetailsSheet(vm: MainViewModel, item: ScheduleItem) {
 fun FloatingPdfBar(vm: MainViewModel, onGenerateRu: () -> Unit, onGenerateEn: () -> Unit) {
     if (vm.downloadMode == "WEBSITE") return
     val context = LocalContext.current
-    val containerColor = MaterialTheme.colorScheme.surface
-    val elevation = 12.dp
+    val glassmorphismEnabled = vm.glassmorphismEnabled
+    val containerColor = if (glassmorphismEnabled) MaterialTheme.colorScheme.surface.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface
+    val elevation = if (glassmorphismEnabled) 0.dp else 12.dp
+    val shape = RoundedCornerShape(36.dp)
 
     Surface(
         modifier = Modifier
             .padding(bottom = 24.dp, start = 16.dp, end = 16.dp)
             .defaultMinSize(minHeight = 72.dp)
             .widthIn(max = 400.dp)
-            .fillMaxWidth(),
-        shape = RoundedCornerShape(36.dp),
+            .fillMaxWidth()
+            .then(
+                if (glassmorphismEnabled) {
+                    Modifier.border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), shape)
+                } else {
+                    Modifier
+                }
+            ),
+        shape = shape,
         color = containerColor,
         shadowElevation = elevation
     ) {
@@ -284,7 +294,7 @@ fun ReferenceView(vm: MainViewModel, onClose: () -> Unit) {
     ) { padding ->
         Box(Modifier.padding(padding).fillMaxSize()) {
             Column(modifier = Modifier.widthIn(max = 840.dp).align(Alignment.TopCenter).verticalScroll(rememberScrollState()).padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                ThemedCard(Modifier.fillMaxWidth()) {
+                ThemedCard(Modifier.fillMaxWidth(), glassmorphismEnabled = vm.glassmorphismEnabled) {
                     Column(Modifier.padding(8.dp)) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) { OshSuLogo(modifier = Modifier.width(180.dp).height(60.dp), themeMode = vm.themeMode); Spacer(Modifier.height(16.dp)); Text(stringResource(R.string.cert_header), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurface) }
                         Spacer(Modifier.height(24.dp)); HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant); Spacer(Modifier.height(24.dp))
@@ -326,7 +336,7 @@ fun TranscriptView(vm: MainViewModel, onClose: () -> Unit) {
                             item { Spacer(Modifier.height(12.dp)); Text(sem.semesterName ?: stringResource(R.string.semester), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant); Spacer(Modifier.height(8.dp)) }
                             items(sem.subjects ?: emptyList()) { sub ->
                                 // Fixed: Removed themeMode
-                                ThemedCard(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                                ThemedCard(Modifier.fillMaxWidth().padding(bottom = 8.dp), glassmorphismEnabled = vm.glassmorphismEnabled) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Column(Modifier.weight(1f)) { 
                                             Text(sub.subjectName ?: stringResource(R.string.subject_default), fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)

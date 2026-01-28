@@ -13,33 +13,113 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val LightColorScheme = lightColorScheme(
+    // Primary colors
     primary = PrimaryBlue,
     onPrimary = OnPrimaryBlue,
     primaryContainer = PrimaryContainer,
     onPrimaryContainer = OnPrimaryContainer,
+    
+    // Secondary colors
     secondary = SecondaryBlue,
     onSecondary = OnSecondaryBlue,
     secondaryContainer = SecondaryContainer,
     onSecondaryContainer = OnSecondaryContainer,
-    background = Color(0xFFFDFBFF),
-    onBackground = Color(0xFF1A1C1E),
-    surface = Color(0xFFFDFBFF),
-    onSurface = Color(0xFF1A1C1E),
+    
+    // Tertiary colors
+    tertiary = TertiaryCyan,
+    onTertiary = OnTertiaryCyan,
+    tertiaryContainer = TertiaryContainer,
+    onTertiaryContainer = OnTertiaryContainer,
+    
+    // Error colors
+    error = ErrorRed,
+    onError = OnErrorRed,
+    errorContainer = ErrorContainer,
+    onErrorContainer = OnErrorContainer,
+    
+    // Background and Surface
+    background = Background,
+    onBackground = OnBackground,
+    surface = Surface,
+    onSurface = OnSurface,
+    surfaceVariant = SurfaceVariant,
+    onSurfaceVariant = OnSurfaceVariant,
+    
+    // Surface tones (MD3 elevation system)
+    surfaceDim = SurfaceDim,
+    surfaceBright = SurfaceBright,
+    surfaceContainerLowest = SurfaceContainerLowest,
+    surfaceContainerLow = SurfaceContainerLow,
+    surfaceContainer = SurfaceContainer,
+    surfaceContainerHigh = SurfaceContainerHigh,
+    surfaceContainerHighest = SurfaceContainerHighest,
+    
+    // Outline colors
+    outline = Outline,
+    outlineVariant = OutlineVariant,
+    
+    // Inverse colors
+    inverseSurface = InverseSurface,
+    inverseOnSurface = InverseOnSurface,
+    inversePrimary = InversePrimary,
+    
+    // Scrim
+    scrim = Scrim
 )
 
 private val DarkColorScheme = darkColorScheme(
+    // Primary colors
     primary = PrimaryBlueDark,
     onPrimary = OnPrimaryBlueDark,
     primaryContainer = PrimaryContainerDark,
     onPrimaryContainer = OnPrimaryContainerDark,
+    
+    // Secondary colors
     secondary = SecondaryBlueDark,
     onSecondary = OnSecondaryBlueDark,
     secondaryContainer = SecondaryContainerDark,
     onSecondaryContainer = OnSecondaryContainerDark,
-    background = Color(0xFF1A1C1E),
-    onBackground = Color(0xFFE3E2E6),
-    surface = Color(0xFF1A1C1E),
-    onSurface = Color(0xFFE3E2E6),
+    
+    // Tertiary colors
+    tertiary = TertiaryCyanDark,
+    onTertiary = OnTertiaryCyanDark,
+    tertiaryContainer = TertiaryContainerDark,
+    onTertiaryContainer = OnTertiaryContainerDark,
+    
+    // Error colors
+    error = ErrorRedDark,
+    onError = OnErrorRedDark,
+    errorContainer = ErrorContainerDark,
+    onErrorContainer = OnErrorContainerDark,
+    
+    // Background and Surface
+    background = BackgroundDark,
+    onBackground = OnBackgroundDark,
+    surface = SurfaceDark,
+    onSurface = OnSurfaceDark,
+    surfaceVariant = SurfaceVariantDark,
+    onSurfaceVariant = OnSurfaceVariantDark,
+    
+    // Surface tones (MD3 elevation system)
+    surfaceDim = SurfaceDimDark,
+    surfaceBright = SurfaceBrightDark,
+    surfaceContainerLowest = SurfaceContainerLowestDark,
+    surfaceContainerLow = SurfaceContainerLowDark,
+    surfaceContainer = SurfaceContainerDark,
+    surfaceContainerHigh = SurfaceContainerHighDark,
+    surfaceContainerHighest = SurfaceContainerHighestDark,
+    
+    // Outline colors
+    outline = OutlineDark,
+    outlineVariant = OutlineVariantDark,
+    
+    // Inverse colors
+    inverseSurface = InverseSurfaceDark,
+    inverseOnSurface = InverseOnSurfaceDark,
+    inversePrimary = InversePrimaryDark,
+    
+    // Scrim
+    scrim = ScrimDark
 )
 
 @Composable
@@ -53,13 +133,15 @@ fun MyEduTheme(
     val isDark = when(themeMode) {
         "LIGHT" -> false
         "DARK" -> true
+        "GLASS" -> false  // Glass theme uses light base
+        "GLASS_DARK" -> true  // Glass Dark theme uses dark base
         else -> systemDark
     }
 
     val dynamicColor = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     val colorScheme = when {
-        dynamicColor -> {
+        dynamicColor && themeMode != "GLASS" && themeMode != "GLASS_DARK" -> {
             if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         isDark -> DarkColorScheme
@@ -82,6 +164,7 @@ fun MyEduTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = AppTypography,
+        shapes = AppShapes,
         content = content
     )
 }

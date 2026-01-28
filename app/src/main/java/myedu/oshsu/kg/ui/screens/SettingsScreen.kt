@@ -55,12 +55,16 @@ fun SettingsScreen(vm: MainViewModel, onClose: () -> Unit) {
                 options = listOf(
                     stringResource(R.string.follow_system) to "SYSTEM", 
                     stringResource(R.string.light_mode) to "LIGHT", 
-                    stringResource(R.string.dark_mode) to "DARK"
+                    stringResource(R.string.dark_mode) to "DARK",
+                    stringResource(R.string.glass_mode) to "GLASS",
+                    stringResource(R.string.glass_dark_mode) to "GLASS_DARK"
                 ),
                 currentValue = vm.themeMode, 
                 onOptionSelected = { vm.setTheme(it) },
-                themeMode = vm.themeMode
+                themeMode = vm.themeMode,
+                glassmorphismEnabled = vm.glassmorphismEnabled
             )
+            
             Spacer(modifier = Modifier.height(24.dp))
             SettingsDropdown(
                 label = stringResource(R.string.docs_download),
@@ -70,7 +74,8 @@ fun SettingsScreen(vm: MainViewModel, onClose: () -> Unit) {
                 ),
                 currentValue = vm.downloadMode, 
                 onOptionSelected = { vm.setDocMode(it) },
-                themeMode = vm.themeMode
+                themeMode = vm.themeMode,
+                glassmorphismEnabled = vm.glassmorphismEnabled
             )
             Spacer(modifier = Modifier.height(24.dp))
             SettingsDropdown(
@@ -78,7 +83,8 @@ fun SettingsScreen(vm: MainViewModel, onClose: () -> Unit) {
                 options = listOf("English" to "en", "Русский" to "ru", "Кыргызча" to "ky"),
                 currentValue = vm.language,
                 onOptionSelected = { selectedLang -> if (vm.language != selectedLang) { vm.setAppLanguage(selectedLang); (context as? MainActivity)?.restartApp() } },
-                themeMode = vm.themeMode
+                themeMode = vm.themeMode,
+                glassmorphismEnabled = vm.glassmorphismEnabled
             )
             
             Spacer(modifier = Modifier.height(32.dp))
@@ -86,7 +92,8 @@ fun SettingsScreen(vm: MainViewModel, onClose: () -> Unit) {
             InfoSection(stringResource(R.string.dict_tools_section), vm.themeMode)
             ThemedCard(
                 modifier = Modifier.fillMaxWidth(), 
-                onClick = { vm.showDictionaryScreen = true } 
+                onClick = { vm.showDictionaryScreen = true },
+                glassmorphismEnabled = vm.glassmorphismEnabled
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Translate, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
@@ -100,7 +107,7 @@ fun SettingsScreen(vm: MainViewModel, onClose: () -> Unit) {
 
             Spacer(modifier = Modifier.height(32.dp))
             InfoSection(stringResource(R.string.about), vm.themeMode)
-            ThemedCard(modifier = Modifier.fillMaxWidth()) {
+            ThemedCard(modifier = Modifier.fillMaxWidth(), glassmorphismEnabled = vm.glassmorphismEnabled) {
                 Column {
                     Text(stringResource(R.string.app_name_display), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     Text(text = "${stringResource(R.string.version_prefix)} $appVersion", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

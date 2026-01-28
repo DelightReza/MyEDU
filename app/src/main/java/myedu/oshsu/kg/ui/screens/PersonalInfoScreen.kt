@@ -3,6 +3,7 @@ package myedu.oshsu.kg.ui.screens
 import android.graphics.Matrix
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -84,14 +85,46 @@ fun SectionHeader(title: String, icon: ImageVector) {
 }
 
 @Composable
-fun InfoCard(content: @Composable ColumnScope.() -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(0.dp)) { Column(Modifier.padding(16.dp)) { content() } }
+fun InfoCard(glassmorphismEnabled: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
+    val shape = RoundedCornerShape(16.dp)
+    val cardColor = if (glassmorphismEnabled) {
+        MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.3f)
+    } else {
+        MaterialTheme.colorScheme.surfaceContainer
+    }
+    val cardModifier = if (glassmorphismEnabled) {
+        Modifier.fillMaxWidth().then(Modifier.border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), shape))
+    } else {
+        Modifier.fillMaxWidth()
+    }
+    Card(
+        modifier = cardModifier, 
+        colors = CardDefaults.cardColors(containerColor = cardColor), 
+        shape = shape, 
+        elevation = CardDefaults.cardElevation(if (glassmorphismEnabled) 0.dp else 0.dp)
+    ) { Column(Modifier.padding(16.dp)) { content() } }
 }
 
 @Composable
-fun ExpandableCard(content: @Composable ColumnScope.() -> Unit) {
+fun ExpandableCard(glassmorphismEnabled: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    Card(modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded }, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(0.dp)) {
+    val shape = RoundedCornerShape(16.dp)
+    val cardColor = if (glassmorphismEnabled) {
+        MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.3f)
+    } else {
+        MaterialTheme.colorScheme.surfaceContainer
+    }
+    val cardModifier = if (glassmorphismEnabled) {
+        Modifier.fillMaxWidth().clickable { expanded = !expanded }.then(Modifier.border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), shape))
+    } else {
+        Modifier.fillMaxWidth().clickable { expanded = !expanded }
+    }
+    Card(
+        modifier = cardModifier, 
+        colors = CardDefaults.cardColors(containerColor = cardColor), 
+        shape = shape, 
+        elevation = CardDefaults.cardElevation(if (glassmorphismEnabled) 0.dp else 0.dp)
+    ) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.personal_view_details), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
@@ -275,7 +308,7 @@ fun PersonalInfoScreen(vm: MainViewModel, onClose: () -> Unit) {
                         // --- 1. IDENTITY & BIO ---
                         item {
                             SectionHeader(stringResource(R.string.personal_identity_bio), Icons.Default.Face)
-                            InfoCard {
+                            InfoCard(glassmorphismEnabled = vm.glassmorphismEnabled) {
                                 DataRow(Icons.Default.Cake, stringResource(R.string.birthday), pds?.birthday)
                                 DataRow(Icons.Default.Face, stringResource(R.string.gender), genderDisplay)
                                 DataRow(Icons.Default.Phone, stringResource(R.string.personal_phone), pds?.phone)
@@ -292,7 +325,7 @@ fun PersonalInfoScreen(vm: MainViewModel, onClose: () -> Unit) {
                         // --- 2. ACADEMIC STATUS ---
                         item {
                             SectionHeader(stringResource(R.string.personal_academic_status), Icons.Outlined.School)
-                            InfoCard {
+                            InfoCard(glassmorphismEnabled = vm.glassmorphismEnabled) {
                                 DataRow(Icons.Outlined.Apartment, stringResource(R.string.faculty), facultyName)
                                 DataRow(Icons.Default.Info, stringResource(R.string.personal_faculty_short), facultyShort)
                                 if (!facObj?.getInfo(currentLang).isNullOrBlank()) {
@@ -338,7 +371,7 @@ fun PersonalInfoScreen(vm: MainViewModel, onClose: () -> Unit) {
                         // --- 3. LEGAL & CITIZENSHIP ---
                         item {
                             SectionHeader(stringResource(R.string.personal_legal_citizenship), Icons.Outlined.AccountBalance)
-                            InfoCard {
+                            InfoCard(glassmorphismEnabled = vm.glassmorphismEnabled) {
                                 DataRow(Icons.Outlined.Flag, stringResource(R.string.personal_citizenship), citizenshipDisplay)
                                 DataRow(Icons.Outlined.Flag, stringResource(R.string.personal_nationality), nationalityDisplay)
                                 DataRow(Icons.Default.Fingerprint, stringResource(R.string.personal_pin), pds?.pin)
@@ -359,7 +392,7 @@ fun PersonalInfoScreen(vm: MainViewModel, onClose: () -> Unit) {
                         if (hasFamily) {
                             item {
                                 SectionHeader(stringResource(R.string.personal_family_info), Icons.Outlined.FamilyRestroom)
-                                InfoCard {
+                                InfoCard(glassmorphismEnabled = vm.glassmorphismEnabled) {
                                     if (isValid(pds?.father_full_name)) {
                                         Text(stringResource(R.string.personal_father), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                                         DataRow(Icons.Default.Person, stringResource(R.string.personal_name), pds?.father_full_name)
@@ -386,7 +419,7 @@ fun PersonalInfoScreen(vm: MainViewModel, onClose: () -> Unit) {
                         if (hasGeography) {
                             item {
                                 SectionHeader(stringResource(R.string.personal_geography), Icons.Outlined.Place)
-                                InfoCard {
+                                InfoCard(glassmorphismEnabled = vm.glassmorphismEnabled) {
                                     if (isValid(pds?.address)) {
                                         Text(stringResource(R.string.personal_main_address), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                                         DataRow(Icons.Default.Home, stringResource(R.string.personal_address), pds?.address)
@@ -435,7 +468,7 @@ fun PersonalInfoScreen(vm: MainViewModel, onClose: () -> Unit) {
                         if (hasMilitary) {
                             item {
                                 SectionHeader(stringResource(R.string.personal_military_service), Icons.Default.Shield)
-                                ExpandableCard {
+                                ExpandableCard(glassmorphismEnabled = vm.glassmorphismEnabled) {
                                     DataRow(Icons.Default.Shield, stringResource(R.string.personal_service), military?.name ?: military?.name_military)
                                     DataRow(Icons.Default.Badge, stringResource(R.string.personal_name), military?.name)
                                     DataRow(Icons.Default.Badge, stringResource(R.string.personal_serial), military?.serial_number)
@@ -454,7 +487,7 @@ fun PersonalInfoScreen(vm: MainViewModel, onClose: () -> Unit) {
                         if (hasMovement) {
                             item {
                                 SectionHeader(stringResource(R.string.personal_movement_finance), Icons.Outlined.History)
-                                ExpandableCard {
+                                ExpandableCard(glassmorphismEnabled = vm.glassmorphismEnabled) {
                                     Text(stringResource(R.string.personal_movement), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                                     DataRow(Icons.AutoMirrored.Filled.ArrowForward, stringResource(R.string.personal_type), movTypeObj?.getName(currentLang))
                                     DataRow(Icons.Default.CheckCircle, stringResource(R.string.personal_is_student), movTypeObj?.is_student?.toString())
@@ -491,7 +524,7 @@ fun PersonalInfoScreen(vm: MainViewModel, onClose: () -> Unit) {
                         if (hasSystem) {
                             item {
                                 SectionHeader(stringResource(R.string.personal_system_metadata), Icons.Outlined.Terminal)
-                                ExpandableCard {
+                                ExpandableCard(glassmorphismEnabled = vm.glassmorphismEnabled) {
                                     Text(stringResource(R.string.personal_user_profile), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                                     MetaDataRow(stringResource(R.string.personal_user_id), user?.id_user?.takeIf { it != 0L })
                                     MetaDataRow(stringResource(R.string.personal_uni_id_user), user?.id_university?.takeIf { it != 0L })

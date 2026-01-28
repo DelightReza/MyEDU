@@ -2,6 +2,7 @@ package myedu.oshsu.kg.ui.screens
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -115,7 +116,8 @@ fun ProfileScreen(vm: MainViewModel) {
                     text = stringResource(R.string.personal),
                     icon = Icons.Default.Person,
                     onClick = { vm.showPersonalInfoScreen = true },
-                    modifier = Modifier.weight(1f).fillMaxHeight()
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    glassmorphismEnabled = vm.glassmorphismEnabled
                 )
                 
                 Spacer(Modifier.width(16.dp))
@@ -124,14 +126,15 @@ fun ProfileScreen(vm: MainViewModel) {
                     text = stringResource(R.string.edit_profile),
                     icon = Icons.Default.Edit,
                     onClick = { vm.showEditProfileScreen = true },
-                    modifier = Modifier.weight(1f).fillMaxHeight()
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    glassmorphismEnabled = vm.glassmorphismEnabled
                 )
             }
 
             Spacer(Modifier.height(32.dp))
 
             if (pay != null) {
-                ThemedCard(Modifier.fillMaxWidth()) {
+                ThemedCard(Modifier.fillMaxWidth(), glassmorphismEnabled = vm.glassmorphismEnabled) {
                     Column {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(stringResource(R.string.tuition_contract), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface); Icon(Icons.Outlined.Payments, null, tint = MaterialTheme.colorScheme.primary) }
                         Spacer(Modifier.height(12.dp))
@@ -221,6 +224,7 @@ fun ProfileScreen(vm: MainViewModel) {
                     icon = Icons.Default.Description, 
                     themeMode = vm.themeMode, 
                     modifier = Modifier.weight(1f).fillMaxHeight(), 
+                    glassmorphismEnabled = vm.glassmorphismEnabled,
                     onClick = { vm.showReferenceScreen = true }
                 )
                 BeautifulDocButton(
@@ -229,14 +233,15 @@ fun ProfileScreen(vm: MainViewModel) {
                     themeMode = vm.themeMode, 
                     isLoading = vm.isTranscriptLoading, 
                     modifier = Modifier.weight(1f).fillMaxHeight(), 
+                    glassmorphismEnabled = vm.glassmorphismEnabled,
                     onClick = { vm.fetchTranscript() }
                 )
             }
             
             Spacer(Modifier.height(24.dp)); InfoSection(stringResource(R.string.academic), vm.themeMode)
-            DetailCard(Icons.Outlined.School, stringResource(R.string.faculty), facultyName, vm.themeMode); DetailCard(Icons.Outlined.Book, stringResource(R.string.speciality), specialityName, vm.themeMode)
+            DetailCard(Icons.Outlined.School, stringResource(R.string.faculty), facultyName, vm.themeMode, vm.glassmorphismEnabled); DetailCard(Icons.Outlined.Book, stringResource(R.string.speciality), specialityName, vm.themeMode, vm.glassmorphismEnabled)
             Spacer(Modifier.height(24.dp)); InfoSection(stringResource(R.string.personal), vm.themeMode)
-            DetailCard(Icons.Outlined.Badge, stringResource(R.string.passport), profile?.pdsstudentinfo?.getFullPassport() ?: "-", vm.themeMode); DetailCard(Icons.Outlined.Phone, stringResource(R.string.phone), profile?.pdsstudentinfo?.phone ?: "-", vm.themeMode)
+            DetailCard(Icons.Outlined.Badge, stringResource(R.string.passport), profile?.pdsstudentinfo?.getFullPassport() ?: "-", vm.themeMode, vm.glassmorphismEnabled); DetailCard(Icons.Outlined.Phone, stringResource(R.string.phone), profile?.pdsstudentinfo?.phone ?: "-", vm.themeMode, vm.glassmorphismEnabled)
             Spacer(Modifier.height(32.dp)); Button(onClick = { vm.logout() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer), modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.log_out)) }; Spacer(Modifier.height(130.dp))
         }
     }
@@ -247,19 +252,33 @@ fun ProfileActionButton(
     text: String,
     icon: ImageVector,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    glassmorphismEnabled: Boolean = false
 ) {
     val shape = RoundedCornerShape(16.dp)
     val sizeModifier = modifier.defaultMinSize(minHeight = 48.dp)
+    val containerColor = if (glassmorphismEnabled) {
+        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.3f)
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerHigh
+    }
 
     Button(
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            containerColor = containerColor,
             contentColor = MaterialTheme.colorScheme.onSurface
         ),
         shape = shape,
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = if (glassmorphismEnabled) 0.dp else 2.dp),
         modifier = sizeModifier
+            .then(
+                if (glassmorphismEnabled) {
+                    Modifier.border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), shape)
+                } else {
+                    Modifier
+                }
+            )
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,

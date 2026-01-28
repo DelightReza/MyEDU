@@ -74,16 +74,16 @@ fun HomeScreen(vm: MainViewModel) {
             val groupSecondaryText = if (rawGroupNum != null && rawAvnName != null && rawAvnName != rawGroupNum.toString() && rawAvnName != "0") rawAvnName else null
 
             Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) { 
-                StatCard(icon = Icons.Outlined.CalendarToday, label = stringResource(R.string.semester), value = activeSemesterNum, secondaryText = streamText, modifier = Modifier.weight(1f).fillMaxHeight())
-                StatCard(icon = Icons.Outlined.Groups, label = stringResource(R.string.group), value = displayGroupValue, secondaryText = groupSecondaryText, modifier = Modifier.weight(1f).fillMaxHeight()) 
+                StatCard(icon = Icons.Outlined.CalendarToday, label = stringResource(R.string.semester), value = activeSemesterNum, secondaryText = streamText, modifier = Modifier.weight(1f).fillMaxHeight(), glassmorphismEnabled = vm.glassmorphismEnabled, themeMode = vm.themeMode)
+                StatCard(icon = Icons.Outlined.Groups, label = stringResource(R.string.group), value = displayGroupValue, secondaryText = groupSecondaryText, modifier = Modifier.weight(1f).fillMaxHeight(), glassmorphismEnabled = vm.glassmorphismEnabled, themeMode = vm.themeMode) 
             }
             Spacer(Modifier.height(32.dp))
             Text("${vm.todayDayName}: ${stringResource(R.string.todays_classes)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(16.dp))
             if (vm.todayClasses.isEmpty()) {
-                ThemedCard(modifier = Modifier.fillMaxWidth()) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Outlined.Weekend, null, tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(16.dp)); Text(stringResource(R.string.no_classes_today), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface) } } 
+                ThemedCard(modifier = Modifier.fillMaxWidth(), glassmorphismEnabled = vm.glassmorphismEnabled) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Outlined.Weekend, null, tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(16.dp)); Text(stringResource(R.string.no_classes_today), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface) } } 
             } else {
-                vm.todayClasses.forEach { item -> ClassItem(item, vm.getTimeString(item.id_lesson), vm) { vm.selectedClass = item } } 
+                vm.todayClasses.forEach { item -> ClassItem(item, vm.getTimeString(item.id_lesson), vm, glassmorphismEnabled = vm.glassmorphismEnabled) { vm.selectedClass = item } } 
             }
             Spacer(Modifier.height(80.dp))
         }
@@ -92,21 +92,59 @@ fun HomeScreen(vm: MainViewModel) {
         ModalBottomSheet(onDismissRequest = { showNewsSheet = false }, containerColor = BottomSheetDefaults.ContainerColor) { 
             Column(Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) { 
                 Text(stringResource(R.string.announcements), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                LazyColumn { items(vm.newsList) { news -> ThemedCard(Modifier.padding(top=8.dp).fillMaxWidth(), materialColor = MaterialTheme.colorScheme.surfaceVariant) { Column { Text(news.title?:"", fontWeight=FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface); Text(news.message?:"", color = MaterialTheme.colorScheme.onSurfaceVariant) } } } } 
+                LazyColumn { items(vm.newsList) { news -> ThemedCard(Modifier.padding(top=8.dp).fillMaxWidth(), materialColor = MaterialTheme.colorScheme.surfaceVariant, glassmorphismEnabled = vm.glassmorphismEnabled) { Column { Text(news.title?:"", fontWeight=FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface); Text(news.message?:"", color = MaterialTheme.colorScheme.onSurfaceVariant) } } } } 
             } 
         } 
     }
 }
 
 @Composable
-fun StatCard(icon: ImageVector, label: String, value: String, secondaryText: String? = null, modifier: Modifier = Modifier) {
-    ThemedCard(modifier = modifier) { 
+fun StatCard(icon: ImageVector, label: String, value: String, secondaryText: String? = null, modifier: Modifier = Modifier, glassmorphismEnabled: Boolean = false, themeMode: String = "SYSTEM") {
+    // Remove colored background in dark themes - use surface container instead
+    val isDarkTheme = themeMode == "DARK" || themeMode == "GLASS_DARK"
+    // Use neutral surface color for all themes for better consistency
+    val cardColor = MaterialTheme.colorScheme.surfaceContainer
+    
+    ThemedCard(modifier = modifier, materialColor = cardColor, glassmorphismEnabled = glassmorphismEnabled) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) { 
-                Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp)); Spacer(Modifier.height(8.dp))
-                Text(text = label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center); Spacer(Modifier.height(4.dp))
-                Text(text = value, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.Center)
-                if (secondaryText != null) { Spacer(Modifier.height(4.dp)); Text(text = secondaryText, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f), maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center) }
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally, 
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(8.dp) // Extra padding
+            ) { 
+                Icon(
+                    icon, 
+                    null, 
+                    tint = MaterialTheme.colorScheme.primary, 
+                    modifier = Modifier.size(32.dp) // Larger icon
+                )
+                Spacer(Modifier.height(12.dp)) // More spacing
+                Text(
+                    text = label, 
+                    style = MaterialTheme.typography.labelLarge, // Larger label
+                    color = MaterialTheme.colorScheme.onPrimaryContainer, 
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = value, 
+                    style = MaterialTheme.typography.headlineLarge, 
+                    fontWeight = FontWeight.ExtraBold, // Extra bold for emphasis
+                    color = MaterialTheme.colorScheme.primary, // Use primary color for value
+                    textAlign = TextAlign.Center
+                )
+                if (secondaryText != null) { 
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = secondaryText, 
+                        style = MaterialTheme.typography.bodyMedium, 
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f), 
+                        maxLines = 1, 
+                        overflow = TextOverflow.Ellipsis, 
+                        textAlign = TextAlign.Center
+                    ) 
+                }
             }
         }
     }

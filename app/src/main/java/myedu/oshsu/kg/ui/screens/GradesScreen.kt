@@ -4,6 +4,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -112,7 +113,8 @@ fun GradesScreen(vm: MainViewModel) {
                                 total = sub.marklist?.total,
                                 updatedAt = sub.marklist?.updated_at,
                                 graphic = sub.graphic,
-                                themeMode = vm.themeMode
+                                themeMode = vm.themeMode,
+                                glassmorphismEnabled = vm.glassmorphismEnabled
                             )
                         }
                     }
@@ -136,8 +138,13 @@ fun FloatingGradeHeader(
     session: List<myedu.oshsu.kg.SessionResponse>, 
     modifier: Modifier = Modifier
 ) {
-    val containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-    val elevation = 4.dp
+    val glassmorphismEnabled = vm.glassmorphismEnabled
+    val containerColor = if (glassmorphismEnabled) {
+        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.3f)
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerHigh
+    }
+    val elevation = if (glassmorphismEnabled) 0.dp else 4.dp
     val activeSemId = vm.profileData?.active_semester
     val sortedSession = remember(session, activeSemId) {
         session.sortedWith(compareByDescending<myedu.oshsu.kg.SessionResponse> { 
@@ -161,7 +168,17 @@ fun FloatingGradeHeader(
     )
 
     Surface(
-        modifier = modifier.wrapContentHeight().fillMaxWidth().widthIn(max = 600.dp),
+        modifier = modifier
+            .wrapContentHeight()
+            .fillMaxWidth()
+            .widthIn(max = 600.dp)
+            .then(
+                if (glassmorphismEnabled) {
+                    Modifier.border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), RoundedCornerShape(24.dp))
+                } else {
+                    Modifier
+                }
+            ),
         shape = RoundedCornerShape(24.dp),
         color = containerColor,
         shadowElevation = elevation
@@ -237,7 +254,8 @@ fun GradeItemCard(
     total: Double?,
     updatedAt: String?,
     graphic: GraphicInfo?,
-    themeMode: String
+    themeMode: String,
+    glassmorphismEnabled: Boolean = false
 ) {
     val isUploadActive = remember(graphic) {
         try {
@@ -252,7 +270,11 @@ fun GradeItemCard(
         } catch (e: Exception) { false }
     }
 
-    val containerColor = MaterialTheme.colorScheme.surfaceContainer
+    val containerColor = if (glassmorphismEnabled) {
+        MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.3f)
+    } else {
+        MaterialTheme.colorScheme.surfaceContainer
+    }
     val textColor = MaterialTheme.colorScheme.onSurface
     val dividerColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
 
@@ -260,10 +282,17 @@ fun GradeItemCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 6.dp)
+            .then(
+                if (glassmorphismEnabled) {
+                    Modifier.border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
+                } else {
+                    Modifier
+                }
+            )
             .animateContentSize(spring(stiffness = Spring.StiffnessLow)),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = if (glassmorphismEnabled) 0.dp else 0.dp)
     ) {
         Column(Modifier.padding(16.dp)) {
             Text(

@@ -96,7 +96,21 @@ fun EditProfileScreen(vm: MainViewModel, onClose: () -> Unit) {
                 }
                 Spacer(Modifier.height(24.dp))
                 Column(modifier = Modifier.widthIn(max = 400.dp).graphicsLayer { alpha = uiAlpha; translationY = with(density) { uiTranslationY.toPx() } }, verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                    OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.onboard_display_name)) }, singleLine = true, shape = RoundedCornerShape(50), modifier = Modifier.fillMaxWidth(), colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = MaterialTheme.colorScheme.surface, unfocusedContainerColor = MaterialTheme.colorScheme.surface, focusedBorderColor = MaterialTheme.colorScheme.primary, unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant), trailingIcon = if (showRevertName) { { IconButton(onClick = { name = apiName }) { Icon(Icons.Default.Restore, stringResource(R.string.desc_revert), tint = MaterialTheme.colorScheme.primary) } } } else null)
+                    OutlinedTextField(
+                        value = name, 
+                        onValueChange = { name = it }, 
+                        label = { Text(stringResource(R.string.onboard_display_name)) }, 
+                        singleLine = true, 
+                        shape = RoundedCornerShape(50), 
+                        modifier = Modifier.fillMaxWidth(), 
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = if (vm.glassmorphismEnabled) MaterialTheme.colorScheme.surface.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface, 
+                            unfocusedContainerColor = if (vm.glassmorphismEnabled) MaterialTheme.colorScheme.surface.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface, 
+                            focusedBorderColor = MaterialTheme.colorScheme.primary, 
+                            unfocusedBorderColor = if (vm.glassmorphismEnabled) MaterialTheme.colorScheme.outline.copy(alpha = 0.2f) else MaterialTheme.colorScheme.outlineVariant
+                        ), 
+                        trailingIcon = if (showRevertName) { { IconButton(onClick = { name = apiName }) { Icon(Icons.Default.Restore, stringResource(R.string.desc_revert), tint = MaterialTheme.colorScheme.primary) } } } else null
+                    )
                 }
                 Spacer(Modifier.height(48.dp))
                 
@@ -107,8 +121,11 @@ fun EditProfileScreen(vm: MainViewModel, onClose: () -> Unit) {
                         .widthIn(max = 400.dp)
                         .defaultMinSize(minHeight = 56.dp)
                         .graphicsLayer { alpha = uiAlpha; translationY = with(density) { uiTranslationY.toPx() } }, 
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary), 
-                    shape = RoundedCornerShape(50)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (vm.glassmorphismEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else MaterialTheme.colorScheme.primary
+                    ), 
+                    shape = RoundedCornerShape(50),
+                    elevation = if (vm.glassmorphismEnabled) ButtonDefaults.buttonElevation(0.dp, 0.dp, 0.dp) else ButtonDefaults.buttonElevation()
                 ) { 
                     Text(stringResource(R.string.dict_btn_save), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center) 
                 }

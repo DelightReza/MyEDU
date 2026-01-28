@@ -203,8 +203,8 @@ fun WebDocumentScreen(
                 }, 
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent, 
-                    titleContentColor = if (themeMode == "GLASS") Color.White else MaterialTheme.colorScheme.onSurface, 
-                    navigationIconContentColor = if (themeMode == "GLASS") Color.White else MaterialTheme.colorScheme.onSurface
+                    titleContentColor = MaterialTheme.colorScheme.onSurface, 
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
                 )
             ) 
         }

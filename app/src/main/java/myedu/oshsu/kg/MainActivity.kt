@@ -23,7 +23,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -136,7 +136,7 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(vm.fullSchedule, vm.timeMap, vm.language) { 
                 if (vm.fullSchedule.isNotEmpty() && vm.timeMap.isNotEmpty()) { ScheduleAlarmManager(context).scheduleNotifications(vm.fullSchedule, vm.timeMap, vm.language) } 
             }
-            MyEduTheme(themeMode = vm.themeMode) { ThemedBackground { AppContent(vm) } } 
+            MyEduTheme(themeMode = vm.themeMode) { ThemedBackground(themeMode = vm.themeMode, glassmorphismEnabled = vm.glassmorphismEnabled) { AppContent(vm) } } 
         }
     }
 
@@ -233,12 +233,12 @@ fun MainAppStructure(vm: MainViewModel) {
             val showNav = vm.selectedClass == null && !vm.showTranscriptScreen && !vm.showReferenceScreen && !vm.showSettingsScreen && vm.webDocumentUrl == null && !vm.showDictionaryScreen && !vm.showPersonalInfoScreen && !vm.showEditProfileScreen
             AnimatedVisibility(visible = showNav, enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut(), modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp, start = 16.dp, end = 16.dp).windowInsetsPadding(WindowInsets.navigationBars)) { FloatingNavBar(vm) }
             
-            AnimatedVisibility(visible = vm.showTranscriptScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground { TranscriptView(vm) { vm.showTranscriptScreen = false; vm.clearPdfState() } } }
-            AnimatedVisibility(visible = vm.showReferenceScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground { ReferenceView(vm) { vm.showReferenceScreen = false; vm.clearPdfState() } } }
-            AnimatedVisibility(visible = vm.showSettingsScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground { SettingsScreen(vm) { vm.showSettingsScreen = false } } }
-            AnimatedVisibility(visible = vm.showDictionaryScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground { DictionaryScreen(vm) { vm.showDictionaryScreen = false } } }
-            AnimatedVisibility(visible = vm.showPersonalInfoScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground { PersonalInfoScreen(vm, { vm.showPersonalInfoScreen = false }) } }
-            AnimatedVisibility(visible = vm.showEditProfileScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground { EditProfileScreen(vm, { vm.showEditProfileScreen = false }) } }
+            AnimatedVisibility(visible = vm.showTranscriptScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground(vm.themeMode, vm.glassmorphismEnabled) { TranscriptView(vm) { vm.showTranscriptScreen = false; vm.clearPdfState() } } }
+            AnimatedVisibility(visible = vm.showReferenceScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground(vm.themeMode, vm.glassmorphismEnabled) { ReferenceView(vm) { vm.showReferenceScreen = false; vm.clearPdfState() } } }
+            AnimatedVisibility(visible = vm.showSettingsScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground(vm.themeMode, vm.glassmorphismEnabled) { SettingsScreen(vm) { vm.showSettingsScreen = false } } }
+            AnimatedVisibility(visible = vm.showDictionaryScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground(vm.themeMode, vm.glassmorphismEnabled) { DictionaryScreen(vm) { vm.showDictionaryScreen = false } } }
+            AnimatedVisibility(visible = vm.showPersonalInfoScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground(vm.themeMode, vm.glassmorphismEnabled) { PersonalInfoScreen(vm, { vm.showPersonalInfoScreen = false }) } }
+            AnimatedVisibility(visible = vm.showEditProfileScreen, enter = slideInHorizontally{it}, exit = slideOutHorizontally{it}, modifier = Modifier.fillMaxSize()) { ThemedBackground(vm.themeMode, vm.glassmorphismEnabled) { EditProfileScreen(vm, { vm.showEditProfileScreen = false }) } }
 
             if (vm.webDocumentUrl != null) {
                 val isTranscript = vm.webDocumentUrl!!.contains("Transcript", true)
@@ -271,10 +271,29 @@ fun MainAppStructure(vm: MainViewModel) {
 
 @Composable
 fun FloatingNavBar(vm: MainViewModel) {
-    val containerColor = MaterialTheme.colorScheme.surface
-    val border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-    val elevation = 4.dp
-    Surface(modifier = Modifier.height(72.dp).widthIn(max = 400.dp).fillMaxWidth(), shape = RoundedCornerShape(36.dp), color = containerColor, border = border, shadowElevation = elevation) {
+    val glassmorphismEnabled = vm.glassmorphismEnabled
+    val containerColor = if (glassmorphismEnabled) MaterialTheme.colorScheme.surface.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface
+    val elevation = if (glassmorphismEnabled) 0.dp else 4.dp
+    
+    val modifier = if (glassmorphismEnabled) {
+        Modifier
+            .height(72.dp)
+            .widthIn(max = 400.dp)
+            .fillMaxWidth()
+            .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), RoundedCornerShape(36.dp))
+    } else {
+        Modifier
+            .height(72.dp)
+            .widthIn(max = 400.dp)
+            .fillMaxWidth()
+    }
+    
+    Surface(
+        modifier = modifier, 
+        shape = RoundedCornerShape(36.dp), 
+        color = containerColor, 
+        shadowElevation = elevation
+    ) {
         Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.CenterVertically) {
             FloatingNavItem(vm, 0, Icons.Default.Home, stringResource(R.string.nav_home))
             FloatingNavItem(vm, 1, Icons.Default.DateRange, stringResource(R.string.nav_schedule))

@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -63,25 +64,44 @@ fun ScheduleScreen(vm: MainViewModel) {
                         }
                     } else {
                         LazyColumn(modifier = Modifier.fillMaxSize().widthIn(max = 840.dp), contentPadding = PaddingValues(horizontal = 16.dp)) { 
-                            items(dayClasses) { item -> ClassItem(item, vm.getTimeString(item.id_lesson), vm) { vm.selectedClass = item } } 
+                            items(dayClasses) { item -> ClassItem(item, vm.getTimeString(item.id_lesson), vm, glassmorphismEnabled = vm.glassmorphismEnabled) { vm.selectedClass = item } } 
                             item { Spacer(Modifier.height(80.dp)) } 
                         }
                     }
                 }
             }
             Box(modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp, start = 16.dp, end = 16.dp)) {
-                FloatingDayTabs(tabs = tabs, selectedIndex = pagerState.currentPage, onTabSelected = { index -> scope.launch { pagerState.animateScrollToPage(index) } })
+                FloatingDayTabs(tabs = tabs, selectedIndex = pagerState.currentPage, onTabSelected = { index -> scope.launch { pagerState.animateScrollToPage(index) } }, glassmorphismEnabled = vm.glassmorphismEnabled)
             }
         }
     }
 }
 
 @Composable
-fun FloatingDayTabs(tabs: List<String>, selectedIndex: Int, onTabSelected: (Int) -> Unit) {
-    val containerColor = MaterialTheme.colorScheme.surface
-    val elevation = 4.dp
+fun FloatingDayTabs(tabs: List<String>, selectedIndex: Int, onTabSelected: (Int) -> Unit, glassmorphismEnabled: Boolean = false) {
+    val containerColor = if (glassmorphismEnabled) {
+        MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    val elevation = if (glassmorphismEnabled) 0.dp else 4.dp
 
-    Surface(modifier = Modifier.height(56.dp).fillMaxWidth().widthIn(max = 600.dp), shape = RoundedCornerShape(28.dp), color = containerColor, shadowElevation = elevation) {
+    Surface(
+        modifier = Modifier
+            .height(56.dp)
+            .fillMaxWidth()
+            .widthIn(max = 600.dp)
+            .then(
+                if (glassmorphismEnabled) {
+                    Modifier.border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), RoundedCornerShape(28.dp))
+                } else {
+                    Modifier
+                }
+            ),
+        shape = RoundedCornerShape(28.dp),
+        color = containerColor,
+        shadowElevation = elevation
+    ) {
         Row(modifier = Modifier.fillMaxSize().padding(4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             tabs.forEachIndexed { index, title ->
                 val isSelected = selectedIndex == index
@@ -99,7 +119,7 @@ fun FloatingDayTabs(tabs: List<String>, selectedIndex: Int, onTabSelected: (Int)
 }
 
 @Composable
-fun ClassItem(item: ScheduleItem, timeString: String, vm: MainViewModel, onClick: () -> Unit) {
+fun ClassItem(item: ScheduleItem, timeString: String, vm: MainViewModel, glassmorphismEnabled: Boolean = false, onClick: () -> Unit) {
     val streamLabel = stringResource(R.string.stream); val groupLabel = stringResource(R.string.group_short); val roomLabel = stringResource(R.string.auditorium)
     
     val typeResId = vm.getSubjectTypeResId(item)
@@ -110,7 +130,7 @@ fun ClassItem(item: ScheduleItem, timeString: String, vm: MainViewModel, onClick
     } else ""
     val fullTime = if (!timeString.contains(":") && !timeString.contains("-")) stringResource(R.string.pair) + " $timeString" else timeString
 
-    ThemedCard(onClick = onClick, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) { 
+    ThemedCard(onClick = onClick, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp), glassmorphismEnabled = glassmorphismEnabled) { 
         Row(verticalAlignment = Alignment.CenterVertically) { 
             val timeBg = MaterialTheme.colorScheme.surfaceContainerHigh
             val contentColor = MaterialTheme.colorScheme.onSurface

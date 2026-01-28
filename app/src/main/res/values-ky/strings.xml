@@ -104,6 +104,8 @@
     <string name="follow_system">Системалык</string>
     <string name="light_mode">Жарык</string>
     <string name="dark_mode">Күңүрт</string>
+    <string name="glass_mode">Ачык Айнек</string>
+    <string name="glass_dark_mode">Караңгы Айнек</string>
     <string name="language">Тил</string>
     <string name="docs_download">Документ жүктөө</string>
     <string name="in_app_pdf">Тиркеме ичинде (PDF)</string>

@@ -142,6 +142,7 @@
     <string name="reference_filename">Reference</string>
     <string name="print_download">Печать / Скачать</string>
     <string name="generating_pdf">Создание PDF...</string>
+    <string name="uploading_pdf">Загрузка PDF…</string>
     <string name="pdf_ru">PDF (ru)</string>
     <string name="pdf_en">PDF (en)</string>
     <string name="cert_header">МИНИСТЕРСТВО НАУКИ И ОБРАЗОВАНИЯ\nОШСКИЙ ГОСУДАРСТВЕННЫЙ УНИВЕРСИТЕТ</string>

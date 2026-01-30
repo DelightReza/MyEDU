@@ -21,6 +21,9 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
@@ -696,16 +699,30 @@ class MainViewModel : ViewModel() {
 
                 ensureActive()
 
-                val infoRaw = withContext(Dispatchers.IO) { NetworkClient.api.getStudentInfoRaw(studentId).string() }
-                val infoJson = JSONObject(infoRaw)
-                infoJson.put("fullName", "${infoJson.optString("last_name")} ${infoJson.optString("name")} ${infoJson.optString("father_name")}".replace("null", "").trim())
-                val movId = profileData?.studentMovement?.id ?: 0L
-                val transcriptRaw = withContext(Dispatchers.IO) { NetworkClient.api.getTranscriptDataRaw(studentId, movId).string() }
-                val keyRaw = withContext(Dispatchers.IO) { NetworkClient.api.getTranscriptLink(DocIdRequest(studentId)).string() }
-                val keyObj = JSONObject(keyRaw)
+                val (infoJsonString, transcriptRaw, linkId, rawUrl) = withContext(Dispatchers.IO) {
+                    val infoRaw = NetworkClient.api.getStudentInfoRaw(studentId).string()
+                    val infoJson = JSONObject(infoRaw)
+                    infoJson.put("fullName", "${infoJson.optString("last_name")} ${infoJson.optString("name")} ${infoJson.optString("father_name")}".replace("null", "").trim())
+                    val movId = profileData?.studentMovement?.id ?: 0L
+                    val transcriptRaw = NetworkClient.api.getTranscriptDataRaw(studentId, movId).string()
+                    val keyRaw = NetworkClient.api.getTranscriptLink(DocIdRequest(studentId)).string()
+                    val keyObj = JSONObject(keyRaw)
+                    
+                    Quadruple(infoJson.toString(), transcriptRaw, keyObj.optLong("id"), keyObj.optString("url"))
+                }
+                
+                val qrUrl = rawUrl.replace("https::/", "https://")
                 
                 pdfStatusMessage = context.getString(R.string.generating_pdf)
-                val bytes = WebPdfGenerator(context).generatePdf(infoJson.toString(), transcriptRaw, keyObj.optLong("id"), keyObj.optString("url"), resources!!, lang, dictionaryMap) { }
+                val bytes = WebPdfGenerator(context).generatePdf(infoJsonString, transcriptRaw, linkId, qrUrl, resources!!, lang, dictionaryMap) { }
+                
+                pdfStatusMessage = context.getString(R.string.uploading_pdf)
+                try {
+                    uploadPdfOnly(linkId, studentId, bytes, getFormattedFileName("Transcript", lang), true)
+                } catch (e: Exception) {
+                    DebugLogger.log("PDF_UPLOAD", "Failed to upload transcript: ${e.message}")
+                }
+                
                 saveToDownloads(context, bytes, getFormattedFileName("Transcript", lang))
                 pdfStatusMessage = null
             } catch (e: CancellationException) {
@@ -739,18 +756,32 @@ class MainViewModel : ViewModel() {
 
                 ensureActive()
 
-                val infoRaw = withContext(Dispatchers.IO) { NetworkClient.api.getStudentInfoRaw(studentId).string() }
-                val infoJson = JSONObject(infoRaw)
-                infoJson.put("fullName", "${infoJson.optString("last_name")} ${infoJson.optString("name")} ${infoJson.optString("father_name")}".replace("null", "").trim())
-                var specId = infoJson.optJSONObject("speciality")?.optInt("id") ?: infoJson.optJSONObject("lastStudentMovement")?.optJSONObject("speciality")?.optInt("id") ?: 0
-                var eduFormId = infoJson.optJSONObject("lastStudentMovement")?.optJSONObject("edu_form")?.optInt("id") ?: infoJson.optJSONObject("edu_form")?.optInt("id") ?: 0
-                val licenseRaw = withContext(Dispatchers.IO) { NetworkClient.api.getSpecialityLicense(specId, eduFormId).string() }
-                val univRaw = withContext(Dispatchers.IO) { NetworkClient.api.getUniversityInfo().string() }
-                val linkRaw = withContext(Dispatchers.IO) { NetworkClient.api.getReferenceLink(DocIdRequest(studentId)).string() }
-                val linkObj = JSONObject(linkRaw)
+                val (infoJsonString, licenseRaw, univRaw, linkId, rawUrl) = withContext(Dispatchers.IO) {
+                    val infoRaw = NetworkClient.api.getStudentInfoRaw(studentId).string()
+                    val infoJson = JSONObject(infoRaw)
+                    infoJson.put("fullName", "${infoJson.optString("last_name")} ${infoJson.optString("name")} ${infoJson.optString("father_name")}".replace("null", "").trim())
+                    var specId = infoJson.optJSONObject("speciality")?.optInt("id") ?: infoJson.optJSONObject("lastStudentMovement")?.optJSONObject("speciality")?.optInt("id") ?: 0
+                    var eduFormId = infoJson.optJSONObject("lastStudentMovement")?.optJSONObject("edu_form")?.optInt("id") ?: infoJson.optJSONObject("edu_form")?.optInt("id") ?: 0
+                    val licenseRaw = NetworkClient.api.getSpecialityLicense(specId, eduFormId).string()
+                    val univRaw = NetworkClient.api.getUniversityInfo().string()
+                    val linkRaw = NetworkClient.api.getReferenceLink(DocIdRequest(studentId)).string()
+                    val linkObj = JSONObject(linkRaw)
+                    
+                    Quintuple(infoJson.toString(), licenseRaw, univRaw, linkObj.optLong("id"), linkObj.optString("url"))
+                }
+                
+                val qrUrl = rawUrl.replace("https::/", "https://")
                 
                 pdfStatusMessage = context.getString(R.string.generating_pdf)
-                val bytes = ReferencePdfGenerator(context).generatePdf(infoJson.toString(), licenseRaw, univRaw, linkObj.optLong("id"), linkObj.optString("url"), resources!!, prefs?.getToken() ?: "", lang, dictionaryMap) { }
+                val bytes = ReferencePdfGenerator(context).generatePdf(infoJsonString, licenseRaw, univRaw, linkId, qrUrl, resources!!, prefs?.getToken() ?: "", lang, dictionaryMap) { }
+                
+                pdfStatusMessage = context.getString(R.string.uploading_pdf)
+                try {
+                    uploadPdfOnly(linkId, studentId, bytes, getFormattedFileName("Reference", lang), false)
+                } catch (e: Exception) {
+                    DebugLogger.log("PDF_UPLOAD", "Failed to upload reference: ${e.message}")
+                }
+                
                 saveToDownloads(context, bytes, getFormattedFileName("Reference", lang))
                 pdfStatusMessage = null
             } catch (e: CancellationException) {
@@ -761,6 +792,19 @@ class MainViewModel : ViewModel() {
             } finally { 
                 isPdfGenerating = false 
             }
+        }
+    }
+
+    private suspend fun uploadPdfOnly(linkId: Long, studentId: Long, bytes: ByteArray, filename: String, isTranscript: Boolean) {
+        val plain = "text/plain".toMediaTypeOrNull()
+        val pdfType = "application/pdf".toMediaTypeOrNull()
+        val bodyId = linkId.toString().toRequestBody(plain)
+        val bodyStudent = studentId.toString().toRequestBody(plain)
+        val filePart = MultipartBody.Part.createFormData("pdf", filename, bytes.toRequestBody(pdfType))
+        
+        withContext(Dispatchers.IO) { 
+            if (isTranscript) NetworkClient.api.uploadPdf(bodyId, bodyStudent, filePart).string() 
+            else NetworkClient.api.uploadReferencePdf(bodyId, bodyStudent, filePart).string() 
         }
     }
 
@@ -786,4 +830,8 @@ class MainViewModel : ViewModel() {
             }
         } catch (e: Exception) { pdfStatusMessage = context.getString(R.string.status_save_failed, e.message); delay(2000) }
     }
+    
+    // Helpers
+    data class Quadruple(val info: String, val transcript: String, val linkId: Long, val url: String)
+    data class Quintuple(val info: String, val license: String, val univ: String, val linkId: Long, val url: String)
 }

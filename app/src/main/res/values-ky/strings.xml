@@ -142,6 +142,7 @@
     <string name="reference_filename">Reference</string>
     <string name="print_download">Басып чыгаруу / Жүктөө</string>
     <string name="generating_pdf">PDF даярдалууда...</string>
+    <string name="uploading_pdf">PDF жүктөлүүдө…</string>
     <string name="pdf_ru">PDF (ru)</string>
     <string name="pdf_en">PDF (en)</string>
     <string name="cert_header">ИЛИМ ЖАНА БИЛИМ БЕРҮҮ МИНИСТРЛИГИ\nОШ МАМЛЕКЕТТИК УНИВЕРСИТЕТИ</string>

@@ -304,6 +304,7 @@
     <string name="reference_filename">Reference</string>
     <string name="print_download">Print / Download</string>
     <string name="generating_pdf">Generating PDF...</string>
+    <string name="uploading_pdf">Uploading PDF...</string>
     <string name="pdf_ru">PDF (ru)</string>
     <string name="pdf_en">PDF (en)</string>
     <string name="cert_header">MINISTRY OF SCIENCE AND EDUCATION\nOSH STATE UNIVERSITY</string>

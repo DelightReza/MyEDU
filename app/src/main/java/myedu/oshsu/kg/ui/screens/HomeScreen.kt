@@ -4,15 +4,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -26,102 +23,178 @@ import myedu.oshsu.kg.ui.components.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(vm: MainViewModel) {
-    val user = vm.userData
     val profile = vm.profileData
     var showNewsSheet by remember { mutableStateOf(false) }
-    val currentHour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
-    val greetingText = remember(currentHour) { if (currentHour in 4..11) R.string.good_morning else if (currentHour in 12..16) R.string.good_afternoon else R.string.good_evening }
     
-    val displayName = vm.customName ?: user?.name ?: stringResource(R.string.student_default)
-
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-        Column(Modifier.fillMaxSize().widthIn(max = 840.dp).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-            Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
-            Spacer(Modifier.height(16.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) { 
-                    Text(stringResource(greetingText), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(
-                        text = displayName, 
-                        style = MaterialTheme.typography.titleMedium, 
-                        fontWeight = FontWeight.Bold, 
-                        maxLines = 1, 
-                        overflow = TextOverflow.Ellipsis, 
-                        color = MaterialTheme.colorScheme.onSurface
-                    ) 
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    OshSuLogo(modifier = Modifier.width(100.dp).height(40.dp), themeMode = vm.themeMode)
-                    Spacer(Modifier.width(8.dp))
-                    Box(modifier = Modifier.size(40.dp).clickable { showNewsSheet = true }, contentAlignment = Alignment.Center) {
-                        if (vm.newsList.isNotEmpty()) {
-                            BadgedBox(badge = { Badge(containerColor = MaterialTheme.colorScheme.primary, contentColor = Color.White) { Text("${vm.newsList.size}") } }) {
-                                Icon(Icons.Outlined.Notifications, contentDescription = stringResource(R.string.desc_announcements), tint = MaterialTheme.colorScheme.onSurface)
-                            }
-                        } else {
-                            Icon(Icons.Outlined.Notifications, contentDescription = stringResource(R.string.desc_announcements), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    val currentHour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
+    val greetingText = when (currentHour) {
+        in 4..11 -> stringResource(R.string.good_morning)
+        in 12..16 -> stringResource(R.string.good_afternoon)
+        else -> stringResource(R.string.good_evening)
+    }
+    
+    // Using custom pull to refresh wrapper
+    MyEduPullToRefreshBox(
+        isRefreshing = vm.isRefreshing,
+        onRefresh = { vm.refresh() },
+        themeMode = vm.themeMode
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .widthIn(max = 840.dp),
+                contentPadding = PaddingValues(
+                    top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 16.dp,
+                    bottom = 100.dp,
+                    start = 16.dp,
+                    end = 16.dp
+                )
+            ) {
+                // --- HEADER SECTION ---
+                item {
+                    Row(
+                        Modifier.fillMaxWidth(), 
+                        horizontalArrangement = Arrangement.SpaceBetween, 
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) { 
+                            Text(greetingText, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
+                            Text(text = vm.customName ?: vm.userData?.name ?: stringResource(R.string.student_default), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis) 
                         }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            OshSuLogo(modifier = Modifier.width(100.dp).height(40.dp), themeMode = vm.themeMode)
+                            Spacer(Modifier.width(8.dp))
+                            Box(modifier = Modifier.size(40.dp).clickable { showNewsSheet = true }, contentAlignment = Alignment.Center) { 
+                                if (vm.newsList.isNotEmpty()) { 
+                                    BadgedBox(badge = { Badge { Text("${vm.newsList.size}") } }) { Icon(Icons.Outlined.Notifications, contentDescription = stringResource(R.string.desc_announcements), tint = MaterialTheme.colorScheme.primary) } 
+                                } else { 
+                                    Icon(Icons.Outlined.Notifications, contentDescription = stringResource(R.string.desc_announcements), tint = MaterialTheme.colorScheme.onSurfaceVariant) 
+                                } 
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(24.dp))
+                }
+
+                // --- STATS CARDS ---
+                item {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) { 
+                        StatCard(
+                            icon = Icons.Outlined.CalendarToday, 
+                            label = stringResource(R.string.semester), 
+                            value = profile?.active_semester?.toString() ?: "-", 
+                            secondaryText = "${stringResource(R.string.stream)} ${vm.determinedStream ?: "-"}",
+                            modifier = Modifier.weight(1f),
+                            glassmorphismEnabled = vm.glassmorphismEnabled,
+                            themeMode = vm.themeMode
+                        )
+                        val groupNum = vm.determinedGroup?.toString()
+                        val groupName = profile?.studentMovement?.avn_group_name
+                        StatCard(
+                            icon = Icons.Outlined.Groups, 
+                            label = stringResource(R.string.group), 
+                            value = groupNum ?: groupName ?: "-", 
+                            secondaryText = if (groupNum != null) groupName else null, 
+                            modifier = Modifier.weight(1f),
+                            glassmorphismEnabled = vm.glassmorphismEnabled,
+                            themeMode = vm.themeMode
+                        ) 
+                    }
+                    Spacer(Modifier.height(32.dp))
+                }
+
+                // --- TITLE ---
+                item {
+                    val todayString = stringResource(R.string.today)
+                    val displayDay = vm.todayDayName.ifEmpty { todayString }
+                    val title = if (displayDay == todayString) {
+                        stringResource(R.string.todays_classes)
+                    } else {
+                        "$displayDay: ${stringResource(R.string.nav_schedule)}"
+                    }
+
+                    Text(text = title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    Spacer(Modifier.height(16.dp))
+                }
+
+                // --- CLASSES LIST ---
+                if (vm.todayClasses.isEmpty()) {
+                    item {
+                        ThemedCard(modifier = Modifier.fillMaxWidth(), glassmorphismEnabled = vm.glassmorphismEnabled) { 
+                            Row(verticalAlignment = Alignment.CenterVertically) { 
+                                Icon(Icons.Outlined.Weekend, null, tint = MaterialTheme.colorScheme.primary)
+                                Spacer(Modifier.width(16.dp))
+                                Text(stringResource(R.string.no_classes_today), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface) 
+                            } 
+                        }
+                    }
+                } else {
+                    items(vm.todayClasses) { item ->
+                        ClassItem(
+                            item = item, 
+                            timeString = vm.getTimeString(item.id_lesson),
+                            vm = vm,
+                            glassmorphismEnabled = vm.glassmorphismEnabled,
+                            onClick = { vm.selectedClass = item }
+                        )
                     }
                 }
             }
-            Spacer(Modifier.height(24.dp))
-            val streamLabel = stringResource(R.string.stream)
-            val activeSemesterNum = profile?.active_semester?.toString() ?: "-"
-            val streamText = vm.determinedStream?.let { "$streamLabel $it" }
-            val rawGroupNum = vm.determinedGroup
-            val rawAvnName = profile?.studentMovement?.avn_group_name
-            val displayGroupValue = rawGroupNum?.toString() ?: rawAvnName ?: "-"
-            val groupSecondaryText = if (rawGroupNum != null && rawAvnName != null && rawAvnName != rawGroupNum.toString() && rawAvnName != "0") rawAvnName else null
-
-            Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) { 
-                StatCard(icon = Icons.Outlined.CalendarToday, label = stringResource(R.string.semester), value = activeSemesterNum, secondaryText = streamText, modifier = Modifier.weight(1f).fillMaxHeight(), glassmorphismEnabled = vm.glassmorphismEnabled, themeMode = vm.themeMode)
-                StatCard(icon = Icons.Outlined.Groups, label = stringResource(R.string.group), value = displayGroupValue, secondaryText = groupSecondaryText, modifier = Modifier.weight(1f).fillMaxHeight(), glassmorphismEnabled = vm.glassmorphismEnabled, themeMode = vm.themeMode) 
-            }
-            Spacer(Modifier.height(32.dp))
-            Text("${vm.todayDayName}: ${stringResource(R.string.todays_classes)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-            Spacer(Modifier.height(16.dp))
-            if (vm.todayClasses.isEmpty()) {
-                ThemedCard(modifier = Modifier.fillMaxWidth(), glassmorphismEnabled = vm.glassmorphismEnabled) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Outlined.Weekend, null, tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(16.dp)); Text(stringResource(R.string.no_classes_today), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface) } } 
-            } else {
-                vm.todayClasses.forEach { item -> ClassItem(item, vm.getTimeString(item.id_lesson), vm, glassmorphismEnabled = vm.glassmorphismEnabled) { vm.selectedClass = item } } 
-            }
-            Spacer(Modifier.height(80.dp))
         }
-    }    
-    if (showNewsSheet) {
-        ModalBottomSheet(onDismissRequest = { showNewsSheet = false }, containerColor = BottomSheetDefaults.ContainerColor) { 
+    }
+    
+    if (showNewsSheet) { 
+        ModalBottomSheet(onDismissRequest = { showNewsSheet = false }) { 
             Column(Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) { 
-                Text(stringResource(R.string.announcements), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                LazyColumn { items(vm.newsList) { news -> ThemedCard(Modifier.padding(top=8.dp).fillMaxWidth(), materialColor = MaterialTheme.colorScheme.surfaceVariant, glassmorphismEnabled = vm.glassmorphismEnabled) { Column { Text(news.title?:"", fontWeight=FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface); Text(news.message?:"", color = MaterialTheme.colorScheme.onSurfaceVariant) } } } } 
+                Text(stringResource(R.string.announcements), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                LazyColumn { 
+                    items(vm.newsList) { news -> 
+                        ThemedCard(
+                            modifier = Modifier.padding(top=8.dp).fillMaxWidth(),
+                            materialColor = MaterialTheme.colorScheme.surfaceVariant,
+                            glassmorphismEnabled = vm.glassmorphismEnabled
+                        ) { 
+                            Column { 
+                                Text(news.title?:"", fontWeight=FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                                Text(news.message?:"", color = MaterialTheme.colorScheme.onSurfaceVariant) 
+                            } 
+                        } 
+                    } 
+                } 
             } 
         } 
     }
 }
 
+// Re-introducing StatCard locally since it was missing
 @Composable
-fun StatCard(icon: ImageVector, label: String, value: String, secondaryText: String? = null, modifier: Modifier = Modifier, glassmorphismEnabled: Boolean = false, themeMode: String = "SYSTEM") {
-    // Remove colored background in dark themes - use surface container instead
-    val isDarkTheme = themeMode == "DARK" || themeMode == "GLASS_DARK"
-    // Use neutral surface color for all themes for better consistency
-    val cardColor = MaterialTheme.colorScheme.surfaceContainer
-    
-    ThemedCard(modifier = modifier, materialColor = cardColor, glassmorphismEnabled = glassmorphismEnabled) {
+fun StatCard(
+    icon: ImageVector, 
+    label: String, 
+    value: String, 
+    secondaryText: String? = null, 
+    modifier: Modifier = Modifier, 
+    glassmorphismEnabled: Boolean = false, 
+    themeMode: String = "SYSTEM"
+) {
+    ThemedCard(modifier = modifier, materialColor = MaterialTheme.colorScheme.surfaceContainer, glassmorphismEnabled = glassmorphismEnabled) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally, 
                 verticalArrangement = Arrangement.Center,
-                modifier = Modifier.padding(8.dp) // Extra padding
+                modifier = Modifier.padding(8.dp)
             ) { 
                 Icon(
                     icon, 
                     null, 
                     tint = MaterialTheme.colorScheme.primary, 
-                    modifier = Modifier.size(32.dp) // Larger icon
+                    modifier = Modifier.size(32.dp)
                 )
-                Spacer(Modifier.height(12.dp)) // More spacing
+                Spacer(Modifier.height(12.dp))
                 Text(
                     text = label, 
-                    style = MaterialTheme.typography.labelLarge, // Larger label
+                    style = MaterialTheme.typography.labelLarge, 
                     color = MaterialTheme.colorScheme.onPrimaryContainer, 
                     textAlign = TextAlign.Center,
                     fontWeight = FontWeight.Medium
@@ -130,8 +203,8 @@ fun StatCard(icon: ImageVector, label: String, value: String, secondaryText: Str
                 Text(
                     text = value, 
                     style = MaterialTheme.typography.headlineLarge, 
-                    fontWeight = FontWeight.ExtraBold, // Extra bold for emphasis
-                    color = MaterialTheme.colorScheme.primary, // Use primary color for value
+                    fontWeight = FontWeight.ExtraBold, 
+                    color = MaterialTheme.colorScheme.primary, 
                     textAlign = TextAlign.Center
                 )
                 if (secondaryText != null) { 

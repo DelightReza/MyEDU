@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import myedu.oshsu.kg.MainViewModel
 import myedu.oshsu.kg.R
 import myedu.oshsu.kg.ScheduleItem
+import myedu.oshsu.kg.ui.components.MyEduPullToRefreshBox
 import myedu.oshsu.kg.ui.components.OshSuLogo
 import myedu.oshsu.kg.ui.components.ThemedCard
 import kotlinx.coroutines.launch
@@ -50,28 +51,50 @@ fun ScheduleScreen(vm: MainViewModel) {
         containerColor = Color.Transparent,
         topBar = { CenterAlignedTopAppBar(title = { OshSuLogo(modifier = Modifier.width(100.dp).height(40.dp), themeMode = vm.themeMode) }, colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)) }
     ) { padding ->
-        Box(Modifier.padding(padding).fillMaxSize()) {
-            HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 80.dp, bottom = 100.dp)) { pageIndex ->
+        Column(Modifier.padding(padding).fillMaxSize()) {
+            
+            // Floating Tabs Header
+            Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                FloatingDayTabs(
+                    tabs = tabs, 
+                    selectedIndex = pagerState.currentPage, 
+                    onTabSelected = { index -> scope.launch { pagerState.animateScrollToPage(index) } }, 
+                    glassmorphismEnabled = vm.glassmorphismEnabled
+                )
+            }
+
+            // Scrollable Content with Pull to Refresh
+            HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { pageIndex ->
                 val dayClasses = vm.fullSchedule.filter { it.day == pageIndex }
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                    if (dayClasses.isEmpty()) {
-                        Box(Modifier.fillMaxSize().padding(top = 100.dp), contentAlignment = Alignment.TopCenter) { 
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) { 
-                                Icon(Icons.Outlined.Weekend, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.surfaceVariant)
-                                Spacer(Modifier.height(16.dp))
-                                Text(stringResource(R.string.no_classes), color = MaterialTheme.colorScheme.onSurfaceVariant) 
-                            } 
-                        }
-                    } else {
-                        LazyColumn(modifier = Modifier.fillMaxSize().widthIn(max = 840.dp), contentPadding = PaddingValues(horizontal = 16.dp)) { 
-                            items(dayClasses) { item -> ClassItem(item, vm.getTimeString(item.id_lesson), vm, glassmorphismEnabled = vm.glassmorphismEnabled) { vm.selectedClass = item } } 
-                            item { Spacer(Modifier.height(80.dp)) } 
+                
+                MyEduPullToRefreshBox(
+                    isRefreshing = vm.isRefreshing,
+                    onRefresh = { vm.refresh() },
+                    themeMode = vm.themeMode
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                        if (dayClasses.isEmpty()) {
+                            // Empty State
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { 
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) { 
+                                    Icon(Icons.Outlined.Weekend, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.surfaceVariant)
+                                    Spacer(Modifier.height(16.dp))
+                                    Text(stringResource(R.string.no_classes), color = MaterialTheme.colorScheme.onSurfaceVariant) 
+                                } 
+                            }
+                        } else {
+                            // Scrollable List
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize().widthIn(max = 840.dp), 
+                                contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp, start = 16.dp, end = 16.dp)
+                            ) { 
+                                items(dayClasses) { item -> 
+                                    ClassItem(item, vm.getTimeString(item.id_lesson), vm, glassmorphismEnabled = vm.glassmorphismEnabled) { vm.selectedClass = item } 
+                                } 
+                            }
                         }
                     }
                 }
-            }
-            Box(modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp, start = 16.dp, end = 16.dp)) {
-                FloatingDayTabs(tabs = tabs, selectedIndex = pagerState.currentPage, onTabSelected = { index -> scope.launch { pagerState.animateScrollToPage(index) } }, glassmorphismEnabled = vm.glassmorphismEnabled)
             }
         }
     }

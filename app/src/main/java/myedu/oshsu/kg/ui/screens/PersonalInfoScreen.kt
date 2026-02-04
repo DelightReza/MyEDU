@@ -277,7 +277,7 @@ fun PersonalInfoScreen(vm: MainViewModel, onClose: () -> Unit) {
                 Column(Modifier.fillMaxSize(), Arrangement.Center, Alignment.CenterHorizontally) {
                     Icon(Icons.Default.ErrorOutline, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(48.dp))
                     Spacer(Modifier.height(16.dp))
-                    Text(stringResource(R.string.personal_error_load), style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.personal_error_load), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                     if (errorMessage != null) Text(errorMessage!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                     Spacer(Modifier.height(16.dp))
                     Button(onClick = { isFetching = true; isError = false; scope.launch { try { val (u, p) = vm.getFreshPersonalInfo(); localUser = u; localProfile = p; isError = false } catch (e: Exception) { isError = true; errorMessage = e.message } finally { isFetching = false } } }) { Text(stringResource(R.string.personal_retry)) }

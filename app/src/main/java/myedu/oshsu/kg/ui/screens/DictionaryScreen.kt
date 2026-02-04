@@ -109,7 +109,7 @@ fun DictionaryScreen(vm: MainViewModel, onClose: () -> Unit) {
                 Column(Modifier.padding(24.dp)) {
                     Text(
                         if (isEdit) stringResource(R.string.dict_edit_title) else stringResource(R.string.dict_add_title),
-                        style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(Modifier.height(16.dp))
                     OutlinedTextField(

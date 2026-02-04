@@ -60,14 +60,14 @@ fun HomeScreen(vm: MainViewModel) {
                     ) {
                         Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) { 
                             Text(greetingText, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
-                            Text(text = vm.customName ?: vm.userData?.name ?: stringResource(R.string.student_default), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis) 
+                            Text(text = vm.customName ?: vm.userData?.name ?: stringResource(R.string.student_default), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis) 
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             OshSuLogo(modifier = Modifier.width(100.dp).height(40.dp), themeMode = vm.themeMode)
                             Spacer(Modifier.width(8.dp))
                             Box(modifier = Modifier.size(40.dp).clickable { showNewsSheet = true }, contentAlignment = Alignment.Center) { 
                                 if (vm.newsList.isNotEmpty()) { 
-                                    BadgedBox(badge = { Badge { Text("${vm.newsList.size}") } }) { Icon(Icons.Outlined.Notifications, contentDescription = stringResource(R.string.desc_announcements), tint = MaterialTheme.colorScheme.primary) } 
+                                    BadgedBox(badge = { Badge { Text("${vm.newsList.size}", color = MaterialTheme.colorScheme.onError) } }) { Icon(Icons.Outlined.Notifications, contentDescription = stringResource(R.string.desc_announcements), tint = MaterialTheme.colorScheme.primary) } 
                                 } else { 
                                     Icon(Icons.Outlined.Notifications, contentDescription = stringResource(R.string.desc_announcements), tint = MaterialTheme.colorScheme.onSurfaceVariant) 
                                 } 
@@ -164,7 +164,7 @@ fun HomeScreen(vm: MainViewModel) {
     if (showNewsSheet) { 
         ModalBottomSheet(onDismissRequest = { showNewsSheet = false }) { 
             Column(Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) { 
-                Text(stringResource(R.string.announcements), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.announcements), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 LazyColumn { 
                     items(vm.newsList) { news -> 
                         ThemedCard(

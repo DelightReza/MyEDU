@@ -52,6 +52,7 @@ class MainViewModel : ViewModel() {
     var showDictionaryScreen by mutableStateOf(false)
     var selectedClass by mutableStateOf<ScheduleItem?>(null)
     var webDocumentUrl by mutableStateOf<String?>(null)
+    var addWidgetRequestPending by mutableStateOf(false)
 
     // --- REFRESH LOGIC ---
     private var lastRefreshTime: Long = 0
@@ -132,6 +133,10 @@ class MainViewModel : ViewModel() {
     private var jsFetcher: JsResourceFetcher? = null
     private var refFetcher: ReferenceJsFetcher? = null
     private val dictUtils = DictionaryUtils()
+    
+    // Public methods to access widget promotion preference
+    fun loadShowWidgetPromotion(): Boolean = prefs?.loadData("show_widget_promotion", Boolean::class.java) ?: true
+    fun saveShowWidgetPromotion(value: Boolean) { prefs?.saveData("show_widget_promotion", value) }
     
     private var cachedResourcesRu: PdfResources? = null
     private var cachedResourcesEn: PdfResources? = null
@@ -440,7 +445,7 @@ class MainViewModel : ViewModel() {
         }
     }
 
-    private fun loadOfflineData() {
+    private fun loadFromSharedPreferences() {
         prefs?.let { p ->
             userData = p.loadData("user_data", UserData::class.java)
             profileData = p.loadData("profile_data", StudentInfoResponse::class.java)
@@ -451,6 +456,72 @@ class MainViewModel : ViewModel() {
             sessionData = p.loadList("session_list")
             transcriptData = p.loadList("transcript_list")
             processScheduleLocally()
+        }
+    }
+
+    private fun loadOfflineData() {
+        viewModelScope.launch {
+            try {
+                // Try to load from Room Database first
+                val repository = prefs?.getRepository()
+                if (repository != null) {
+                    withContext(Dispatchers.IO) {
+                        // Load data from Room
+                        val roomUserData = repository.getUserDataSync()
+                        val roomProfileData = repository.getProfileDataSync()
+                        val roomPayStatus = repository.getPayStatusSync()
+                        val roomNews = repository.getAllNewsSync()
+                        val roomSchedule = repository.getAllSchedulesSync()
+                        val roomTimeMap = repository.getTimeMapSync()
+                        val roomGrades = repository.getAllGradesSync()
+                        
+                        withContext(Dispatchers.Main) {
+                            // Use Room data if available, otherwise fall back to SharedPreferences
+                            userData = roomUserData ?: prefs?.loadData("user_data", UserData::class.java)
+                            profileData = roomProfileData ?: prefs?.loadData("profile_data", StudentInfoResponse::class.java)
+                            payStatus = roomPayStatus ?: prefs?.loadData("pay_status", PayStatusResponse::class.java)
+                            verify2FAStatus = prefs?.loadData("verify_2fa_status", Verify2FAResponse::class.java)
+                            
+                            newsList = if (roomNews.isNotEmpty()) roomNews else prefs?.loadList("news_list") ?: emptyList()
+                            fullSchedule = if (roomSchedule.isNotEmpty()) roomSchedule else prefs?.loadList("schedule_list") ?: emptyList()
+                            timeMap = if (roomTimeMap.isNotEmpty()) roomTimeMap else {
+                                val json = prefs?.prefs?.getString("time_map", null)
+                                if (json != null) {
+                                    try {
+                                        val gson = com.google.gson.Gson()
+                                        gson.fromJson(json, object : com.google.gson.reflect.TypeToken<Map<Int, String>>() {}.type)
+                                    } catch (e: Exception) {
+                                        emptyMap()
+                                    }
+                                } else {
+                                    emptyMap()
+                                }
+                            }
+                            
+                            // For grades, sessionData and transcriptData come from different sources
+                            // SessionData is from session_list, transcriptData is from transcript_list
+                            if (roomGrades.subjects?.isNotEmpty() == true) {
+                                // roomGrades is a SessionResponse - use it for sessionData
+                                sessionData = listOf(roomGrades)
+                            } else {
+                                sessionData = prefs?.loadList("session_list") ?: emptyList()
+                            }
+                            
+                            // transcriptData is separate - load from SharedPreferences fallback
+                            transcriptData = prefs?.loadList("transcript_list") ?: emptyList()
+                            
+                            processScheduleLocally()
+                        }
+                    }
+                } else {
+                    // Fallback to SharedPreferences only
+                    loadFromSharedPreferences()
+                }
+            } catch (e: Exception) {
+                DebugLogger.log("DATA", "Error loading from Room, falling back to SharedPreferences: ${e.message}")
+                // Fallback to SharedPreferences on error
+                loadFromSharedPreferences()
+            }
         }
     }
 
@@ -582,9 +653,10 @@ class MainViewModel : ViewModel() {
             val times = try { NetworkClient.api.getLessonTimes(mov.id_speciality!!, mov.id_edu_form!!, activeYearId) } catch (e: Exception) { emptyList() }
             val wrappers = NetworkClient.api.getSchedule(mov.id_speciality!!, mov.id_edu_form!!, activeYearId, profile.active_semester ?: 1)
             withContext(Dispatchers.Main) {
-                timeMap = times.associate { (it.lesson?.num ?: 0) to "${it.begin_time ?: ""} - ${it.end_time ?: ""}" }
+                timeMap = times.associate { it.id_lesson to "${it.begin_time ?: ""} - ${it.end_time ?: ""}" }
                 fullSchedule = wrappers.flatMap { it.schedule_items ?: emptyList() }.sortedBy { it.id_lesson }
                 prefs?.saveList("schedule_list", fullSchedule)
+                prefs?.saveData("time_map", timeMap)
                 processScheduleLocally()
             }
         } catch (_: Exception) {}
@@ -603,12 +675,24 @@ class MainViewModel : ViewModel() {
             
         val cal = Calendar.getInstance()
         val loc = Locale(language) 
+        val currentHour = cal.get(Calendar.HOUR_OF_DAY)
+        
+        // After 8 PM, show next day's name
+        if (currentHour >= 20) {
+            cal.add(Calendar.DAY_OF_YEAR, 1)
+        }
+        
+        // If next day is Sunday, skip to Monday to match the class list
+        if (cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+            cal.add(Calendar.DAY_OF_YEAR, 1)
+        }
+        
         var dayName = cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.LONG, loc) ?: appContext?.getString(R.string.today) ?: "Today"
         if (dayName.isNotEmpty()) dayName = dayName.replaceFirstChar { if (it.isLowerCase()) it.titlecase(loc) else it.toString() }
         todayDayName = dayName
 
-        val apiDay = if (cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) 6 else cal.get(Calendar.DAY_OF_WEEK) - 2
-        todayClasses = fullSchedule.filter { it.day == apiDay }
+        // Use WidgetHelper to get classes with 8 PM logic
+        todayClasses = myedu.oshsu.kg.widget.WidgetHelper.getTodayClasses(fullSchedule)
     }
     
     fun getSubjectTypeResId(item: ScheduleItem): Int? {
@@ -834,4 +918,9 @@ class MainViewModel : ViewModel() {
     // Helpers
     data class Quadruple(val info: String, val transcript: String, val linkId: Long, val url: String)
     data class Quintuple(val info: String, val license: String, val univ: String, val linkId: Long, val url: String)
+    
+    // Widget management
+    fun requestAddWidget() {
+        addWidgetRequestPending = true
+    }
 }

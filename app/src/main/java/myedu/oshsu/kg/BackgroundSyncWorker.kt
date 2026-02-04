@@ -35,11 +35,26 @@ class BackgroundSyncWorker(appContext: Context, workerParams: WorkerParameters) 
             }
             val profile = try { NetworkClient.api.getProfile() } catch (e: Exception) { return false }
 
+            // Save to both SharedPreferences (for backward compatibility) and Room Database
             prefs.saveData("user_data", userResponse.user)
             prefs.saveData("profile_data", profile)
+            
+            if (userResponse.user != null) {
+                prefs.getRepository().updateUserData(userResponse.user)
+            }
+            prefs.getRepository().updateProfileData(profile)
 
-            try { val news = NetworkClient.api.getNews(); prefs.saveList("news_list", news) } catch (_: Exception) { }
-            try { val pay = NetworkClient.api.getPayStatus(); prefs.saveData("pay_status", pay) } catch (_: Exception) { }
+            try { 
+                val news = NetworkClient.api.getNews()
+                prefs.saveList("news_list", news)
+                prefs.getRepository().updateNews(news)
+            } catch (_: Exception) { }
+            
+            try { 
+                val pay = NetworkClient.api.getPayStatus()
+                prefs.saveData("pay_status", pay)
+                prefs.getRepository().updatePayStatus(pay)
+            } catch (_: Exception) { }
 
             try {
                 val oldSession = prefs.loadList<SessionResponse>("session_list")
@@ -53,6 +68,11 @@ class BackgroundSyncWorker(appContext: Context, workerParams: WorkerParameters) 
                     if (portalUpdates.isNotEmpty()) NotificationHelper.sendNotification(localizedContext, portalUpdates, isPortalOpening = true)
                 }
                 prefs.saveList("session_list", newSession)
+                
+                // Save to Room Database
+                if (newSession.isNotEmpty()) {
+                    prefs.getRepository().updateGrades(newSession.first())
+                }
             } catch (e: Exception) { e.printStackTrace() }
 
             val mov = profile.studentMovement
@@ -65,12 +85,22 @@ class BackgroundSyncWorker(appContext: Context, workerParams: WorkerParameters) 
                     val fullSchedule = wrappers.flatMap { it.schedule_items ?: emptyList() }.sortedBy { it.id_lesson }
 
                     if (fullSchedule.isNotEmpty()) {
+                        // Save to both SharedPreferences (for backward compatibility) and Room Database
                         prefs.saveList("schedule_list", fullSchedule)
+                        prefs.getRepository().updateSchedules(fullSchedule)
+                        
                         if (times.isNotEmpty()) {
-                            val timeMap = times.associate { (it.lesson?.num ?: 0) to "${it.begin_time ?: ""} - ${it.end_time ?: ""}" }
+                            val timeMap = times.associate { it.id_lesson to "${it.begin_time ?: ""} - ${it.end_time ?: ""}" }
+                            prefs.saveData("time_map", timeMap)
+                            prefs.getRepository().updateTimeMap(timeMap)
                             val localizedContext = NotificationHelper.getLocalizedContext(context, prefs)
                             ScheduleAlarmManager(localizedContext).scheduleNotifications(fullSchedule, timeMap, prefs.loadData("language_pref", String::class.java)?.replace("\"", "") ?: "en")
                         }
+                        
+                        // Update widget
+                        try {
+                            myedu.oshsu.kg.widget.ScheduleWidgetUpdater.updateWidget(context)
+                        } catch (e: Exception) { e.printStackTrace() }
                     }
                 } catch (e: Exception) { e.printStackTrace() }
             }

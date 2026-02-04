@@ -16,6 +16,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -67,6 +68,7 @@ import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    private val requestMultiplePermissionsLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }
     private var connectivityManager: ConnectivityManager? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var mainViewModel: MainViewModel? = null
@@ -116,9 +118,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { 
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) { requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) } 
-        }
+        
+        // Request required permissions on startup
+        requestRequiredPermissions()
+        
         setupNetworkMonitoring()
         setupBackgroundWork()
         registerReceiver(installReceiver, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), Context.RECEIVER_EXPORTED)
@@ -136,6 +139,27 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(vm.fullSchedule, vm.timeMap, vm.language) { 
                 if (vm.fullSchedule.isNotEmpty() && vm.timeMap.isNotEmpty()) { ScheduleAlarmManager(context).scheduleNotifications(vm.fullSchedule, vm.timeMap, vm.language) } 
             }
+            
+            // Handle widget add request
+            LaunchedEffect(vm.addWidgetRequestPending) {
+                if (vm.addWidgetRequestPending && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val appWidgetManager = android.appwidget.AppWidgetManager.getInstance(context)
+                    val myProvider = android.content.ComponentName(context, myedu.oshsu.kg.widget.ScheduleWidgetReceiver::class.java)
+                    
+                    if (appWidgetManager.isRequestPinAppWidgetSupported) {
+                        val pinnedWidgetCallbackIntent = Intent(context, MainActivity::class.java)
+                        val successCallback = android.app.PendingIntent.getActivity(
+                            context, 0, pinnedWidgetCallbackIntent,
+                            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+                        )
+                        appWidgetManager.requestPinAppWidget(myProvider, null, successCallback)
+                    } else {
+                        Toast.makeText(context, "Widget pinning not supported on this device", Toast.LENGTH_SHORT).show()
+                    }
+                    vm.addWidgetRequestPending = false
+                }
+            }
+            
             MyEduTheme(themeMode = vm.themeMode) { ThemedBackground(themeMode = vm.themeMode, glassmorphismEnabled = vm.glassmorphismEnabled) { AppContent(vm) } } 
         }
     }
@@ -143,6 +167,22 @@ class MainActivity : ComponentActivity() {
     fun restartApp() {
         val intent = Intent(this, MainActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK) }
         startActivity(intent); finish()
+    }
+    
+    private fun requestRequiredPermissions() {
+        val permissionsToRequest = mutableListOf<String>()
+        
+        // Check and request notification permission (Android 13+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+        
+        // Request all needed permissions at once
+        if (permissionsToRequest.isNotEmpty()) {
+            requestMultiplePermissionsLauncher.launch(permissionsToRequest.toTypedArray())
+        }
     }
 
     private fun setupNetworkMonitoring() {

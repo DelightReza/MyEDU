@@ -30,6 +30,7 @@
     <string name="stream">Поток</string>
     <string name="group">Группа</string>
     <string name="todays_classes">Пары сегодня</string>
+    <string name="tomorrows_classes">Пары завтра</string>
     <string name="no_classes_today">Сегодня пар нет. Отдыхайте!</string>
     <string name="announcements">Объявления</string>
     <string name="no_classes">Нет занятий</string>
@@ -364,4 +365,13 @@
     <string name="desc_revert">Вернуть</string>
     <string name="fmt_id_val">ID: %s</string>
     <string name="fmt_name_id">%1$s (ID: %2$s)</string>
+    
+    <!-- Widget -->
+    <string name="add_widget_title">Виджет на главном экране</string>
+    <string name="add_widget_desc">Видите следующее занятие одним взглядом</string>
+    <string name="add_widget_button">Добавить</string>
+    <string name="ok">ОК</string>
+    <string name="close">Закрыть</string>
+    <string name="and_more">и еще %d…</string>
+    <string name="loading">Загрузка...</string>
 </resources>

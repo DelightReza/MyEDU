@@ -4,14 +4,19 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.launch
+import myedu.oshsu.kg.database.MyEduRepository
 
-class PrefsManager(context: Context) {
+class PrefsManager(private val context: Context) {
     // @PublishedApi makes these accessible to the inline function below
     @PublishedApi
     internal val prefs: SharedPreferences = context.getSharedPreferences("myedu_offline_cache", Context.MODE_PRIVATE)
     
     @PublishedApi
     internal val gson = Gson()
+    
+    // Repository for Room Database
+    private val repository = MyEduRepository(context)
 
     // --- AUTH TOKEN MANAGEMENT ---
     fun saveToken(token: String) {
@@ -24,6 +29,14 @@ class PrefsManager(context: Context) {
 
     fun clearAll() {
         prefs.edit().clear().apply()
+        // Also clear Room Database - use application scope for cleanup
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            try {
+                repository.clearAll()
+            } catch (e: Exception) {
+                // Ignore errors during cleanup
+            }
+        }
     }
 
     // --- DATA SAVING (GENERIC) ---
@@ -58,4 +71,8 @@ class PrefsManager(context: Context) {
             emptyList()
         }
     }
+    
+    // --- ROOM DATABASE ACCESS ---
+    fun getRepository(): MyEduRepository = repository
 }
+

@@ -30,6 +30,7 @@
     <string name="stream">Агым</string>
     <string name="group">Тайпа</string>
     <string name="todays_classes">Бүгүнкү сабактар</string>
+    <string name="tomorrows_classes">Эртеңки сабактар</string>
     <string name="no_classes_today">Бүүн сабак жок. Эс алыңыз!</string>
     <string name="announcements">Жарыялар</string>
     <string name="no_classes">Сабактар жок</string>
@@ -364,4 +365,13 @@
     <string name="desc_revert">Кайтаруу</string>
     <string name="fmt_id_val">ID: %s</string>
     <string name="fmt_name_id">%1$s (ID: %2$s)</string>
+    
+    <!-- Widget -->
+    <string name="add_widget_title">Башкы экрандагы виджет</string>
+    <string name="add_widget_desc">Кийинки сабакты бир карашта көрүңүз</string>
+    <string name="add_widget_button">Кошуу</string>
+    <string name="ok">Макул</string>
+    <string name="close">Жабуу</string>
+    <string name="and_more">жана дагы %d…</string>
+    <string name="loading">Жүктөлүүдө...</string>
 </resources>

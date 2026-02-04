@@ -25,16 +25,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import myedu.oshsu.kg.MainViewModel
 import myedu.oshsu.kg.R
 import myedu.oshsu.kg.ScheduleItem
 import myedu.oshsu.kg.ui.components.MyEduPullToRefreshBox
 import myedu.oshsu.kg.ui.components.OshSuLogo
 import myedu.oshsu.kg.ui.components.ThemedCard
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -46,6 +47,8 @@ fun ScheduleScreen(vm: MainViewModel) {
     val scope = rememberCoroutineScope()
     val pagerState = rememberPagerState(initialPage = vm.selectedScheduleDay) { tabs.size }
     LaunchedEffect(pagerState.currentPage) { vm.selectedScheduleDay = pagerState.currentPage }
+    
+    val context = LocalContext.current
 
     Scaffold(
         containerColor = Color.Transparent,

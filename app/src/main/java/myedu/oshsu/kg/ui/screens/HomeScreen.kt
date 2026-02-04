@@ -103,6 +103,23 @@ fun HomeScreen(vm: MainViewModel) {
                     }
                     Spacer(Modifier.height(32.dp))
                 }
+                
+                // --- WIDGET PROMOTION CARD ---
+                item {
+                    var showWidgetPromotion by remember { mutableStateOf(vm.loadShowWidgetPromotion()) }
+                    
+                    if (showWidgetPromotion) {
+                        WidgetPromotionCard(
+                            glassmorphismEnabled = vm.glassmorphismEnabled,
+                            onAddWidget = { vm.requestAddWidget() },
+                            onDismiss = {
+                                showWidgetPromotion = false
+                                vm.saveShowWidgetPromotion(false)
+                            }
+                        )
+                        Spacer(Modifier.height(32.dp))
+                    }
+                }
 
                 // --- TITLE ---
                 item {
@@ -218,6 +235,81 @@ fun StatCard(
                         textAlign = TextAlign.Center
                     ) 
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun WidgetPromotionCard(
+    glassmorphismEnabled: Boolean = false,
+    onAddWidget: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    ThemedCard(
+        modifier = Modifier.fillMaxWidth(),
+        materialColor = MaterialTheme.colorScheme.primaryContainer,
+        glassmorphismEnabled = glassmorphismEnabled
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Outlined.Widgets,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.add_widget_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.add_widget_desc),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                )
+                Spacer(Modifier.height(12.dp))
+                Button(
+                    onClick = onAddWidget,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(
+                        Icons.Outlined.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(stringResource(R.string.add_widget_button))
+                }
+            }
+            // Just × icon, clickable
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .offset(x = 8.dp, y = (-8).dp)
+                    .clickable { onDismiss() },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "×",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
+                    fontWeight = FontWeight.Light
+                )
             }
         }
     }

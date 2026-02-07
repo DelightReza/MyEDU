@@ -5,6 +5,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,7 +13,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.EventBusy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,6 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import myedu.oshsu.kg.GraphicInfo
+import myedu.oshsu.kg.JournalItem
 import myedu.oshsu.kg.MainViewModel
 import myedu.oshsu.kg.R
 import myedu.oshsu.kg.SortOption
@@ -114,7 +120,8 @@ fun GradesScreen(vm: MainViewModel) {
                                 updatedAt = sub.marklist?.updated_at,
                                 graphic = sub.graphic,
                                 themeMode = vm.themeMode,
-                                glassmorphismEnabled = vm.glassmorphismEnabled
+                                glassmorphismEnabled = vm.glassmorphismEnabled,
+                                onClick = { vm.openJournal(sub) }
                             )
                         }
                     }
@@ -128,6 +135,16 @@ fun GradesScreen(vm: MainViewModel) {
                     .align(Alignment.TopCenter)
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             )
+        }
+    }
+    
+    // Journal Bottom Sheet
+    if (vm.showJournalSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { vm.showJournalSheet = false },
+            containerColor = MaterialTheme.colorScheme.surface
+        ) {
+            JournalContent(vm)
         }
     }
 }
@@ -255,7 +272,8 @@ fun GradeItemCard(
     updatedAt: String?,
     graphic: GraphicInfo?,
     themeMode: String,
-    glassmorphismEnabled: Boolean = false
+    glassmorphismEnabled: Boolean = false,
+    onClick: () -> Unit = {}
 ) {
     val isUploadActive = remember(graphic) {
         try {
@@ -282,6 +300,7 @@ fun GradeItemCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 6.dp)
+            .clickable(onClick = onClick)
             .then(
                 if (glassmorphismEnabled) {
                     Modifier.border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
@@ -374,6 +393,28 @@ fun GradeItemCard(
                     )
                 }
             }
+
+            Spacer(Modifier.height(8.dp))
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Description,
+                    contentDescription = stringResource(R.string.journal),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = stringResource(R.string.journal),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
     }
 }
@@ -401,3 +442,226 @@ private fun formatDateFull(d: String?) = try {
     val date = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.parse(cleanDate)!!
     SimpleDateFormat("dd MMM HH:mm", Locale.getDefault()).format(date)
 } catch (e: Exception) { d ?: "" }
+
+@Composable
+fun JournalContent(vm: MainViewModel) {
+    val subject = vm.selectedJournalSubject
+    val subjectName = subject?.subject?.get(vm.language) ?: stringResource(R.string.subject_default)
+    
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        // Header
+        Text(
+            text = subjectName,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+        
+        // Type Filter Chips
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            val types = listOf(
+                1 to R.string.type_lecture,
+                2 to R.string.type_practice,
+                3 to R.string.type_lab
+            )
+            
+            types.forEach { (typeId, labelRes) ->
+                FilterChip(
+                    selected = vm.selectedJournalType == typeId,
+                    onClick = { vm.changeJournalType(typeId) },
+                    label = { Text(stringResource(labelRes)) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                )
+            }
+        }
+        
+        // Journal List
+        if (vm.isJournalLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else if (vm.journalList.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = stringResource(R.string.journal_empty),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(vm.journalList) { item ->
+                    JournalRow(item)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun JournalRow(item: JournalItem) {
+    val dateComponents = remember(item.date) {
+        try {
+            val date = item.date ?: return@remember Pair("?", "?")
+            val parsedDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(date)
+            if (parsedDate != null) {
+                val day = SimpleDateFormat("dd", Locale.getDefault()).format(parsedDate)
+                val month = SimpleDateFormat("MMM", Locale.getDefault()).format(parsedDate)
+                Pair(day, month)
+            } else {
+                Pair("?", "?")
+            }
+        } catch (e: Exception) {
+            Pair("?", "?")
+        }
+    }
+    
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Date Box
+        Column(
+            modifier = Modifier
+                .width(50.dp)
+                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                .padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = dateComponents.first,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = dateComponents.second,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        
+        // Middle: Topic and Teacher
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = item.theme ?: "",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            
+            if (item.teacherName != null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = stringResource(R.string.teacher_label),
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = item.teacherName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+        
+        // Right: Activity Column
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.width(60.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.journal_activity),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            
+            // Check if mark is valid
+            val mark = item.mark
+            val hasValidMark = !mark.isNullOrEmpty() && mark != "0"
+            
+            if (hasValidMark) {
+                // Show mark in colored circle
+                val markInt = mark?.toIntOrNull() ?: 0
+                val markColor = when (markInt) {
+                    5 -> Color(0xFF4CAF50) // Green
+                    4 -> Color(0xFF2196F3) // Blue
+                    3 -> Color(0xFFFF9800) // Orange
+                    2 -> Color(0xFFF44336) // Red
+                    else -> MaterialTheme.colorScheme.outline
+                }
+                
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .border(2.dp, markColor, RoundedCornerShape(20.dp))
+                        .padding(8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = mark ?: "",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = markColor
+                    )
+                }
+            } else {
+                // Check label
+                if (item.label == true) {
+                    // Green Check
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = stringResource(R.string.journal_present),
+                        tint = Color(0xFF4CAF50),
+                        modifier = Modifier.size(32.dp)
+                    )
+                } else {
+                    // Red Cross
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = stringResource(R.string.journal_absent),
+                        tint = Color(0xFFF44336),
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+        }
+    }
+}

@@ -44,6 +44,7 @@ private fun isValid(value: String?): Boolean {
     return !s.isNullOrEmpty() && !s.equals("null", true) && s != "-" && s != "Unknown" && s != "?"
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClassDetailsSheet(vm: MainViewModel, item: ScheduleItem) {
     val clipboardManager = LocalClipboardManager.current
@@ -65,6 +66,16 @@ fun ClassDetailsSheet(vm: MainViewModel, item: ScheduleItem) {
     val noMapAppStr = stringResource(R.string.no_map_app)
     val subjectDefaultStr = stringResource(R.string.subject_default)
     val descTimeStr = stringResource(R.string.desc_time)
+
+    // Journal Bottom Sheet
+    if (vm.showJournalSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { vm.showJournalSheet = false },
+            containerColor = MaterialTheme.colorScheme.surface
+        ) {
+            JournalContent(vm)
+        }
+    }
 
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         Column(Modifier.fillMaxWidth().widthIn(max = 840.dp).verticalScroll(rememberScrollState()).padding(16.dp)) {
@@ -104,6 +115,37 @@ fun ClassDetailsSheet(vm: MainViewModel, item: ScheduleItem) {
                         Text(stringResource(R.string.no_grades), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline) 
                     }
                 }
+            }
+            
+            // Journal button - try to find subject from any semester if not in current
+            // Also track which semester the subject belongs to
+            val journalSubjectData = if (subjectGrades != null) {
+                Pair(subjectGrades, currentSemSession?.semester?.id)
+            } else {
+                // Search all semesters and track which one has the subject
+                session.firstNotNullOfOrNull { sessionResp ->
+                    sessionResp.subjects?.find { it.subject?.get(lang) == item.subject?.get(lang) }
+                        ?.let { Pair(it, sessionResp.semester?.id) }
+                }
+            }
+            
+            Spacer(Modifier.height(16.dp))
+            Button(
+                onClick = { 
+                    journalSubjectData?.let { (subject, semesterId) ->
+                        vm.openJournal(subject, semesterId)
+                    }
+                },
+                enabled = journalSubjectData != null,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            ) {
+                Icon(Icons.Outlined.Description, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.journal), style = MaterialTheme.typography.labelLarge)
             }
 
             val teacherName = item.teacher?.get()

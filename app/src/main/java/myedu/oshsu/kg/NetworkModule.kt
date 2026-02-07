@@ -263,8 +263,17 @@ data class NewsItem(val id: Int, val title: String?, val message: String?, val c
 
 data class SessionResponse(val semester: SemesterObj?, val subjects: List<SessionSubjectWrapper>?)
 data class SemesterObj(val id: Int, val name_en: String?)
-data class SessionSubjectWrapper(val subject: NameObj?, val marklist: MarkList?, @SerializedName("graphic") val graphic: GraphicInfo?)
+data class SessionSubjectWrapper(
+    val subject: NameObj?, 
+    val marklist: MarkList?, 
+    @SerializedName("graphic") val graphic: GraphicInfo?,
+    val curricula: CurriculaObj?
+) {
+    // Convenience property to get id_curricula from curricula object
+    val idCurricula: Int? get() = curricula?.id
+}
 data class GraphicInfo(val begin: String?, val end: String?)
+data class CurriculaObj(val id: Int?)
 
 data class MarkList(
     val id: Long?,
@@ -274,6 +283,16 @@ data class MarkList(
     @SerializedName("finally") val finalScore: Double?, 
     val total: Double?, 
     @SerializedName("updated_at") val updated_at: String?
+)
+
+// --- JOURNAL ---
+data class JournalItem(
+    val date: String?,
+    val theme: String?,
+    val mark: String?,
+    val label: Boolean?,
+    @SerializedName("id_stream") val idStream: Long?,
+    @SerializedName("teacher_name") val teacherName: String?
 )
 
 // --- DOCS ---
@@ -298,6 +317,7 @@ interface OshSuApi {
     @GET("api/ep/schedule/schedulelessontime") suspend fun getLessonTimes(@Query("id_speciality") specId: Int, @Query("id_edu_form") formId: Int, @Query("id_edu_year") yearId: Int): List<LessonTimeResponse>
     @GET("api/studentscheduleitem") suspend fun getSchedule(@Query("id_speciality") specId: Int, @Query("id_edu_form") formId: Int, @Query("id_edu_year") yearId: Int, @Query("id_semester") semId: Int): List<ScheduleWrapper>
     @GET("api/studentsession") suspend fun getSession(@Query("id_semester") semesterId: Int): List<SessionResponse>
+    @GET("api/student/journal") suspend fun getJournal(@Query("id_curricula") idCurricula: Int, @Query("id_semester") idSemester: Int, @Query("id_subject_type") idSubjectType: Int, @Query("id_edu_year") idEduYear: Int): List<JournalItem>
     @GET("api/studenttranscript") suspend fun getTranscript(@Query("id_student") studentId: Long, @Query("id_movement") movementId: Long): List<TranscriptYear>
     @GET("api/searchstudentinfo") suspend fun getStudentInfoRaw(@Query("id_student") studentId: Long): ResponseBody
     @GET("api/studenttranscript") suspend fun getTranscriptDataRaw(@Query("id_student") sId: Long, @Query("id_movement") mId: Long): ResponseBody

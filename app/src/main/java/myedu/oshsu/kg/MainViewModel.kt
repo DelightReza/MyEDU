@@ -107,6 +107,13 @@ class MainViewModel : ViewModel() {
     var gradesSortOption by mutableStateOf(SortOption.DEFAULT)
     var selectedSemesterId by mutableStateOf<Int?>(null)
     
+    // --- JOURNAL ---
+    var showJournalSheet by mutableStateOf(false)
+    var journalList by mutableStateOf<List<JournalItem>>(emptyList())
+    var isJournalLoading by mutableStateOf(false)
+    var selectedJournalSubject by mutableStateOf<SessionSubjectWrapper?>(null)
+    var selectedJournalType by mutableStateOf(1) // 1=Lecture, 2=Practice, 3=Lab
+    
     // --- DOCS UI ---
     var transcriptData by mutableStateOf<List<TranscriptYear>>(emptyList())
     var isTranscriptLoading by mutableStateOf(false)
@@ -725,6 +732,77 @@ class MainViewModel : ViewModel() {
                 
                 withContext(Dispatchers.Main) { sessionData = session; prefs?.saveList("session_list", session) }
             } catch (_: Exception) {} finally { withContext(Dispatchers.Main) { isGradesLoading = false } }
+        }
+    }
+
+    // --- JOURNAL FUNCTIONS ---
+    fun openJournal(subject: SessionSubjectWrapper, semesterId: Int? = null) {
+        selectedJournalSubject = subject
+        // If semester is provided, use it; otherwise use current selected or active
+        if (semesterId != null) {
+            selectedSemesterId = semesterId
+        }
+        selectedJournalType = 1 // Reset to Lecture
+        showJournalSheet = true
+        fetchJournal()
+    }
+    
+    fun changeJournalType(typeId: Int) {
+        selectedJournalType = typeId
+        fetchJournal()
+    }
+    
+    fun fetchJournal() {
+        val subject = selectedJournalSubject ?: return
+        // Use id_curricula field from API response, fallback to marklist.id, then subject.id
+        val curriculaId = subject.idCurricula ?: subject.marklist?.id?.toInt() ?: subject.subject?.id
+        
+        if (curriculaId == null) {
+            DebugLogger.log("JOURNAL", "All ID fields are null, cannot fetch journal")
+            viewModelScope.launch(Dispatchers.Main) {
+                isJournalLoading = false
+                journalList = emptyList()
+            }
+            return
+        }
+        
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                withContext(Dispatchers.Main) { isJournalLoading = true }
+                
+                val semesterId = selectedSemesterId ?: profileData?.active_semester ?: 1
+                val activeSemester = profileData?.active_semester ?: semesterId
+                
+                // Calculate academic year based on semester
+                // Each academic year has 2 semesters (odd and even)
+                // If current active semester is 9-10, it's year 25
+                // If semester is 7-8, it's year 24, etc.
+                val currentActiveYear = AcademicYearHelper.getDefaultActiveYearId()
+                val semesterDiff = activeSemester - semesterId
+                val yearOffset = semesterDiff / 2  // 2 semesters per year
+                val eduYearId = currentActiveYear - yearOffset
+                
+                DebugLogger.log("JOURNAL", "Fetching journal: curricula=$curriculaId, semester=$semesterId, type=$selectedJournalType, year=$eduYearId (active=$activeSemester, offset=$yearOffset)")
+                
+                // Note: API expects id_curricula from SessionSubjectWrapper (fallback to marklist.id, then subject.id)
+                val journal = NetworkClient.api.getJournal(
+                    idCurricula = curriculaId,
+                    idSemester = semesterId,
+                    idSubjectType = selectedJournalType,
+                    idEduYear = eduYearId
+                )
+                
+                DebugLogger.log("JOURNAL", "Received ${journal.size} journal entries")
+                
+                withContext(Dispatchers.Main) { 
+                    journalList = journal
+                }
+            } catch (e: Exception) {
+                DebugLogger.log("JOURNAL", "Failed to fetch journal: ${e.message}")
+                DebugLogger.log("JOURNAL", "Exception: ${e.stackTraceToString()}")
+            } finally {
+                withContext(Dispatchers.Main) { isJournalLoading = false }
+            }
         }
     }
 

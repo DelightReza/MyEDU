@@ -75,6 +75,12 @@
     <string name="sort_low">Төмөн</string>
     <string name="sort_high">Жогору</string>
     <string name="semester_format">%1$d-Семестр</string>
+    <string name="journal">Журнал</string>
+    <string name="journal_activity">Активдүүлүк</string>
+    <string name="journal_empty">Жазуулар табылган жок.</string>
+    <string name="journal_present">Катышты</string>
+    <string name="journal_absent">Катышкан жок</string>
+    <string name="teacher_label">Окутуучу</string>
 
     <string name="profile">Профиль</string>
     <string name="tuition_contract">Окуу келишими</string>

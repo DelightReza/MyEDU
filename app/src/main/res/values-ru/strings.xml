@@ -75,6 +75,12 @@
     <string name="sort_low">Низк.</string>
     <string name="sort_high">Выс.</string>
     <string name="semester_format">%1$d-Семестр</string>
+    <string name="journal">Журнал</string>
+    <string name="journal_activity">Активность</string>
+    <string name="journal_empty">Записей не найдено.</string>
+    <string name="journal_present">Присутствовал</string>
+    <string name="journal_absent">Отсутствовал</string>
+    <string name="teacher_label">Преподаватель</string>
 
     <string name="profile">Профиль</string>
     <string name="tuition_contract">Контракт на обучение</string>

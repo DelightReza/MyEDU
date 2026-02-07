@@ -10,7 +10,8 @@ data class GradeEntity(
     val semesterJson: String?,
     val subjectJson: String?,
     val marklistJson: String?,
-    val graphicJson: String?
+    val graphicJson: String?,
+    val idCurricula: Int?
 )
 
 // Conversion functions
@@ -21,7 +22,8 @@ fun SessionResponse.toEntities(): List<GradeEntity> {
             semesterJson = this.semester?.let { gson.toJson(it) },
             subjectJson = wrapper.subject?.let { gson.toJson(it) },
             marklistJson = wrapper.marklist?.let { gson.toJson(it) },
-            graphicJson = wrapper.graphic?.let { gson.toJson(it) }
+            graphicJson = wrapper.graphic?.let { gson.toJson(it) },
+            idCurricula = wrapper.idCurricula
         )
     } ?: emptyList()
 }
@@ -38,7 +40,8 @@ fun List<GradeEntity>.toSessionResponse(): SessionResponse {
         SessionSubjectWrapper(
             subject = entity.subjectJson?.let { gson.fromJson(it, NameObj::class.java) },
             marklist = entity.marklistJson?.let { gson.fromJson(it, MarkList::class.java) },
-            graphic = entity.graphicJson?.let { gson.fromJson(it, GraphicInfo::class.java) }
+            graphic = entity.graphicJson?.let { gson.fromJson(it, GraphicInfo::class.java) },
+            curricula = entity.idCurricula?.let { CurriculaObj(it) }
         )
     }
     

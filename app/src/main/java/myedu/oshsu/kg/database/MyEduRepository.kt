@@ -14,6 +14,7 @@ class MyEduRepository(context: Context) {
     private val payStatusDao = database.payStatusDao()
     private val newsDao = database.newsDao()
     private val timeMapDao = database.timeMapDao()
+    private val journalDao = database.journalDao()
     
     // Schedule operations
     fun getAllSchedules(): Flow<List<ScheduleItem>> {
@@ -122,6 +123,22 @@ class MyEduRepository(context: Context) {
         timeMapDao.replaceAll(entities)
     }
     
+    // Journal operations
+    fun getJournalEntries(curriculaId: Int, semesterId: Int, subjectType: Int, eduYearId: Int): Flow<List<JournalItem>> {
+        return journalDao.getJournalEntries(curriculaId, semesterId, subjectType, eduYearId).map { entities ->
+            entities.toJournalItems()
+        }
+    }
+    
+    suspend fun getJournalEntriesSync(curriculaId: Int, semesterId: Int, subjectType: Int, eduYearId: Int): List<JournalItem> {
+        return journalDao.getJournalEntriesSync(curriculaId, semesterId, subjectType, eduYearId).toJournalItems()
+    }
+    
+    suspend fun updateJournalEntries(curriculaId: Int, semesterId: Int, subjectType: Int, eduYearId: Int, entries: List<JournalItem>) {
+        val entities = entries.toEntities(curriculaId, semesterId, subjectType, eduYearId)
+        journalDao.replaceJournalEntries(curriculaId, semesterId, subjectType, eduYearId, entities)
+    }
+    
     // Clear all data
     suspend fun clearAll() {
         scheduleDao.deleteAll()
@@ -131,5 +148,6 @@ class MyEduRepository(context: Context) {
         payStatusDao.deleteAll()
         newsDao.deleteAll()
         timeMapDao.deleteAll()
+        journalDao.deleteAll()
     }
 }

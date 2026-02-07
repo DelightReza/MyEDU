@@ -782,6 +782,26 @@ class MainViewModel : ViewModel() {
                 val yearOffset = semesterDiff / 2  // 2 semesters per year
                 val eduYearId = currentActiveYear - yearOffset
                 
+                // Cache key for this journal request
+                val cacheKey = "journal_${curriculaId}_${semesterId}_${selectedJournalType}_${eduYearId}"
+                
+                // Load cached data first (offline support)
+                val cachedJournal = try {
+                    prefs?.getRepository()?.getJournalEntriesSync(curriculaId, semesterId, selectedJournalType, eduYearId)
+                        ?: prefs?.loadList<JournalItem>(cacheKey)
+                        ?: emptyList()
+                } catch (e: Exception) {
+                    emptyList()
+                }
+                
+                // Display cached data immediately if available
+                if (cachedJournal.isNotEmpty()) {
+                    withContext(Dispatchers.Main) { 
+                        journalList = cachedJournal
+                    }
+                    DebugLogger.log("JOURNAL", "Loaded ${cachedJournal.size} cached journal entries")
+                }
+                
                 DebugLogger.log("JOURNAL", "Fetching journal: curricula=$curriculaId, semester=$semesterId, type=$selectedJournalType, year=$eduYearId (active=$activeSemester, offset=$yearOffset)")
                 
                 // Note: API expects id_curricula from SessionSubjectWrapper (fallback to marklist.id, then subject.id)
@@ -794,12 +814,23 @@ class MainViewModel : ViewModel() {
                 
                 DebugLogger.log("JOURNAL", "Received ${journal.size} journal entries")
                 
+                // Save to both SharedPreferences and Room database for offline support
+                try {
+                    prefs?.saveList(cacheKey, journal)
+                    prefs?.getRepository()?.updateJournalEntries(curriculaId, semesterId, selectedJournalType, eduYearId, journal)
+                    DebugLogger.log("JOURNAL", "Saved journal entries to cache")
+                } catch (e: Exception) {
+                    DebugLogger.log("JOURNAL", "Failed to save journal to cache: ${e.message}")
+                }
+                
                 withContext(Dispatchers.Main) { 
                     journalList = journal
                 }
             } catch (e: Exception) {
                 DebugLogger.log("JOURNAL", "Failed to fetch journal: ${e.message}")
                 DebugLogger.log("JOURNAL", "Exception: ${e.stackTraceToString()}")
+                // If network fails and we don't have cached data, show empty list
+                // (cached data would have already been loaded above)
             } finally {
                 withContext(Dispatchers.Main) { isJournalLoading = false }
             }

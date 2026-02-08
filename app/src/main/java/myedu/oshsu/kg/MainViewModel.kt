@@ -688,12 +688,7 @@ class MainViewModel : ViewModel() {
         if (currentHour >= 20) {
             cal.add(Calendar.DAY_OF_YEAR, 1)
         }
-        
-        // If next day is Sunday, skip to Monday to match the class list
-        if (cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
-            cal.add(Calendar.DAY_OF_YEAR, 1)
-        }
-        
+
         var dayName = cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.LONG, loc) ?: appContext?.getString(R.string.today) ?: "Today"
         if (dayName.isNotEmpty()) dayName = dayName.replaceFirstChar { if (it.isLowerCase()) it.titlecase(loc) else it.toString() }
         todayDayName = dayName

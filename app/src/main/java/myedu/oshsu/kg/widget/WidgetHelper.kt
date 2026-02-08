@@ -8,7 +8,6 @@ object WidgetHelper {
      * Finds the next class based on current time.
      * 
      * After 8 PM, shows next day's first class.
-     * If next day is Sunday (day 6), shows Monday's (day 0) first class instead.
      * 
      * @param schedule List of schedule items
      * @param timeMap Map of lesson IDs to time strings (e.g., "08:00 - 09:30")
@@ -41,10 +40,6 @@ object WidgetHelper {
         // After 8 PM (20:00), show next day
         if (currentHour >= 20) {
             apiDay = (apiDay + 1) % 7
-            // If next day is Sunday (6), show Monday (0)
-            if (apiDay == 6) {
-                apiDay = 0
-            }
             
             // Find the first class of the target day
             val nextDayClasses = schedule.filter { it.day == apiDay }.sortedBy { it.id_lesson }
@@ -88,7 +83,6 @@ object WidgetHelper {
      * Gets all classes for a specific day.
      * 
      * After 8 PM, returns next day's classes.
-     * If next day is Sunday (day 6), returns Monday's (day 0) classes instead.
      * 
      * @param schedule List of schedule items
      * @param currentTimeMillis Current time in milliseconds (defaults to System.currentTimeMillis())
@@ -116,10 +110,6 @@ object WidgetHelper {
         // After 8 PM, show next day
         if (currentHour >= 20) {
             apiDay = (apiDay + 1) % 7
-            // If next day is Sunday (6), show Monday (0)
-            if (apiDay == 6) {
-                apiDay = 0
-            }
         }
         
         return schedule.filter { it.day == apiDay }.sortedBy { it.id_lesson }

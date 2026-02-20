@@ -24,7 +24,7 @@ class ReferenceJsFetcher(private val context: Context) {
             val inputStream = context.assets.open("stamp.jpg")
             val bytes = inputStream.readBytes()
             val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-            "data:image/jpeg;base64,$base64" // Reference PDF needs raw base64 string
+            "data:image/jpeg;base64,$base64"
         } catch (e: Exception) {
             "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
         }
@@ -56,22 +56,22 @@ class ReferenceJsFetcher(private val context: Context) {
             suspend fun linkModule(fileKeyword: String, exportChar: String, fallbackName: String, fallbackValue: String) {
                 var varName: String? = null
                 
-                // Regex to find what variable name the main script imports it as
                 if (exportChar == "DEFAULT_OR_NAMED") {
                      val regex = Regex("""import\s*\{\s*(\w+)\s*\}\s*from\s*['"][^'"]*$fileKeyword[^'"]*['"]""")
                      varName = findMatch(refContent, regex.pattern)
                 } else {
-                    val regex = Regex("""import\s*\{\s*$exportChar\s+as\s+(\w+)\s*\}\s*from\s*['"][^'"]*$fileKeyword[^'"]*['"]""")
-                    varName = findMatch(refContent, regex.pattern)
+                    val regexAlias = Regex("""import\s*\{\s*$exportChar\s+as\s+(\w+)\s*\}\s*from\s*['"][^'"]*$fileKeyword[^'"]*['"]""")
+                    varName = findMatch(refContent, regexAlias.pattern)
+                    
+                    if (varName == null) {
+                        val regexDirect = Regex("""import\s*\{\s*($exportChar)\s*\}\s*from\s*['"][^'"]*$fileKeyword[^'"]*['"]""")
+                        varName = findMatch(refContent, regexDirect.pattern)
+                    }
                 }
                 
                 if (varName == null) varName = fallbackName
 
-                // Special handling for Signed (Stamp) to use local asset
                 if (fileKeyword == "Signed") {
-                    // For reference PDF, stamp logic is handled mainly in ReferenceResources
-                    // But if the script uses a variable, we define it here too
-                    // fallbackValue passed in is usually the raw base64 string
                     dependencies.append("var $varName = $fallbackValue;\n")
                     return
                 }
@@ -87,7 +87,13 @@ class ReferenceJsFetcher(private val context: Context) {
                              Regex("""export\s*\{\s*(\w+)\s*\}""") 
                         else 
                              Regex("""export\s*\{\s*(\w+)\s+as\s+$exportChar\s*\}""")
-                        val internalVarMatch = exportRegex.find(fileContent)
+                        
+                        var internalVarMatch = exportRegex.find(fileContent)
+                        if (internalVarMatch == null && exportChar != "DEFAULT_OR_NAMED") {
+                             val regexDirectExport = Regex("""export\s*\{\s*($exportChar)\s*\}""")
+                             internalVarMatch = regexDirectExport.find(fileContent)
+                        }
+
                         if (internalVarMatch != null) {
                             val internalVar = internalVarMatch.groupValues[1]
                             val cleanContent = cleanJsContent(fileContent)
@@ -99,10 +105,8 @@ class ReferenceJsFetcher(private val context: Context) {
                 if (!success) dependencies.append("var $varName = $fallbackValue;\n")
             }
 
-            // Link modules using the new robust logic
             linkModule("PdfStyle", "P", "PdfStyle_Fallback", "{}")          
             
-            // Pass the quoted string for the JS variable
             val stampJsValue = "\"${getStampOrPlaceholder()}\"" 
             linkModule("Signed", "S", "Signed_Fallback", stampJsValue)            
             
@@ -121,6 +125,8 @@ class ReferenceJsFetcher(private val context: Context) {
                 }
             }
             varsToMock.remove("$") 
+            varsToMock.remove("tt") 
+            varsToMock.remove("et") 
 
             val dummyScript = StringBuilder()
             dummyScript.append("const UniversalDummy = new Proxy(function(){}, { get: () => UniversalDummy, apply: () => UniversalDummy, construct: () => UniversalDummy });\n")
@@ -136,15 +142,17 @@ class ReferenceJsFetcher(private val context: Context) {
                 dictionary.forEach { (ru, en) -> if (ru.length > 1) cleanRef = cleanRef.replace(ru, en) }
             }
 
-            val generatorRegex = Regex("""const\s+(\w+)\s*=\s*\([a-zA-Z0-9,]*\)\s*=>\s*\{[^}]*pageSize:["']A4["']""")
+            // UPDATED REGEX: uses [\s\S]*? to handle multi-line function bodies correctly
+            val generatorRegex = Regex("""const\s+(\w+)\s*=\s*\([^)]*\)\s*=>\s*\{[\s\S]*?pageSize\s*:\s*["']A4["']""")
             val generatorMatch = generatorRegex.find(cleanRef)
-            val genFuncName = generatorMatch?.groupValues?.get(1) ?: "at" 
+            val genFuncName = generatorMatch?.groupValues?.get(1) ?: "at"
+            
+            logger("Gen Func: $genFuncName") // Debug log
+            
             val exposeCode = "\nwindow.RefDocGenerator = $genFuncName;"
-            
-            // Pass the RAW base64 (not quoted) for the ReferenceResources stampBase64 field
             val rawStamp = getStampOrPlaceholder()
-            
             val finalScript = dummyScript.toString() + dependencies.toString() + "\n(() => {\n" + cleanRef + exposeCode + "\n})();"
+            
             return@withContext ReferenceResources(finalScript, rawStamp)
         } catch (e: Exception) {
             logger("Ref Fetch Error: ${e.message}")
@@ -209,36 +217,30 @@ class ReferencePdfGenerator(private val context: Context) {
 
                 val dictionaryJson = JSONObject(dictionary).toString()
                 val dateLocale = if (language == "en") "en-US" else "ru-RU"
-                val jsContent = resources.scriptContent
-                val generatorRegex = Regex("""const\s+(\w+)\s*=\s*\(\w+,\w+,\w+\)\s*=>\s*\{[\s\S]*?return\s*\{[\s\S]*?pageSize\s*:\s*["']A4["'][\s\S]*?\}\s*\}""")
-                val match = generatorRegex.find(jsContent)
-                val extractedFunction: String = if (match != null) {
-                    match.value.replaceFirst("const ${match.groupValues[1]}", "const generateDocDef")
-                } else {
-                    val startIndex = jsContent.indexOf("const at=(")
-                    val endIndex = jsContent.indexOf("const nt={")
-                    if (startIndex != -1 && endIndex != -1) {
-                        var code = jsContent.substring(startIndex, endIndex)
-                        code = code.replaceFirst("const at", "const generateDocDef")
-                        if (code.trim().endsWith(",")) code = code.substring(0, code.lastIndexOf(","))
-                        code
-                    } else {
-                        if (continuation.isActive) continuation.resumeWithException(Exception(context.getString(R.string.error_js_logic, "Extraction failed")))
-                        return@post
-                    }
-                }
-
-                // Fallback here is just a safety measure, resources.stampBase64 should be populated by Assets now
+                
                 val stamp = resources.stampBase64 ?: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFhAJ/wlseKgAAAABJRU5ErkJggg=="
                 val defaultAddr = context.getString(R.string.university_addr_default)
 
                 val html = """
-                <!DOCTYPE html><html><head><script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script></head><body><script>
+                <!DOCTYPE html><html><head><script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script></head><body>
+                <script>
                     window.onerror = function(msg, url, line) { AndroidBridge.returnError(msg + " @ " + line); };
                     const studentInfo = $studentInfoJson; const licenseInfo = $licenseInfoJson; const univInfo = $univInfoJson; const qrCodeUrl = "$qrUrl"; const lang = "$language"; const dictionary = $dictionaryJson;
-                    const tt = { f10: {fontSize:10}, f11:{fontSize:11}, f12:{fontSize:12}, f13:{fontSize:13}, f14:{fontSize:14}, f16:{fontSize:16}, fb:{bold:true}, textCenter:{alignment:'center'}, textRight:{alignment:'right'} };
-                    const et = "$stamp";
-                    $extractedFunction
+                    
+                    if (typeof $ === 'undefined') {
+                        var $ = function(d) { return { format: (f) => (d ? new Date(d) : new Date()).toLocaleDateString("$dateLocale") }; };
+                        $.locale = function() {};
+                    }
+                </script>
+                
+                <script>
+                    try {
+                        ${resources.scriptContent}
+                        AndroidBridge.log("JS: Reference scripts linked.");
+                    } catch(e) { AndroidBridge.returnError("Script Error: " + e.message); }
+                </script>
+
+                <script>
                     function translateString(str) { if (!str || typeof str !== 'string') return str; if (dictionary[str]) return dictionary[str]; let s = str; for (const [key, value] of Object.entries(dictionary)) { if (key.length > 2 && s.includes(key)) { s = s.split(key).join(value); } } return s; }
                     function prepareAndGenerate() {
                         try {
@@ -257,11 +259,15 @@ class ReferencePdfGenerator(private val context: Context) {
                             let address = univInfo.address_ru || "$defaultAddr";
                             if(lang === "en") address = translateString(address);
                             const extraData = { id: docIdStr, edunum: courseStr, date: new Date().toLocaleDateString("$dateLocale"), adress: address };
-                            const docDef = generateDocDef(studentInfo, extraData, qrCodeUrl);
+                            
+                            if (typeof window.RefDocGenerator !== 'function') {
+                                throw new Error("RefDocGenerator not found on window object.");
+                            }
+                            const docDef = window.RefDocGenerator(studentInfo, extraData, qrCodeUrl);
                             pdfMake.createPdf(docDef).getBase64(function(b64) { AndroidBridge.returnPdf(b64); });
                         } catch(e) { AndroidBridge.returnError("Logic Error: " + e.message); }
                     }
-                    prepareAndGenerate();
+                    setTimeout(prepareAndGenerate, 100);
                 </script></body></html>
                 """
                 webView.loadDataWithBaseURL("https://myedu.oshsu.kg/", html, "text/html", "UTF-8", null)

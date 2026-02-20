@@ -84,6 +84,9 @@
 
     <string name="profile">Профиль</string>
     <string name="tuition_contract">Окуу келишими</string>
+    <string name="tuition_history">Төлөм тарыхы</string>
+    <string name="tuition_requisite">Реквизит (Л/С)</string>
+    <string name="ls_copied">Л/С көчүрүлдү</string>
     <string name="paid">Төлөндү</string>
     <string name="total">Бардыгы</string>
     <string name="remaining">Калды: %d</string>

@@ -80,6 +80,11 @@ class MainViewModel : ViewModel() {
     var newsList by mutableStateOf<List<NewsItem>>(emptyList())
     var verify2FAStatus by mutableStateOf<Verify2FAResponse?>(null)
 
+    // --- TUITION STATE ---
+    var showTuitionSheet by mutableStateOf(false)
+    var tuitionDetails by mutableStateOf<List<PaymentDetail>>(emptyList())
+    var isTuitionLoading by mutableStateOf(false)
+
     // --- LOCAL EDIT STATE ---
     var customName by mutableStateOf<String?>(null)
     var customPhotoUri by mutableStateOf<String?>(null)
@@ -250,6 +255,30 @@ class MainViewModel : ViewModel() {
         prefs?.saveData("local_custom_name", name)
         prefs?.saveData("local_custom_photo", photoUri)
         avatarRefreshTrigger++
+    }
+
+    // --- TUITION LOGIC ---
+    fun fetchTuitionDetails() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                withContext(Dispatchers.Main) { 
+                    isTuitionLoading = true 
+                    showTuitionSheet = true 
+                }
+                
+                val response = NetworkClient.api.getStudentPrice()
+                val allPayments = response.flatMap { it.payment ?: emptyList() }
+                    .sortedByDescending { it.id_semester ?: 0 }
+                
+                withContext(Dispatchers.Main) { 
+                    tuitionDetails = allPayments 
+                }
+            } catch (e: Exception) {
+                DebugLogger.log("TUITION", "Failed to fetch tuition: ${e.message}")
+            } finally {
+                withContext(Dispatchers.Main) { isTuitionLoading = false }
+            }
+        }
     }
 
     // --- UPDATER LOGIC ---
@@ -955,7 +984,9 @@ class MainViewModel : ViewModel() {
                     val linkRaw = NetworkClient.api.getReferenceLink(DocIdRequest(studentId)).string()
                     val linkObj = JSONObject(linkRaw)
                     
-                    Quintuple(infoJson.toString(), licenseRaw, univRaw, linkObj.optLong("id"), linkObj.optString("url"))
+                    val linkIdVal = linkObj.optLong("id")
+                    
+                    Quintuple(infoJson.toString(), licenseRaw, univRaw, linkIdVal, linkObj.optString("url"))
                 }
                 
                 val qrUrl = rawUrl.replace("https::/", "https://")

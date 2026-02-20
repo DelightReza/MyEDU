@@ -3,12 +3,17 @@ package myedu.oshsu.kg.ui.screens
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
@@ -22,8 +27,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -40,6 +47,7 @@ import myedu.oshsu.kg.ui.components.*
 @Composable
 fun ProfileScreen(vm: MainViewModel) {
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
     val user = vm.userData
     val profile = vm.profileData
     val pay = vm.payStatus
@@ -134,9 +142,20 @@ fun ProfileScreen(vm: MainViewModel) {
             Spacer(Modifier.height(32.dp))
 
             if (pay != null) {
-                ThemedCard(Modifier.fillMaxWidth(), glassmorphismEnabled = vm.glassmorphismEnabled) {
+                ThemedCard(
+                    modifier = Modifier.fillMaxWidth(), 
+                    glassmorphismEnabled = vm.glassmorphismEnabled,
+                    onClick = { vm.fetchTuitionDetails() }
+                ) {
                     Column {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(stringResource(R.string.tuition_contract), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface); Icon(Icons.Outlined.Payments, null, tint = MaterialTheme.colorScheme.primary) }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) { 
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(stringResource(R.string.tuition_contract), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                                Spacer(Modifier.width(8.dp))
+                                Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                            }
+                            Icon(Icons.Outlined.Payments, null, tint = MaterialTheme.colorScheme.primary) 
+                        }
                         Spacer(Modifier.height(12.dp))
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Column { Text(stringResource(R.string.paid), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant); Text("${pay.paid_summa?.toInt() ?: 0} ${stringResource(R.string.currency_kgs)}", style = MaterialTheme.typography.titleMedium, color = Color(0xFF00FF88)) }; Column(horizontalAlignment = Alignment.End) { Text(stringResource(R.string.total), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant); Text("${pay.need_summa?.toInt() ?: 0} ${stringResource(R.string.currency_kgs)}", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) } }
                         val debt = pay.getDebt(); if (debt > 0) { Spacer(Modifier.height(8.dp)); HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant); Spacer(Modifier.height(8.dp)); Text(stringResource(R.string.remaining, debt.toInt()), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold) }
@@ -243,6 +262,174 @@ fun ProfileScreen(vm: MainViewModel) {
             Spacer(Modifier.height(24.dp)); InfoSection(stringResource(R.string.personal), vm.themeMode)
             DetailCard(Icons.Outlined.Badge, stringResource(R.string.passport), profile?.pdsstudentinfo?.getFullPassport() ?: "-", vm.themeMode, vm.glassmorphismEnabled); DetailCard(Icons.Outlined.Phone, stringResource(R.string.phone), profile?.pdsstudentinfo?.phone ?: "-", vm.themeMode, vm.glassmorphismEnabled)
             Spacer(Modifier.height(32.dp)); Button(onClick = { vm.logout() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer), modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.log_out)) }; Spacer(Modifier.height(130.dp))
+        }
+    }
+
+    // --- TUITION SHEET ---
+    if (vm.showTuitionSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { vm.showTuitionSheet = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            windowInsets = WindowInsets.statusBars
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 32.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.tuition_history), 
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                if (vm.isTuitionLoading) {
+                    Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(vm.tuitionDetails) { item ->
+                            TuitionDetailItem(item, context, clipboardManager, vm.glassmorphismEnabled)
+                        }
+                        item { Spacer(Modifier.height(32.dp)) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TuitionDetailItem(
+    item: myedu.oshsu.kg.PaymentDetail, 
+    context: android.content.Context,
+    clipboardManager: androidx.compose.ui.platform.ClipboardManager,
+    glassmorphismEnabled: Boolean
+) {
+    val remaining = item.getRemaining()
+    val isFullyPaid = remaining <= 5.0 
+    
+    val containerColor = if (glassmorphismEnabled) {
+        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f)
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerHigh
+    }
+    
+    val shape = RoundedCornerShape(12.dp)
+    val copiedMsg = stringResource(R.string.ls_copied)
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        shape = shape,
+        modifier = Modifier.fillMaxWidth().then(if(glassmorphismEnabled) Modifier.border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha=0.2f), shape) else Modifier)
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            // Header: Semester & Year
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                val semesterText = if (item.id_semester != null && item.id_semester != 0) {
+                    stringResource(R.string.semester_format, item.id_semester)
+                } else {
+                    item.semester ?: "-"
+                }
+                
+                Text(
+                    text = semesterText,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = item.edu_year ?: "",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            HorizontalDivider(Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant)
+
+            // LS (Requisite) - Highlighted if debt exists
+            if (item.ls != null) {
+                Row(
+                    Modifier.fillMaxWidth().padding(bottom = 8.dp), 
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = stringResource(R.string.tuition_requisite),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "${item.ls}",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Icon(
+                                imageVector = Icons.Default.ContentCopy,
+                                contentDescription = stringResource(R.string.copy),
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clickable {
+                                        clipboardManager.setText(AnnotatedString("${item.ls}"))
+                                        Toast.makeText(context, copiedMsg, Toast.LENGTH_SHORT).show()
+                                    },
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    
+                    // Status Badge
+                    if (isFullyPaid) {
+                        Surface(
+                            color = Color(0xFFE8F5E9),
+                            contentColor = Color(0xFF2E7D32),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.paid),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    } else {
+                        Surface(
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.remaining, remaining.toInt()),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Financials
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column {
+                    Text(text = stringResource(R.string.total), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(text = "${item.total?.toInt() ?: 0}", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(text = stringResource(R.string.paid), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(text = "${item.paid?.toInt() ?: 0}", fontWeight = FontWeight.SemiBold, color = Color(0xFF4CAF50))
+                }
+            }
         }
     }
 }

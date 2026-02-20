@@ -257,8 +257,29 @@ data class RoomObj(val name_en: String?)
 data class LessonTimeResponse(val id_lesson: Int, val begin_time: String?, val end_time: String?, val lesson: LessonNum?)
 data class LessonNum(val num: Int)
 
-// --- GRADES ---
+// --- GRADES & TUITION ---
 data class PayStatusResponse(val paid_summa: Double?, val need_summa: Double?, val access_message: List<String>?) { fun getDebt(): Double = (need_summa ?: 0.0) - (paid_summa ?: 0.0) }
+
+data class StudentPriceResponse(
+    val id: Int,
+    val title: String?,
+    val payment: List<PaymentDetail>?
+)
+
+data class PaymentDetail(
+    val ls: Long?,
+    val speciality: String?,
+    val semester: String?,
+    val id_semester: Int?,
+    val edu_year: String?,
+    val edu_form: String?,
+    val total: Double?,
+    val paid: Double?,
+    val tariff: String?
+) {
+    fun getRemaining(): Double = (total ?: 0.0) - (paid ?: 0.0)
+}
+
 data class NewsItem(val id: Int, val title: String?, val message: String?, val created_at: String?)
 
 data class SessionResponse(val semester: SemesterObj?, val subjects: List<SessionSubjectWrapper>?)
@@ -312,6 +333,7 @@ interface OshSuApi {
     @GET("api/studentinfo") suspend fun getProfile(): StudentInfoResponse
     @GET("api/control/regulations/eduyear") suspend fun getYears(): List<EduYear>
     @GET("api/studentPayStatus") suspend fun getPayStatus(): PayStatusResponse
+    @GET("api/studentprice") suspend fun getStudentPrice(): List<StudentPriceResponse>
     @GET("api/appupdate") suspend fun getNews(): List<NewsItem>
     @POST("api/verify2FA") suspend fun verify2FA(): Verify2FAResponse
     @GET("api/ep/schedule/schedulelessontime") suspend fun getLessonTimes(@Query("id_speciality") specId: Int, @Query("id_edu_form") formId: Int, @Query("id_edu_year") yearId: Int): List<LessonTimeResponse>

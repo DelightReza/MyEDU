@@ -13,8 +13,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Weekend
@@ -54,31 +56,37 @@ fun ScheduleScreen(vm: MainViewModel) {
         containerColor = Color.Transparent,
         topBar = { CenterAlignedTopAppBar(title = { OshSuLogo(modifier = Modifier.width(100.dp).height(40.dp), themeMode = vm.themeMode) }, colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)) }
     ) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize()) {
-            
-            // Floating Tabs Header
-            Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-                FloatingDayTabs(
-                    tabs = tabs, 
-                    selectedIndex = pagerState.currentPage, 
-                    onTabSelected = { index -> scope.launch { pagerState.animateScrollToPage(index) } }, 
-                    glassmorphismEnabled = vm.glassmorphismEnabled
-                )
-            }
-
-            // Scrollable Content with Pull to Refresh
-            HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { pageIndex ->
-                val dayClasses = vm.fullSchedule.filter { it.day == pageIndex }
+        // WRAP THE WHOLE COLUMN CONTENT IN PULL TO REFRESH
+        MyEduPullToRefreshBox(
+            isRefreshing = vm.isRefreshing,
+            onRefresh = { vm.refresh() },
+            themeMode = vm.themeMode
+        ) {
+            Column(Modifier.padding(padding).fillMaxSize()) {
                 
-                MyEduPullToRefreshBox(
-                    isRefreshing = vm.isRefreshing,
-                    onRefresh = { vm.refresh() },
-                    themeMode = vm.themeMode
-                ) {
+                // Floating Tabs Header
+                Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    FloatingDayTabs(
+                        tabs = tabs, 
+                        selectedIndex = pagerState.currentPage, 
+                        onTabSelected = { index -> scope.launch { pagerState.animateScrollToPage(index) } }, 
+                        glassmorphismEnabled = vm.glassmorphismEnabled
+                    )
+                }
+
+                // Scrollable Content
+                HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { pageIndex ->
+                    val dayClasses = vm.fullSchedule.filter { it.day == pageIndex }
+                    
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                         if (dayClasses.isEmpty()) {
-                            // Empty State
-                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { 
+                            // Empty State with verticalScroll to allow pull-to-refresh
+                            Box(
+                                Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState()), 
+                                contentAlignment = Alignment.Center
+                            ) { 
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) { 
                                     Icon(Icons.Outlined.Weekend, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.surfaceVariant)
                                     Spacer(Modifier.height(16.dp))

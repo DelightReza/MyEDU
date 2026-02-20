@@ -99,6 +99,9 @@
     <!-- Profile -->
     <string name="profile">Profile</string>
     <string name="tuition_contract">Tuition Contract</string>
+    <string name="tuition_history">Payment History</string>
+    <string name="tuition_requisite">Payment Code (A/C)</string>
+    <string name="ls_copied">A/C Copied</string>
     <string name="paid">Paid</string>
     <string name="total">Total</string>
     <string name="remaining">Remaining: %d</string>

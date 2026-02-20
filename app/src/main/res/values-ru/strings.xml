@@ -84,6 +84,9 @@
 
     <string name="profile">Профиль</string>
     <string name="tuition_contract">Контракт на обучение</string>
+    <string name="tuition_history">История платежей</string>
+    <string name="tuition_requisite">Реквизит (Л/С)</string>
+    <string name="ls_copied">Л/С скопирован</string>
     <string name="paid">Оплачено</string>
     <string name="total">Всего</string>
     <string name="remaining">Остаток: %d</string>

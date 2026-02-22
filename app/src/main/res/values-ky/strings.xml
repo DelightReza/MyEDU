@@ -125,6 +125,8 @@
     <string name="version_prefix">Версия</string>
     <string name="desc_back">Артка</string>
     <string name="desc_dropdown">Тизме</string>
+    <string name="desc_show_password">Сыр сөздү көрсөтүү</string>
+    <string name="desc_hide_password">Сыр сөздү жашыруу</string>
 
     <string name="dict_tools_section">Котормо куралдары</string>
     <string name="dict_open_btn">Жеке сөздүк</string>

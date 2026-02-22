@@ -3,8 +3,11 @@ package myedu.oshsu.kg.ui.screens
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -12,7 +15,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import myedu.oshsu.kg.DebugLogger
@@ -27,6 +33,10 @@ import myedu.oshsu.kg.ui.components.SettingsDropdown
 @Composable
 fun LoginScreen(vm: MainViewModel) {
     var showSettingsSheet by remember { mutableStateOf(false) }
+    
+    // State for password visibility
+    var isPasswordVisible by remember { mutableStateOf(false) }
+    
     val context = LocalContext.current
     val inputColors = OutlinedTextFieldDefaults.colors()
 
@@ -50,8 +60,44 @@ fun LoginScreen(vm: MainViewModel) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(modifier = Modifier.fillMaxSize().widthIn(max = 600.dp).padding(24.dp).systemBarsPadding(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                 OshSuLogo(modifier = Modifier.width(260.dp).height(100.dp), themeMode = vm.themeMode); Spacer(Modifier.height(48.dp))
-                OutlinedTextField(value = vm.loginEmail, onValueChange = { vm.loginEmail = it }, label = { Text(stringResource(R.string.email)) }, modifier = Modifier.fillMaxWidth(), singleLine = true, colors = inputColors, shape = RoundedCornerShape(20.dp)); Spacer(Modifier.height(16.dp))
-                OutlinedTextField(value = vm.loginPass, onValueChange = { vm.loginPass = it }, label = { Text(stringResource(R.string.password)) }, modifier = Modifier.fillMaxWidth(), singleLine = true, visualTransformation = PasswordVisualTransformation(), colors = inputColors, shape = RoundedCornerShape(20.dp)); Spacer(Modifier.height(12.dp))
+                
+                // Email Field
+                OutlinedTextField(
+                    value = vm.loginEmail, 
+                    onValueChange = { vm.loginEmail = it }, 
+                    label = { Text(stringResource(R.string.email)) }, 
+                    modifier = Modifier.fillMaxWidth(), 
+                    singleLine = true, 
+                    colors = inputColors, 
+                    shape = RoundedCornerShape(20.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next)
+                )
+                
+                Spacer(Modifier.height(16.dp))
+                
+                // Password Field
+                OutlinedTextField(
+                    value = vm.loginPass, 
+                    onValueChange = { vm.loginPass = it }, 
+                    label = { Text(stringResource(R.string.password)) }, 
+                    modifier = Modifier.fillMaxWidth(), 
+                    singleLine = true, 
+                    visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                    trailingIcon = {
+                        val image = if (isPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
+                        val description = if (isPasswordVisible) stringResource(R.string.desc_hide_password) else stringResource(R.string.desc_show_password)
+
+                        IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                            Icon(imageVector = image, contentDescription = description)
+                        }
+                    },
+                    colors = inputColors, 
+                    shape = RoundedCornerShape(20.dp)
+                )
+                
+                Spacer(Modifier.height(12.dp))
+                
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = vm.rememberMe, onCheckedChange = { vm.rememberMe = it }); Spacer(Modifier.width(4.dp))
                     Text(text = stringResource(R.string.remember_me), color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium)

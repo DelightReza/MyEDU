@@ -125,6 +125,8 @@
     <string name="version_prefix">Версия</string>
     <string name="desc_back">Назад</string>
     <string name="desc_dropdown">Выпадающий список</string>
+    <string name="desc_show_password">Показать пароль</string>
+    <string name="desc_hide_password">Скрыть пароль</string>
 
     <string name="dict_tools_section">Инструменты перевода</string>
     <string name="dict_open_btn">Пользовательский словарь</string>

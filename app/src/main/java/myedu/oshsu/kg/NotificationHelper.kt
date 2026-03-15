@@ -8,7 +8,7 @@ import java.util.Locale
 object NotificationHelper {
     
     fun getLocalizedContext(context: Context, prefs: PrefsManager): Context {
-        val lang = prefs.loadData("language_pref", String::class.java)?.replace("\"", "") ?: "en"
+        val lang = prefs.loadData(AppConstants.KEY_LANGUAGE, String::class.java)?.replace("\"", "") ?: "en"
         val locale = Locale(lang)
         Locale.setDefault(locale)
         val config = Configuration(context.resources.configuration)
@@ -92,9 +92,9 @@ object NotificationHelper {
         }
         
         val intent = Intent(context, NotificationReceiver::class.java).apply {
-            putExtra("TITLE", title)
-            putExtra("MESSAGE", message)
-            putExtra("ID", if (isPortalOpening) 778 else 777)
+            putExtra(AppConstants.EXTRA_TITLE, title)
+            putExtra(AppConstants.EXTRA_MESSAGE, message)
+            putExtra(AppConstants.EXTRA_ID, if (isPortalOpening) 778 else 777)
         }
         context.sendBroadcast(intent)
     }

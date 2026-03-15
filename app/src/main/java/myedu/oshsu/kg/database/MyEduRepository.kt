@@ -15,6 +15,7 @@ class MyEduRepository(context: Context) {
     private val newsDao = database.newsDao()
     private val timeMapDao = database.timeMapDao()
     private val journalDao = database.journalDao()
+    private val transcriptDao = database.transcriptDao()
     
     // Schedule operations
     fun getAllSchedules(): Flow<List<ScheduleItem>> {
@@ -38,20 +39,20 @@ class MyEduRepository(context: Context) {
         scheduleDao.replaceAll(entities)
     }
     
-    // Grade operations
+    // Grade operations (multi-semester)
     fun getAllGrades(): Flow<List<SessionResponse>> {
         return gradeDao.getAllGrades().map { entities ->
-            listOf(entities.toSessionResponse())
+            entities.toSessionResponses()
         }
     }
     
-    suspend fun getAllGradesSync(): SessionResponse {
-        return gradeDao.getAllGradesSync().toSessionResponse()
+    suspend fun getAllGradesSync(): List<SessionResponse> {
+        return gradeDao.getAllGradesSync().toSessionResponses()
     }
     
-    suspend fun updateGrades(session: SessionResponse) {
-        val entities = session.toEntities()
-        gradeDao.replaceAll(entities)
+    suspend fun updateGrades(sessions: List<SessionResponse>) {
+        val allEntities = sessions.flatMap { it.toEntities() }
+        gradeDao.replaceAll(allEntities)
     }
     
     // User data operations
@@ -139,6 +140,15 @@ class MyEduRepository(context: Context) {
         journalDao.replaceJournalEntries(curriculaId, semesterId, subjectType, eduYearId, entities)
     }
     
+    // Transcript operations
+    suspend fun getTranscriptSync(): List<TranscriptYear> {
+        return transcriptDao.getTranscriptSync()?.toTranscriptYears() ?: emptyList()
+    }
+    
+    suspend fun updateTranscript(transcript: List<TranscriptYear>) {
+        transcriptDao.insert(transcript.toEntity())
+    }
+    
     // Clear all data
     suspend fun clearAll() {
         scheduleDao.deleteAll()
@@ -149,5 +159,6 @@ class MyEduRepository(context: Context) {
         newsDao.deleteAll()
         timeMapDao.deleteAll()
         journalDao.deleteAll()
+        transcriptDao.deleteAll()
     }
 }

@@ -24,9 +24,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -44,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -58,11 +62,13 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import kotlinx.coroutines.delay
 import myedu.oshsu.kg.ui.components.MyEduPullToRefreshBox
 import myedu.oshsu.kg.ui.components.ThemedBackground
 import myedu.oshsu.kg.ui.screens.*
 import myedu.oshsu.kg.ui.theme.MyEduTheme
 import java.io.File
+import com.google.gson.Gson
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
@@ -106,8 +112,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun attachBaseContext(newBase: Context) {
-        val prefs = newBase.getSharedPreferences("myedu_offline_cache", Context.MODE_PRIVATE)
-        val rawLang = prefs.getString("language_pref", "en") ?: "en"
+        val prefs = newBase.getSharedPreferences(AppConstants.PREFS_NAME, Context.MODE_PRIVATE)
+        val rawLang = prefs.getString(AppConstants.KEY_LANGUAGE, "en") ?: "en"
         val lang = rawLang.replace("\"", "")
         val locale = Locale(lang)
         val config = Configuration(newBase.resources.configuration)
@@ -117,6 +123,18 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Read saved theme BEFORE Compose renders to prevent white flash
+        val initialTheme = readSavedTheme()
+        val isDarkInitial = when (initialTheme) {
+            AppConstants.THEME_DARK, AppConstants.THEME_GLASS_DARK -> true
+            AppConstants.THEME_LIGHT, AppConstants.THEME_GLASS -> false
+            else -> (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        }
+        window.decorView.setBackgroundColor(
+            if (isDarkInitial) android.graphics.Color.BLACK else android.graphics.Color.WHITE
+        )
+
         enableEdgeToEdge()
         
         // Request required permissions on startup
@@ -160,7 +178,22 @@ class MainActivity : ComponentActivity() {
                 }
             }
             
-            MyEduTheme(themeMode = vm.themeMode) { ThemedBackground(themeMode = vm.themeMode, glassmorphismEnabled = vm.glassmorphismEnabled) { AppContent(vm) } } 
+            // Use pre-loaded theme during startup to prevent flash of wrong theme
+            val effectiveTheme = if (vm.appState == AppConstants.STATE_STARTUP) initialTheme else vm.themeMode
+
+            // Splash timer lives here so Crossfade theme transitions don't reset it
+            var splashMinDurationReached by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) {
+                delay(AppConstants.SPLASH_MIN_DURATION_MS)
+                splashMinDurationReached = true
+            }
+
+            Crossfade(targetState = effectiveTheme, animationSpec = tween(400), label = "theme_crossfade") { currentTheme ->
+                MyEduTheme(themeMode = currentTheme) {
+                    val isGlass = currentTheme == AppConstants.THEME_GLASS || currentTheme == AppConstants.THEME_GLASS_DARK
+                    ThemedBackground(themeMode = currentTheme, glassmorphismEnabled = isGlass) { AppContent(vm, currentTheme, splashMinDurationReached) }
+                }
+            }
         }
     }
 
@@ -185,6 +218,17 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** Read the saved theme from SharedPreferences synchronously (before Compose). */
+    private fun readSavedTheme(): String {
+        val prefs = getSharedPreferences(AppConstants.PREFS_NAME, Context.MODE_PRIVATE)
+        val json = prefs.getString(AppConstants.KEY_THEME_MODE, null) ?: return AppConstants.THEME_SYSTEM
+        return try {
+            Gson().fromJson(json, String::class.java) ?: AppConstants.THEME_SYSTEM
+        } catch (_: Exception) {
+            AppConstants.THEME_SYSTEM
+        }
+    }
+
     private fun setupNetworkMonitoring() {
         connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         networkCallback = object : ConnectivityManager.NetworkCallback() { override fun onAvailable(network: Network) { super.onAvailable(network); mainViewModel?.onNetworkAvailable() } }
@@ -193,8 +237,8 @@ class MainActivity : ComponentActivity() {
 
     private fun setupBackgroundWork() {
         val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).setRequiresBatteryNotLow(true).build()
-        val syncRequest = PeriodicWorkRequestBuilder<BackgroundSyncWorker>(4, TimeUnit.HOURS).setConstraints(constraints).build()
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork("MyEduGradeSync", ExistingPeriodicWorkPolicy.KEEP, syncRequest)
+        val syncRequest = PeriodicWorkRequestBuilder<BackgroundSyncWorker>(AppConstants.BACKGROUND_SYNC_HOURS, TimeUnit.HOURS).setConstraints(constraints).build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(AppConstants.WORK_SYNC_NAME, ExistingPeriodicWorkPolicy.KEEP, syncRequest)
     }
 
     override fun onDestroy() { 
@@ -205,11 +249,29 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun AppContent(vm: MainViewModel) {
+fun AppContent(vm: MainViewModel, effectiveTheme: String = vm.themeMode, splashMinDurationReached: Boolean = true) {
     val context = LocalContext.current
+
     Box(Modifier.fillMaxSize()) {
-        AnimatedContent(targetState = vm.appState, label = "Root") { state ->
-            when (state) { "LOGIN" -> LoginScreen(vm); "APP" -> MainAppStructure(vm); else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
+        val showSplash = vm.appState == AppConstants.STATE_STARTUP || !splashMinDurationReached
+        val displayState = if (showSplash) AppConstants.STATE_STARTUP else vm.appState
+
+        AnimatedContent(targetState = displayState, label = "Root") { state ->
+            when (state) {
+                    AppConstants.STATE_LOGIN -> LoginScreen(vm)
+                    AppConstants.STATE_APP -> MainAppStructure(vm)
+                    else -> {
+                        val isDark = when (effectiveTheme) {
+                            AppConstants.THEME_DARK, AppConstants.THEME_GLASS_DARK -> true
+                            AppConstants.THEME_LIGHT, AppConstants.THEME_GLASS -> false
+                            else -> isSystemInDarkTheme()
+                        }
+                        val logoRes = if (isDark) R.drawable.logo_white else R.drawable.logo_dark
+                        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
+                            Image(painter = painterResource(logoRes), contentDescription = null, modifier = Modifier.width(200.dp))
+                        }
+                    }
+                }
         }
         if (vm.isDebugPipVisible) { DebugPipButton(onClick = { vm.isDebugConsoleOpen = true }, modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)) }
         if (vm.isDebugConsoleOpen) { DebugConsoleOverlay(onDismiss = { vm.isDebugConsoleOpen = false }) }

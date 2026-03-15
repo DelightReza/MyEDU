@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import myedu.oshsu.kg.AppConstants
 
 private val LightColorScheme = lightColorScheme(
     // Primary colors
@@ -124,24 +125,24 @@ private val DarkColorScheme = darkColorScheme(
 
 @Composable
 fun MyEduTheme(
-    themeMode: String = "SYSTEM",
+    themeMode: String = AppConstants.THEME_SYSTEM,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
     val systemDark = isSystemInDarkTheme()
     
     val isDark = when(themeMode) {
-        "LIGHT" -> false
-        "DARK" -> true
-        "GLASS" -> false  // Glass theme uses light base
-        "GLASS_DARK" -> true  // Glass Dark theme uses dark base
+        AppConstants.THEME_LIGHT -> false
+        AppConstants.THEME_DARK -> true
+        AppConstants.THEME_GLASS -> false
+        AppConstants.THEME_GLASS_DARK -> true
         else -> systemDark
     }
 
     val dynamicColor = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     val colorScheme = when {
-        dynamicColor && themeMode != "GLASS" && themeMode != "GLASS_DARK" -> {
+        dynamicColor && themeMode != AppConstants.THEME_GLASS && themeMode != AppConstants.THEME_GLASS_DARK -> {
             if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         isDark -> DarkColorScheme

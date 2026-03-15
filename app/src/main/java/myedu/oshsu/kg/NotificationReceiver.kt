@@ -15,9 +15,9 @@ import androidx.core.app.NotificationCompat
 class NotificationReceiver : BroadcastReceiver() {
     
     override fun onReceive(context: Context, intent: Intent) {
-        val title = intent.getStringExtra("TITLE") ?: context.getString(R.string.notif_default_title)
-        val message = intent.getStringExtra("MESSAGE") ?: context.getString(R.string.notif_default_msg)
-        val id = intent.getIntExtra("ID", System.currentTimeMillis().toInt())
+        val title = intent.getStringExtra(AppConstants.EXTRA_TITLE) ?: context.getString(R.string.notif_default_title)
+        val message = intent.getStringExtra(AppConstants.EXTRA_MESSAGE) ?: context.getString(R.string.notif_default_msg)
+        val id = intent.getIntExtra(AppConstants.EXTRA_ID, System.currentTimeMillis().toInt())
 
         // 1. Bypasses Silent Mode restrictions
         playForcedAlarmSound(context)
@@ -55,7 +55,7 @@ class NotificationReceiver : BroadcastReceiver() {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         
         // New ID to reset any previous system-managed sound settings
-        val channelId = "myedu_notif_channel"
+        val channelId = AppConstants.NOTIFICATION_CHANNEL_ID
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (manager.getNotificationChannel(channelId) == null) {
@@ -64,9 +64,9 @@ class NotificationReceiver : BroadcastReceiver() {
                     context.getString(R.string.notif_channel_name),
                     NotificationManager.IMPORTANCE_HIGH
                 ).apply {
-                    description = "Class alerts"
+                    description = AppConstants.NOTIFICATION_CHANNEL_DESC
                     enableVibration(true)
-                    vibrationPattern = longArrayOf(0, 500, 200, 500)
+                    vibrationPattern = AppConstants.NOTIFICATION_VIBRATION_PATTERN
                     enableLights(true)
                     
                     // CRITICAL: We set sound to NULL here.
@@ -94,7 +94,7 @@ class NotificationReceiver : BroadcastReceiver() {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            .setVibrate(longArrayOf(0, 500, 200, 500))
+            .setVibrate(AppConstants.NOTIFICATION_VIBRATION_PATTERN)
 
         manager.notify(id, builder.build())
     }

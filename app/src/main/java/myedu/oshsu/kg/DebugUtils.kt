@@ -47,7 +47,7 @@ object DebugLogger {
         synchronized(logs) {
             logs.add(0, logEntry)
             // Keep max 1000 lines to prevent memory issues in UI
-            if (logs.size > 1000) logs.removeRange(1000, logs.size)
+            if (logs.size > AppConstants.DEBUG_LOG_MAX_ENTRIES) logs.removeRange(AppConstants.DEBUG_LOG_MAX_ENTRIES, logs.size)
         }
         // Also print to Android Logcat
         Log.d("MyEduDebug", "[$tag] $msg")
@@ -69,7 +69,7 @@ fun Modifier.secretDebugTrigger(onTrigger: () -> Unit): Modifier = this.pointerI
             
             // Start the timer
             val job = launch {
-                delay(3000) // Wait exactly 3 seconds
+                delay(AppConstants.DEBUG_TRIGGER_HOLD_MS)
                 onTrigger()
             }
             

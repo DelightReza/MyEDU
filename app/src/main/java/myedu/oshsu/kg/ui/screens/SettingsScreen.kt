@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import myedu.oshsu.kg.AppConstants
 import myedu.oshsu.kg.MainActivity
 import myedu.oshsu.kg.MainViewModel
 import myedu.oshsu.kg.R
@@ -53,11 +54,11 @@ fun SettingsScreen(vm: MainViewModel, onClose: () -> Unit) {
             SettingsDropdown(
                 label = stringResource(R.string.appearance),
                 options = listOf(
-                    stringResource(R.string.follow_system) to "SYSTEM", 
-                    stringResource(R.string.light_mode) to "LIGHT", 
-                    stringResource(R.string.dark_mode) to "DARK",
-                    stringResource(R.string.glass_mode) to "GLASS",
-                    stringResource(R.string.glass_dark_mode) to "GLASS_DARK"
+                    stringResource(R.string.follow_system) to AppConstants.THEME_SYSTEM, 
+                    stringResource(R.string.light_mode) to AppConstants.THEME_LIGHT, 
+                    stringResource(R.string.dark_mode) to AppConstants.THEME_DARK,
+                    stringResource(R.string.glass_mode) to AppConstants.THEME_GLASS,
+                    stringResource(R.string.glass_dark_mode) to AppConstants.THEME_GLASS_DARK
                 ),
                 currentValue = vm.themeMode, 
                 onOptionSelected = { vm.setTheme(it) },
@@ -69,8 +70,8 @@ fun SettingsScreen(vm: MainViewModel, onClose: () -> Unit) {
             SettingsDropdown(
                 label = stringResource(R.string.docs_download),
                 options = listOf(
-                    stringResource(R.string.in_app_pdf) to "IN_APP", 
-                    stringResource(R.string.website_official) to "WEBSITE"
+                    stringResource(R.string.in_app_pdf) to AppConstants.DOC_MODE_IN_APP, 
+                    stringResource(R.string.website_official) to AppConstants.DOC_MODE_WEBSITE
                 ),
                 currentValue = vm.downloadMode, 
                 onOptionSelected = { vm.setDocMode(it) },

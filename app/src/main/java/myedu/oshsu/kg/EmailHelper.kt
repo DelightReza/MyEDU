@@ -1,7 +1,7 @@
 package myedu.oshsu.kg
 
 object EmailHelper {
-    private const val DOMAIN = "@oshsu.kg"
+    private const val DOMAIN = AppConstants.EMAIL_DOMAIN
     
     /**
      * Ensures email has the @oshsu.kg domain.

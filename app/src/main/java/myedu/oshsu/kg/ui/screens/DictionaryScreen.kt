@@ -16,6 +16,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import myedu.oshsu.kg.AppConstants
 import myedu.oshsu.kg.MainViewModel
 import myedu.oshsu.kg.R
 import myedu.oshsu.kg.ui.components.ThemedBackground
@@ -157,7 +158,7 @@ fun DictionaryScreen(vm: MainViewModel, onClose: () -> Unit) {
 }
 
 @Composable
-fun DictionaryItem(original: String, translation: String, themeMode: String = "SYSTEM", onEdit: () -> Unit, onDelete: () -> Unit) {
+fun DictionaryItem(original: String, translation: String, themeMode: String = AppConstants.THEME_SYSTEM, onEdit: () -> Unit, onDelete: () -> Unit) {
     // Fixed: Removed themeMode param from ThemedCard call
     ThemedCard(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {

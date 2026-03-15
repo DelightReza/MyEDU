@@ -36,8 +36,10 @@ import androidx.graphics.shapes.star
 import androidx.graphics.shapes.toPath
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import myedu.oshsu.kg.AppConstants
 import myedu.oshsu.kg.IdDefinitions
 import myedu.oshsu.kg.MainViewModel
+import myedu.oshsu.kg.NetworkClient
 import myedu.oshsu.kg.R
 import myedu.oshsu.kg.UserData
 import myedu.oshsu.kg.StudentInfoResponse
@@ -180,6 +182,7 @@ fun MetaDataRow(label: String, value: Any?) {
 fun PersonalInfoScreen(vm: MainViewModel, onClose: () -> Unit) {
     val currentLang = vm.language
     val context = LocalContext.current
+    val authImageLoader = remember { NetworkClient.authImageLoader(context) }
     val scope = rememberCoroutineScope()
 
     var localUser by remember { mutableStateOf<UserData?>(null) }
@@ -196,8 +199,11 @@ fun PersonalInfoScreen(vm: MainViewModel, onClose: () -> Unit) {
             localProfile = p
             isError = false
         } catch (e: Exception) {
-            isError = true
-            errorMessage = e.message ?: "Unknown Error"
+            // Fallback to ViewModel's cached data instead of showing error
+            localUser = vm.userData
+            localProfile = vm.profileData
+            isError = localUser == null && localProfile == null
+            if (isError) errorMessage = e.message ?: "Unknown Error"
         } finally {
             isFetching = false
         }
@@ -280,7 +286,7 @@ fun PersonalInfoScreen(vm: MainViewModel, onClose: () -> Unit) {
                     Text(stringResource(R.string.personal_error_load), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                     if (errorMessage != null) Text(errorMessage!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = { isFetching = true; isError = false; scope.launch { try { val (u, p) = vm.getFreshPersonalInfo(); localUser = u; localProfile = p; isError = false } catch (e: Exception) { isError = true; errorMessage = e.message } finally { isFetching = false } } }) { Text(stringResource(R.string.personal_retry)) }
+                    Button(onClick = { isFetching = true; isError = false; scope.launch { try { val (u, p) = vm.getFreshPersonalInfo(); localUser = u; localProfile = p; isError = false } catch (e: Exception) { localUser = vm.userData; localProfile = vm.profileData; isError = localUser == null && localProfile == null; if (isError) errorMessage = e.message } finally { isFetching = false } } }) { Text(stringResource(R.string.personal_retry)) }
                 }
             } else {
                 AnimatedVisibility(visible = true, enter = fadeIn(tween(500))) {
@@ -292,8 +298,12 @@ fun PersonalInfoScreen(vm: MainViewModel, onClose: () -> Unit) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Box(contentAlignment = Alignment.Center, modifier = Modifier.size(136.dp)) {
                                     Box(modifier = Modifier.fillMaxSize().clip(animatedShape)) {
-                                        val apiPhoto = profile?.avatar
-                                        key(apiPhoto, vm.avatarRefreshTrigger) { AsyncImage(model = ImageRequest.Builder(context).data(apiPhoto).crossfade(true).setParameter("retry_hash", vm.avatarRefreshTrigger).build(), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
+                                        val cachedAvatarFile = remember(vm.avatarRefreshTrigger) {
+                                            val f = java.io.File(context.filesDir, AppConstants.AVATAR_CACHE_FILENAME)
+                                            if (f.exists()) f else null
+                                        }
+                                        val apiPhoto: Any? = cachedAvatarFile ?: profile?.avatar
+                                        key(apiPhoto, vm.avatarRefreshTrigger) { AsyncImage(model = ImageRequest.Builder(context).data(apiPhoto).crossfade(true).setParameter("retry_hash", vm.avatarRefreshTrigger).build(), imageLoader = authImageLoader, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
                                     }
                                 }
                                 Spacer(Modifier.height(16.dp))

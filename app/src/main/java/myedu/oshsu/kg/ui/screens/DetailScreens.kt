@@ -29,6 +29,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import myedu.oshsu.kg.AppConstants
 import myedu.oshsu.kg.MainViewModel
 import myedu.oshsu.kg.R
 import myedu.oshsu.kg.ScheduleItem
@@ -207,7 +208,7 @@ fun ClassDetailsSheet(vm: MainViewModel, item: ScheduleItem) {
 
 @Composable
 fun FloatingPdfBar(vm: MainViewModel, onGenerateRu: () -> Unit, onGenerateEn: () -> Unit) {
-    if (vm.downloadMode == "WEBSITE") return
+    if (vm.downloadMode == AppConstants.DOC_MODE_WEBSITE) return
     val context = LocalContext.current
     val glassmorphismEnabled = vm.glassmorphismEnabled
     val containerColor = if (glassmorphismEnabled) MaterialTheme.colorScheme.surface.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface
@@ -325,7 +326,7 @@ fun FloatingPdfBar(vm: MainViewModel, onGenerateRu: () -> Unit, onGenerateEn: ()
 fun ReferenceView(vm: MainViewModel, onClose: () -> Unit) {
     val context = LocalContext.current; val user = vm.userData; val profile = vm.profileData; val mov = profile?.studentMovement
     val activeSemester = profile?.active_semester ?: 1; val course = (activeSemester + 1) / 2
-    val lang = vm.language; val isWebsiteMode = vm.downloadMode == "WEBSITE"
+    val lang = vm.language; val isWebsiteMode = vm.downloadMode == AppConstants.DOC_MODE_WEBSITE
     val facultyName = mov?.faculty?.get(lang) ?: mov?.speciality?.faculty?.get(lang) ?: "-"
 
     LaunchedEffect(vm.pdfStatusMessage) { vm.pdfStatusMessage?.let { msg -> if (!vm.isPdfGenerating) Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() } }
@@ -360,7 +361,7 @@ fun ReferenceView(vm: MainViewModel, onClose: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TranscriptView(vm: MainViewModel, onClose: () -> Unit) {
-    val context = LocalContext.current; val isWebsiteMode = vm.downloadMode == "WEBSITE"
+    val context = LocalContext.current; val isWebsiteMode = vm.downloadMode == AppConstants.DOC_MODE_WEBSITE
     LaunchedEffect(vm.pdfStatusMessage) { vm.pdfStatusMessage?.let { msg -> if (!vm.isPdfGenerating) Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() } }
 
     Scaffold(

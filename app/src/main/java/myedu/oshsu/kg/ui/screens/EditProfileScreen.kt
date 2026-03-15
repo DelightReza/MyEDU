@@ -41,6 +41,7 @@ import androidx.graphics.shapes.toPath
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import myedu.oshsu.kg.MainViewModel
+import myedu.oshsu.kg.NetworkClient
 import myedu.oshsu.kg.R
 import kotlinx.coroutines.delay
 
@@ -57,6 +58,7 @@ class EditProfileRotatingShape(private val polygon: RoundedPolygon, private val 
 @Composable
 fun EditProfileScreen(vm: MainViewModel, onClose: () -> Unit) {
     val context = LocalContext.current
+    val authImageLoader = remember { NetworkClient.authImageLoader(context) }
     val density = LocalDensity.current
     val apiPhoto = vm.profileData?.avatar
     val apiName = remember { vm.userData?.let { "${it.last_name ?: ""} ${it.name ?: ""}".trim() } ?: "" }
@@ -89,7 +91,7 @@ fun EditProfileScreen(vm: MainViewModel, onClose: () -> Unit) {
                             val revertCenter = Offset(22.dp.toPx(), size.height - 22.dp.toPx()); val revertCutRadius = (buttonRadius + borderSize) * revertHoleScale
                             onDrawWithContent { drawContent(); if (holeScale > 0f) drawCircle(Color.Black, editCutRadius, editCenter, blendMode = BlendMode.Clear); if (revertHoleScale > 0f) drawCircle(Color.Black, revertCutRadius, revertCenter, blendMode = BlendMode.Clear) }
                         }.clip(animatedShape).clickable { photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }.background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
-                        if (photoUri != null) SubcomposeAsyncImage(model = ImageRequest.Builder(LocalContext.current).data(photoUri).crossfade(true).build(), contentDescription = stringResource(R.string.desc_profile_photo), contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(), loading = { Box(Modifier.fillMaxSize()) })
+                        if (photoUri != null) SubcomposeAsyncImage(model = ImageRequest.Builder(LocalContext.current).data(photoUri).crossfade(true).build(), imageLoader = authImageLoader, contentDescription = stringResource(R.string.desc_profile_photo), contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(), loading = { Box(Modifier.fillMaxSize()) })
                     }
                     androidx.compose.animation.AnimatedVisibility(visible = isUiVisible && showRevertPhoto, enter = scaleIn(spring(Spring.DampingRatioNoBouncy, Spring.StiffnessLow)), exit = scaleOut(), modifier = Modifier.align(Alignment.BottomStart).offset(x = 10.dp, y = (-10).dp)) { Surface(onClick = { photoUri = apiPhoto }, shape = CircleShape, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(40.dp)) { Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Restore, stringResource(R.string.desc_revert), tint = MaterialTheme.colorScheme.onSecondary, modifier = Modifier.size(20.dp)) } } }
                     androidx.compose.animation.AnimatedVisibility(visible = isUiVisible, enter = scaleIn(spring(Spring.DampingRatioNoBouncy, Spring.StiffnessLow)), exit = scaleOut(), modifier = Modifier.align(Alignment.BottomEnd).offset(x = (-10).dp, y = (-10).dp)) { Surface(onClick = { photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, shape = CircleShape, color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp)) { Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.Edit, stringResource(R.string.dict_edit_desc), tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(20.dp)) } } }
@@ -115,7 +117,7 @@ fun EditProfileScreen(vm: MainViewModel, onClose: () -> Unit) {
                 Spacer(Modifier.height(48.dp))
                 
                 Button(
-                    onClick = { vm.saveLocalProfile(name, photoUri); onClose() }, 
+                    onClick = { vm.saveLocalProfile(name, if (photoUri != apiPhoto) photoUri else null); onClose() }, 
                     modifier = Modifier
                         .fillMaxWidth()
                         .widthIn(max = 400.dp)

@@ -37,8 +37,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import myedu.oshsu.kg.AppConstants
 import myedu.oshsu.kg.DebugLogger
 import myedu.oshsu.kg.MainViewModel
+import myedu.oshsu.kg.NetworkClient
 import myedu.oshsu.kg.R
 import myedu.oshsu.kg.secretDebugTrigger
 import myedu.oshsu.kg.ui.components.*
@@ -47,13 +49,19 @@ import myedu.oshsu.kg.ui.components.*
 @Composable
 fun ProfileScreen(vm: MainViewModel) {
     val context = LocalContext.current
+    val authImageLoader = remember { NetworkClient.authImageLoader(context) }
     val clipboardManager = LocalClipboardManager.current
     val user = vm.userData
     val profile = vm.profileData
     val pay = vm.payStatus
     val lang = vm.language
 
-    val displayPhoto = vm.customPhotoUri ?: profile?.avatar
+    val cachedAvatarFile = remember(vm.avatarRefreshTrigger) {
+        val f = java.io.File(context.filesDir, AppConstants.AVATAR_CACHE_FILENAME)
+        if (f.exists()) f else null
+    }
+    val customPhoto = vm.customPhotoUri?.takeIf { !it.startsWith("http") }
+    val displayPhoto: Any? = customPhoto ?: cachedAvatarFile ?: profile?.avatar
     val displayName = vm.customName ?: "${user?.last_name ?: ""} ${user?.name ?: ""}".trim().ifEmpty { stringResource(R.string.student_default) }
 
     val facultyName = profile?.studentMovement?.faculty?.get(lang) ?: profile?.studentMovement?.speciality?.faculty?.get(lang) ?: "-"
@@ -100,6 +108,7 @@ fun ProfileScreen(vm: MainViewModel) {
                 key(displayPhoto, vm.avatarRefreshTrigger) {
                         AsyncImage(
                         model = ImageRequest.Builder(context).data(displayPhoto).crossfade(true).setParameter("retry_hash", vm.avatarRefreshTrigger).build(),
+                        imageLoader = authImageLoader,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize().clip(CircleShape)

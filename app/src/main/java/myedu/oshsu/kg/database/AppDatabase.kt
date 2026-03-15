@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import myedu.oshsu.kg.AppConstants
 
 @Database(
     entities = [
@@ -14,9 +15,10 @@ import androidx.room.RoomDatabase
         PayStatusEntity::class,
         NewsEntity::class,
         TimeMapEntity::class,
-        JournalEntity::class
+        JournalEntity::class,
+        TranscriptEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -28,6 +30,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun newsDao(): NewsDao
     abstract fun timeMapDao(): TimeMapDao
     abstract fun journalDao(): JournalDao
+    abstract fun transcriptDao(): TranscriptDao
     
     companion object {
         @Volatile
@@ -38,7 +41,7 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "myedu_database"
+                    AppConstants.DATABASE_NAME
                 )
                 .fallbackToDestructiveMigration()
                 .build()

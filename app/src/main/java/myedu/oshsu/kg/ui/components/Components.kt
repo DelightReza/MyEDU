@@ -35,21 +35,20 @@ import androidx.compose.ui.unit.dp
 import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.decode.SvgDecoder
+import myedu.oshsu.kg.AppConstants
 import myedu.oshsu.kg.R
 
 @Composable
-fun OshSuLogo(modifier: Modifier = Modifier, themeMode: String = "SYSTEM") {
+fun OshSuLogo(modifier: Modifier = Modifier, themeMode: String = AppConstants.THEME_SYSTEM) {
     val context = LocalContext.current
-    // In Glass mode, use dark logo without tint for better visibility on light/colorful background
-    // In Glass Dark mode, use white logo for visibility on dark background
     val url = "file:///android_asset/logo-dark4.svg"
     val imageLoader = remember { ImageLoader.Builder(context).components { add(SvgDecoder.Factory()) }.build() }
     
     val isDark = when(themeMode) {
-        "DARK" -> true
-        "GLASS" -> false  // Use dark logo (no tint) in Glass mode
-        "GLASS_DARK" -> true  // Use white logo in Glass Dark mode
-        "LIGHT" -> false
+        AppConstants.THEME_DARK -> true
+        AppConstants.THEME_GLASS -> false
+        AppConstants.THEME_GLASS_DARK -> true
+        AppConstants.THEME_LIGHT -> false
         else -> isSystemInDarkTheme()
     }
 
@@ -64,7 +63,7 @@ fun OshSuLogo(modifier: Modifier = Modifier, themeMode: String = "SYSTEM") {
 }
 
 @Composable
-fun ThemedBackground(themeMode: String = "SYSTEM", glassmorphismEnabled: Boolean = false, content: @Composable BoxScope.() -> Unit) {
+fun ThemedBackground(themeMode: String = AppConstants.THEME_SYSTEM, glassmorphismEnabled: Boolean = false, content: @Composable BoxScope.() -> Unit) {
     Box(modifier = Modifier.fillMaxSize()) {
         // Background surface
         Surface(
@@ -99,7 +98,7 @@ fun ThemedBackground(themeMode: String = "SYSTEM", glassmorphismEnabled: Boolean
 fun MyEduPullToRefreshBox(
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
-    themeMode: String = "SYSTEM",
+    themeMode: String = AppConstants.THEME_SYSTEM,
     content: @Composable BoxScope.() -> Unit
 ) {
     val pullRefreshState = rememberPullRefreshState(
@@ -181,7 +180,7 @@ fun ThemedCard(
 fun BeautifulDocButton(
     text: String,
     icon: ImageVector,
-    themeMode: String = "SYSTEM",
+    themeMode: String = AppConstants.THEME_SYSTEM,
     modifier: Modifier = Modifier,
     isLoading: Boolean = false,
     glassmorphismEnabled: Boolean = false,
@@ -245,7 +244,7 @@ fun BeautifulDocButton(
 }
 
 @Composable
-fun InfoSection(title: String, themeMode: String = "SYSTEM") {
+fun InfoSection(title: String, themeMode: String = AppConstants.THEME_SYSTEM) {
     Text(
         title,
         style = MaterialTheme.typography.labelLarge,
@@ -256,7 +255,7 @@ fun InfoSection(title: String, themeMode: String = "SYSTEM") {
 }
 
 @Composable
-fun DetailCard(icon: ImageVector, title: String, value: String?, themeMode: String = "SYSTEM", glassmorphismEnabled: Boolean = false) {
+fun DetailCard(icon: ImageVector, title: String, value: String?, themeMode: String = AppConstants.THEME_SYSTEM, glassmorphismEnabled: Boolean = false) {
     val cleaned = value?.trim()
     if (cleaned.isNullOrEmpty() || 
         cleaned.equals("null", true) || 
@@ -333,7 +332,7 @@ fun SettingsDropdown(
     options: List<Pair<String, String>>, 
     currentValue: String, 
     onOptionSelected: (String) -> Unit,
-    themeMode: String = "SYSTEM",
+    themeMode: String = AppConstants.THEME_SYSTEM,
     glassmorphismEnabled: Boolean = false
 ) {
     var expanded by remember { mutableStateOf(false) }

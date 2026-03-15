@@ -17,6 +17,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import myedu.oshsu.kg.MainViewModel
+import myedu.oshsu.kg.AppConstants
 import myedu.oshsu.kg.R
 import myedu.oshsu.kg.ui.components.*
 
@@ -79,7 +80,7 @@ fun HomeScreen(vm: MainViewModel) {
 
                 // --- STATS CARDS ---
                 item {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) { 
+                    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) { 
                         StatCard(
                             icon = Icons.Outlined.CalendarToday, 
                             label = stringResource(R.string.semester), 
@@ -193,9 +194,9 @@ fun StatCard(
     secondaryText: String? = null, 
     modifier: Modifier = Modifier, 
     glassmorphismEnabled: Boolean = false, 
-    themeMode: String = "SYSTEM"
+    themeMode: String = AppConstants.THEME_SYSTEM
 ) {
-    ThemedCard(modifier = modifier, materialColor = MaterialTheme.colorScheme.surfaceContainer, glassmorphismEnabled = glassmorphismEnabled) {
+    ThemedCard(modifier = modifier.fillMaxHeight(), materialColor = MaterialTheme.colorScheme.surfaceContainer, glassmorphismEnabled = glassmorphismEnabled) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally, 
@@ -214,7 +215,9 @@ fun StatCard(
                     style = MaterialTheme.typography.labelLarge, 
                     color = MaterialTheme.colorScheme.onPrimaryContainer, 
                     textAlign = TextAlign.Center,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
@@ -222,7 +225,9 @@ fun StatCard(
                     style = MaterialTheme.typography.headlineLarge, 
                     fontWeight = FontWeight.ExtraBold, 
                     color = MaterialTheme.colorScheme.primary, 
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
                 if (secondaryText != null) { 
                     Spacer(Modifier.height(8.dp))
@@ -230,7 +235,7 @@ fun StatCard(
                         text = secondaryText, 
                         style = MaterialTheme.typography.bodyMedium, 
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f), 
-                        maxLines = 1, 
+                        maxLines = 2, 
                         overflow = TextOverflow.Ellipsis, 
                         textAlign = TextAlign.Center
                     ) 

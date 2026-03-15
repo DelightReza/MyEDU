@@ -1,12 +1,10 @@
 package myedu.oshsu.kg
 
 import android.content.Context
-import android.content.res.Configuration
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.util.Locale
 
 class BackgroundSyncWorker(appContext: Context, workerParams: WorkerParameters) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -35,10 +33,7 @@ class BackgroundSyncWorker(appContext: Context, workerParams: WorkerParameters) 
             }
             val profile = try { NetworkClient.api.getProfile() } catch (e: Exception) { return false }
 
-            // Save to both SharedPreferences (for backward compatibility) and Room Database
-            prefs.saveData("user_data", userResponse.user)
-            prefs.saveData("profile_data", profile)
-            
+            // Save to Room
             if (userResponse.user != null) {
                 prefs.getRepository().updateUserData(userResponse.user)
             }
@@ -46,18 +41,16 @@ class BackgroundSyncWorker(appContext: Context, workerParams: WorkerParameters) 
 
             try { 
                 val news = NetworkClient.api.getNews()
-                prefs.saveList("news_list", news)
                 prefs.getRepository().updateNews(news)
             } catch (_: Exception) { }
             
             try { 
                 val pay = NetworkClient.api.getPayStatus()
-                prefs.saveData("pay_status", pay)
                 prefs.getRepository().updatePayStatus(pay)
             } catch (_: Exception) { }
 
             try {
-                val oldSession = prefs.loadList<SessionResponse>("session_list")
+                val oldSession = prefs.getRepository().getAllGradesSync()
                 val activeSemester = profile.active_semester ?: 1
                 val newSession = NetworkClient.api.getSession(activeSemester)
 
@@ -67,12 +60,9 @@ class BackgroundSyncWorker(appContext: Context, workerParams: WorkerParameters) 
                     if (gradeUpdates.isNotEmpty()) NotificationHelper.sendNotification(localizedContext, gradeUpdates, isPortalOpening = false)
                     if (portalUpdates.isNotEmpty()) NotificationHelper.sendNotification(localizedContext, portalUpdates, isPortalOpening = true)
                 }
-                prefs.saveList("session_list", newSession)
                 
-                // Save to Room Database
-                if (newSession.isNotEmpty()) {
-                    prefs.getRepository().updateGrades(newSession.first())
-                }
+                // Save ALL sessions to Room
+                prefs.getRepository().updateGrades(newSession)
             } catch (e: Exception) { e.printStackTrace() }
 
             val mov = profile.studentMovement
@@ -85,19 +75,15 @@ class BackgroundSyncWorker(appContext: Context, workerParams: WorkerParameters) 
                     val fullSchedule = wrappers.flatMap { it.schedule_items ?: emptyList() }.sortedBy { it.id_lesson }
 
                     if (fullSchedule.isNotEmpty()) {
-                        // Save to both SharedPreferences (for backward compatibility) and Room Database
-                        prefs.saveList("schedule_list", fullSchedule)
                         prefs.getRepository().updateSchedules(fullSchedule)
                         
                         if (times.isNotEmpty()) {
                             val timeMap = times.associate { it.id_lesson to "${it.begin_time ?: ""} - ${it.end_time ?: ""}" }
-                            prefs.saveData("time_map", timeMap)
                             prefs.getRepository().updateTimeMap(timeMap)
                             val localizedContext = NotificationHelper.getLocalizedContext(context, prefs)
-                            ScheduleAlarmManager(localizedContext).scheduleNotifications(fullSchedule, timeMap, prefs.loadData("language_pref", String::class.java)?.replace("\"", "") ?: "en")
+                            ScheduleAlarmManager(localizedContext).scheduleNotifications(fullSchedule, timeMap, prefs.loadData(AppConstants.KEY_LANGUAGE, String::class.java)?.replace("\"", "") ?: "en")
                         }
                         
-                        // Update widget
                         try {
                             myedu.oshsu.kg.widget.ScheduleWidgetUpdater.updateWidget(context)
                         } catch (e: Exception) { e.printStackTrace() }
@@ -109,10 +95,10 @@ class BackgroundSyncWorker(appContext: Context, workerParams: WorkerParameters) 
     }
 
     private suspend fun attemptBgLogin(prefs: PrefsManager): Boolean {
-        val isRemember = prefs.loadData("pref_remember_me", Boolean::class.java) ?: false
+        val isRemember = prefs.loadData(AppConstants.KEY_REMEMBER_ME, Boolean::class.java) ?: false
         if (!isRemember) return false
-        val email = prefs.loadData("pref_saved_email", String::class.java) ?: ""
-        val pass = prefs.loadData("pref_saved_pass", String::class.java) ?: ""
+        val email = prefs.loadData(AppConstants.KEY_SAVED_EMAIL, String::class.java) ?: ""
+        val pass = prefs.loadData(AppConstants.KEY_SAVED_PASS, String::class.java) ?: ""
         if (email.isBlank() || pass.isBlank()) return false
         return try {
             val resp = NetworkClient.api.login(LoginRequest(email.trim(), pass.trim()))

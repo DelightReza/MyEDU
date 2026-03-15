@@ -42,9 +42,9 @@ class ScheduleAlarmManager(private val context: Context) {
             val count = nextDayClasses.size
             val firstClass = nextDayClasses.first().subject?.get(language) ?: context.getString(R.string.class_default)
             val intent = Intent(context, NotificationReceiver::class.java).apply {
-                putExtra("TITLE", context.getString(R.string.notif_tomorrow_title))
-                putExtra("MESSAGE", context.getString(R.string.notif_tomorrow_msg, count, firstClass))
-                putExtra("ID", 9999) 
+                putExtra(AppConstants.EXTRA_TITLE, context.getString(R.string.notif_tomorrow_title))
+                putExtra(AppConstants.EXTRA_MESSAGE, context.getString(R.string.notif_tomorrow_msg, count, firstClass))
+                putExtra(AppConstants.EXTRA_ID, 9999) 
             }
             setAlarm(calendar.timeInMillis, 9999, intent)
         }
@@ -81,7 +81,7 @@ class ScheduleAlarmManager(private val context: Context) {
             val msg = context.getString(R.string.notif_class_msg, subjectName, startTime, locationStr, roomName)
             val id = item.day * 100 + item.id_lesson
             val intent = Intent(context, NotificationReceiver::class.java).apply {
-                putExtra("TITLE", context.getString(R.string.notif_class_title)); putExtra("MESSAGE", msg); putExtra("ID", id)
+                putExtra(AppConstants.EXTRA_TITLE, context.getString(R.string.notif_class_title)); putExtra(AppConstants.EXTRA_MESSAGE, msg); putExtra(AppConstants.EXTRA_ID, id)
             }
             setAlarm(classCal.timeInMillis, id, intent)
         }

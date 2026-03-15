@@ -93,13 +93,11 @@ class ScheduleWidget : GlanceAppWidget() {
             if (roomSchedule.isNotEmpty()) {
                 roomSchedule
             } else {
-                // Fallback to SharedPreferences
-                prefs.loadList<myedu.oshsu.kg.ScheduleItem>("schedule_list")
+                prefs.loadList<myedu.oshsu.kg.ScheduleItem>(myedu.oshsu.kg.AppConstants.KEY_SCHEDULE_LIST)
             }
         } catch (e: Exception) {
-            // Final fallback to SharedPreferences on error
             try {
-                prefs.loadList<myedu.oshsu.kg.ScheduleItem>("schedule_list")
+                prefs.loadList<myedu.oshsu.kg.ScheduleItem>(myedu.oshsu.kg.AppConstants.KEY_SCHEDULE_LIST)
             } catch (e2: Exception) {
                 emptyList()
             }
@@ -111,9 +109,8 @@ class ScheduleWidget : GlanceAppWidget() {
             if (roomTimeMap.isNotEmpty()) {
                 roomTimeMap
             } else {
-                // Fallback to SharedPreferences
-                val appPrefs = context.applicationContext.getSharedPreferences("myedu_offline_cache", Context.MODE_PRIVATE)
-                val timeMapJson = appPrefs.getString("time_map", null)
+                val appPrefs = context.applicationContext.getSharedPreferences(myedu.oshsu.kg.AppConstants.PREFS_NAME, Context.MODE_PRIVATE)
+                val timeMapJson = appPrefs.getString(myedu.oshsu.kg.AppConstants.KEY_TIME_MAP, null)
                 parseTimeMap(timeMapJson)
             }
         } catch (e: Exception) {
@@ -121,8 +118,8 @@ class ScheduleWidget : GlanceAppWidget() {
         }
         
         val language = try {
-            val appPrefs = context.applicationContext.getSharedPreferences("myedu_offline_cache", Context.MODE_PRIVATE)
-            appPrefs.getString("language_pref", "\"en\"")?.replace("\"", "") ?: "en"
+            val appPrefs = context.applicationContext.getSharedPreferences(myedu.oshsu.kg.AppConstants.PREFS_NAME, Context.MODE_PRIVATE)
+            appPrefs.getString(myedu.oshsu.kg.AppConstants.KEY_LANGUAGE, "\"en\"")?.replace("\"", "") ?: "en"
         } catch (e: Exception) {
             "en"
         }

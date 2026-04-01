@@ -196,8 +196,17 @@ fun PersonalInfoScreen(vm: MainViewModel, onClose: () -> Unit) {
             localProfile = p
             isError = false
         } catch (e: Exception) {
-            isError = true
-            errorMessage = e.message ?: "Unknown Error"
+            // Network failed — show cached data if available, otherwise show error
+            val cachedUser = vm.userData
+            val cachedProfile = vm.profileData
+            if (cachedUser != null || cachedProfile != null) {
+                localUser = cachedUser
+                localProfile = cachedProfile
+                isError = false
+            } else {
+                isError = true
+                errorMessage = e.message ?: "Unknown Error"
+            }
         } finally {
             isFetching = false
         }
@@ -292,7 +301,7 @@ fun PersonalInfoScreen(vm: MainViewModel, onClose: () -> Unit) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Box(contentAlignment = Alignment.Center, modifier = Modifier.size(136.dp)) {
                                     Box(modifier = Modifier.fillMaxSize().clip(animatedShape)) {
-                                        val apiPhoto = profile?.avatar
+                                        val apiPhoto = vm.customPhotoUri ?: vm.cachedAvatarUri ?: profile?.avatar
                                         key(apiPhoto, vm.avatarRefreshTrigger) { AsyncImage(model = ImageRequest.Builder(context).data(apiPhoto).crossfade(true).setParameter("retry_hash", vm.avatarRefreshTrigger).build(), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
                                     }
                                 }

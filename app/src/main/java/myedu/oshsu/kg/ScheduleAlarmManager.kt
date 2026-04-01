@@ -18,6 +18,8 @@ class ScheduleAlarmManager(private val context: Context) {
         scheduleClassReminders(schedule, timeMap, language)
     }
 
+    fun cancelAll() = cancelAllAlarms()
+
     private fun cancelAllAlarms() {
         val intent = Intent(context, NotificationReceiver::class.java)
         val summaryPending = PendingIntent.getBroadcast(context, 9999, intent, PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE)

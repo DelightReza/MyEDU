@@ -401,4 +401,5 @@
     <string name="desc_revert">Revert</string>
     <string name="fmt_id_val">ID: %s</string>
     <string name="fmt_name_id">%1$s (ID: %2$s)</string>
+    <string name="journal_offline">Please Connect To Internet</string>
 </resources>

@@ -385,4 +385,5 @@
     <string name="close">Закрыть</string>
     <string name="and_more">и еще %d…</string>
     <string name="loading">Загрузка...</string>
+    <string name="journal_offline">Пожалуйста, подключитесь к интернету</string>
 </resources>

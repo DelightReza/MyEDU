@@ -498,6 +498,18 @@ fun JournalContent(vm: MainViewModel) {
             ) {
                 CircularProgressIndicator()
             }
+        } else if (vm.isJournalOffline) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = stringResource(R.string.journal_offline),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         } else if (vm.journalList.isEmpty()) {
             Box(
                 modifier = Modifier

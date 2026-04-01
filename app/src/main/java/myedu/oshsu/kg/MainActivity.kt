@@ -59,6 +59,7 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import myedu.oshsu.kg.ui.components.MyEduPullToRefreshBox
+import myedu.oshsu.kg.ui.components.OshSuLogo
 import myedu.oshsu.kg.ui.components.ThemedBackground
 import myedu.oshsu.kg.ui.screens.*
 import myedu.oshsu.kg.ui.theme.MyEduTheme
@@ -208,8 +209,24 @@ class MainActivity : ComponentActivity() {
 fun AppContent(vm: MainViewModel) {
     val context = LocalContext.current
     Box(Modifier.fillMaxSize()) {
-        AnimatedContent(targetState = vm.appState, label = "Root") { state ->
-            when (state) { "LOGIN" -> LoginScreen(vm); "APP" -> MainAppStructure(vm); else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
+        // Main routing — no AnimatedContent so theme changes never re-trigger startup
+        when (vm.appState) {
+            "LOGIN" -> LoginScreen(vm)
+            "APP"   -> MainAppStructure(vm)
+        }
+
+        // Startup splash — AnimatedVisibility so it appears once and never re-appears on theme change
+        AnimatedVisibility(
+            visible = vm.appState == "STARTUP",
+            enter = EnterTransition.None,
+            exit = fadeOut(tween(400)),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    OshSuLogo(modifier = Modifier.width(220.dp), themeMode = vm.themeMode)
+                }
+            }
         }
         if (vm.isDebugPipVisible) { DebugPipButton(onClick = { vm.isDebugConsoleOpen = true }, modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)) }
         if (vm.isDebugConsoleOpen) { DebugConsoleOverlay(onDismiss = { vm.isDebugConsoleOpen = false }) }
@@ -312,26 +329,23 @@ fun MainAppStructure(vm: MainViewModel) {
 @Composable
 fun FloatingNavBar(vm: MainViewModel) {
     val glassmorphismEnabled = vm.glassmorphismEnabled
-    val containerColor = if (glassmorphismEnabled) MaterialTheme.colorScheme.surface.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface
-    val elevation = if (glassmorphismEnabled) 0.dp else 4.dp
-    
-    val modifier = if (glassmorphismEnabled) {
-        Modifier
-            .height(72.dp)
-            .widthIn(max = 400.dp)
-            .fillMaxWidth()
-            .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), RoundedCornerShape(36.dp))
-    } else {
-        Modifier
-            .height(72.dp)
-            .widthIn(max = 400.dp)
-            .fillMaxWidth()
-    }
-    
+    // Animate glass properties so borders/transparency fade in/out rather than snapping
+    val glassAlpha by animateFloatAsState(
+        targetValue = if (glassmorphismEnabled) 1f else 0f,
+        animationSpec = tween(durationMillis = 700),
+        label = "NavGlassAlpha"
+    )
+    val containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 1f - 0.7f * glassAlpha)
+    val elevation = (4f * (1f - glassAlpha)).dp
+
     Surface(
-        modifier = modifier, 
-        shape = RoundedCornerShape(36.dp), 
-        color = containerColor, 
+        modifier = Modifier
+            .height(72.dp)
+            .widthIn(max = 400.dp)
+            .fillMaxWidth()
+            .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f * glassAlpha), RoundedCornerShape(36.dp)),
+        shape = RoundedCornerShape(36.dp),
+        color = containerColor,
         shadowElevation = elevation
     ) {
         Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.CenterVertically) {

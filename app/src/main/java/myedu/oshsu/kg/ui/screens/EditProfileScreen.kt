@@ -61,7 +61,7 @@ fun EditProfileScreen(vm: MainViewModel, onClose: () -> Unit) {
     val apiPhoto = vm.profileData?.avatar
     val apiName = remember { vm.userData?.let { "${it.last_name ?: ""} ${it.name ?: ""}".trim() } ?: "" }
     var name by remember { mutableStateOf(vm.customName ?: apiName) }
-    var photoUri by remember { mutableStateOf(vm.customPhotoUri ?: apiPhoto) }
+    var photoUri by remember { mutableStateOf(vm.customPhotoUri ?: vm.cachedAvatarUri ?: apiPhoto) }
     val showRevertPhoto = photoUri != apiPhoto; val showRevertName = name != apiName
     var isUiVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { delay(300); isUiVisible = true }

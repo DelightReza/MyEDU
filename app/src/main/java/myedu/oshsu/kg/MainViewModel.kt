@@ -23,6 +23,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.File
@@ -88,6 +90,7 @@ class MainViewModel : ViewModel() {
     // --- LOCAL EDIT STATE ---
     var customName by mutableStateOf<String?>(null)
     var customPhotoUri by mutableStateOf<String?>(null)
+    var cachedAvatarUri by mutableStateOf<String?>(null)
     var avatarRefreshTrigger by mutableStateOf(0)
     var areDictionariesLoaded by mutableStateOf(false)
 
@@ -116,6 +119,7 @@ class MainViewModel : ViewModel() {
     var showJournalSheet by mutableStateOf(false)
     var journalList by mutableStateOf<List<JournalItem>>(emptyList())
     var isJournalLoading by mutableStateOf(false)
+    var isJournalOffline by mutableStateOf(false)
     var selectedJournalSubject by mutableStateOf<SessionSubjectWrapper?>(null)
     var selectedJournalType by mutableStateOf(1) // 1=Lecture, 2=Practice, 3=Lab
     
@@ -184,6 +188,10 @@ class MainViewModel : ViewModel() {
         
         customName = prefs?.loadData("local_custom_name", String::class.java)
         customPhotoUri = prefs?.loadData("local_custom_photo", String::class.java)
+        val savedAvatarPath = prefs?.loadData("avatar_local_path", String::class.java)
+        if (savedAvatarPath != null && File(savedAvatarPath).exists()) {
+            cachedAvatarUri = Uri.fromFile(File(savedAvatarPath)).toString()
+        }
 
         loadLocalDictionary()
         loadDictionaries()
@@ -239,6 +247,7 @@ class MainViewModel : ViewModel() {
                 userData = u
                 profileData = p
             }
+            p?.avatar?.let { downloadAndCacheAvatar(it) }
             return@withContext Pair(u, p)
         } catch (e: Exception) {
             val isAuthError = e.message?.contains("401") == true || e.message?.contains("Unauthenticated") == true
@@ -255,6 +264,41 @@ class MainViewModel : ViewModel() {
         prefs?.saveData("local_custom_name", name)
         prefs?.saveData("local_custom_photo", photoUri)
         avatarRefreshTrigger++
+    }
+
+    // --- AVATAR CACHING ---
+    private val avatarHttpClient = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .build()
+
+    private fun downloadAndCacheAvatar(avatarUrl: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val context = appContext ?: return@launch
+                val localFile = File(context.filesDir, "avatar_cache.jpg")
+                val cachedUrl = prefs?.loadData("avatar_source_url", String::class.java)
+                if (localFile.exists() && cachedUrl == avatarUrl) {
+                    if (cachedAvatarUri == null) {
+                        withContext(Dispatchers.Main) {
+                            cachedAvatarUri = Uri.fromFile(localFile).toString()
+                        }
+                    }
+                    return@launch
+                }
+                val response = avatarHttpClient.newCall(Request.Builder().url(avatarUrl).build()).execute()
+                response.body?.bytes()?.let { bytes ->
+                    localFile.writeBytes(bytes)
+                    prefs?.saveData("avatar_source_url", avatarUrl)
+                    prefs?.saveData("avatar_local_path", localFile.absolutePath)
+                    withContext(Dispatchers.Main) {
+                        cachedAvatarUri = Uri.fromFile(localFile).toString()
+                    }
+                }
+            } catch (e: Exception) {
+                DebugLogger.log("AVATAR", "Failed to cache avatar: ${e.message}")
+            }
+        }
     }
 
     // --- TUITION LOGIC ---
@@ -509,7 +553,6 @@ class MainViewModel : ViewModel() {
                         val roomNews = repository.getAllNewsSync()
                         val roomSchedule = repository.getAllSchedulesSync()
                         val roomTimeMap = repository.getTimeMapSync()
-                        val roomGrades = repository.getAllGradesSync()
                         
                         withContext(Dispatchers.Main) {
                             // Use Room data if available, otherwise fall back to SharedPreferences
@@ -534,14 +577,11 @@ class MainViewModel : ViewModel() {
                                 }
                             }
                             
-                            // For grades, sessionData and transcriptData come from different sources
-                            // SessionData is from session_list, transcriptData is from transcript_list
-                            if (roomGrades.subjects?.isNotEmpty() == true) {
-                                // roomGrades is a SessionResponse - use it for sessionData
-                                sessionData = listOf(roomGrades)
-                            } else {
-                                sessionData = prefs?.loadList("session_list") ?: emptyList()
-                            }
+                            // Grades: always use SharedPreferences session_list which stores all semesters.
+                            // Room grades only hold one semester (getAllGradesSync merges all entities into
+                            // a single SessionResponse) and fetchSession() never writes to Room, so Room
+                            // grades are always stale.  SharedPrefs is the authoritative multi-semester cache.
+                            sessionData = prefs?.loadList("session_list") ?: emptyList()
                             
                             // transcriptData is separate - load from SharedPreferences fallback
                             transcriptData = prefs?.loadList("transcript_list") ?: emptyList()
@@ -618,7 +658,8 @@ class MainViewModel : ViewModel() {
 
         appState = "LOGIN"; currentTab = 0; userData = null; profileData = null; payStatus = null
         newsList = emptyList(); fullSchedule = emptyList(); sessionData = emptyList(); transcriptData = emptyList()
-        verify2FAStatus = null
+        verify2FAStatus = null; cachedAvatarUri = null
+        appContext?.let { File(it.filesDir, "avatar_cache.jpg").delete() }
         prefs?.clearAll(); NetworkClient.cookieJar.clear(); NetworkClient.interceptor.authToken = null
         
         prefs?.saveData("theme_mode_pref", themeMode)
@@ -646,6 +687,7 @@ class MainViewModel : ViewModel() {
                     userData = user; profileData = profile
                     prefs?.saveData("user_data", user); prefs?.saveData("profile_data", profile)
                 }
+                profile?.avatar?.let { downloadAndCacheAvatar(it) }
                 
                 try {
                     val v2fa = NetworkClient.api.verify2FA()
@@ -699,7 +741,12 @@ class MainViewModel : ViewModel() {
     }
 
     private fun processScheduleLocally() {
-        if (fullSchedule.isEmpty()) return
+        if (fullSchedule.isEmpty()) {
+            determinedStream = null
+            determinedGroup = null
+            todayClasses = emptyList()
+            return
+        }
         determinedStream = fullSchedule.asSequence()
             .filter { it.subject_type?.name_en?.contains("Lection", ignoreCase = true) == true }
             .mapNotNull { it.stream?.numeric }
@@ -785,6 +832,7 @@ class MainViewModel : ViewModel() {
             DebugLogger.log("JOURNAL", "All ID fields are null, cannot fetch journal")
             viewModelScope.launch(Dispatchers.Main) {
                 isJournalLoading = false
+                isJournalOffline = false
                 journalList = emptyList()
             }
             return
@@ -792,43 +840,17 @@ class MainViewModel : ViewModel() {
         
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                withContext(Dispatchers.Main) { isJournalLoading = true }
+                withContext(Dispatchers.Main) { isJournalLoading = true; isJournalOffline = false }
                 
                 val semesterId = selectedSemesterId ?: profileData?.active_semester ?: 1
                 val activeSemester = profileData?.active_semester ?: semesterId
-                
-                // Calculate academic year based on semester
-                // Each academic year has 2 semesters (odd and even)
-                // If current active semester is 9-10, it's year 25
-                // If semester is 7-8, it's year 24, etc.
                 val currentActiveYear = AcademicYearHelper.getDefaultActiveYearId()
                 val semesterDiff = activeSemester - semesterId
                 val yearOffset = semesterDiff / 2  // 2 semesters per year
                 val eduYearId = currentActiveYear - yearOffset
                 
-                // Cache key for this journal request
-                val cacheKey = "journal_${curriculaId}_${semesterId}_${selectedJournalType}_${eduYearId}"
-                
-                // Load cached data first (offline support)
-                val cachedJournal = try {
-                    prefs?.getRepository()?.getJournalEntriesSync(curriculaId, semesterId, selectedJournalType, eduYearId)
-                        ?: prefs?.loadList<JournalItem>(cacheKey)
-                        ?: emptyList()
-                } catch (e: Exception) {
-                    emptyList()
-                }
-                
-                // Display cached data immediately if available
-                if (cachedJournal.isNotEmpty()) {
-                    withContext(Dispatchers.Main) { 
-                        journalList = cachedJournal
-                    }
-                    DebugLogger.log("JOURNAL", "Loaded ${cachedJournal.size} cached journal entries")
-                }
-                
                 DebugLogger.log("JOURNAL", "Fetching journal: curricula=$curriculaId, semester=$semesterId, type=$selectedJournalType, year=$eduYearId (active=$activeSemester, offset=$yearOffset)")
                 
-                // Note: API expects id_curricula from SessionSubjectWrapper (fallback to marklist.id, then subject.id)
                 val journal = NetworkClient.api.getJournal(
                     idCurricula = curriculaId,
                     idSemester = semesterId,
@@ -838,23 +860,16 @@ class MainViewModel : ViewModel() {
                 
                 DebugLogger.log("JOURNAL", "Received ${journal.size} journal entries")
                 
-                // Save to both SharedPreferences and Room database for offline support
-                try {
-                    prefs?.saveList(cacheKey, journal)
-                    prefs?.getRepository()?.updateJournalEntries(curriculaId, semesterId, selectedJournalType, eduYearId, journal)
-                    DebugLogger.log("JOURNAL", "Saved journal entries to cache")
-                } catch (e: Exception) {
-                    DebugLogger.log("JOURNAL", "Failed to save journal to cache: ${e.message}")
-                }
-                
                 withContext(Dispatchers.Main) { 
                     journalList = journal
+                    isJournalOffline = false
                 }
             } catch (e: Exception) {
                 DebugLogger.log("JOURNAL", "Failed to fetch journal: ${e.message}")
-                DebugLogger.log("JOURNAL", "Exception: ${e.stackTraceToString()}")
-                // If network fails and we don't have cached data, show empty list
-                // (cached data would have already been loaded above)
+                withContext(Dispatchers.Main) {
+                    journalList = emptyList()
+                    isJournalOffline = true
+                }
             } finally {
                 withContext(Dispatchers.Main) { isJournalLoading = false }
             }

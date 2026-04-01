@@ -12,8 +12,8 @@ android {
         applicationId = "myedu.oshsu.kg"
         minSdk = 24
         targetSdk = 34
-        versionCode = 240
-        versionName = "2.4"
+        versionCode = 260
+        versionName = "2.6"
     }
 
     signingConfigs {

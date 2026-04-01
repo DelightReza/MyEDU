@@ -53,7 +53,7 @@ fun ProfileScreen(vm: MainViewModel) {
     val pay = vm.payStatus
     val lang = vm.language
 
-    val displayPhoto = vm.customPhotoUri ?: profile?.avatar
+    val displayPhoto = vm.customPhotoUri ?: vm.cachedAvatarUri ?: profile?.avatar
     val displayName = vm.customName ?: "${user?.last_name ?: ""} ${user?.name ?: ""}".trim().ifEmpty { stringResource(R.string.student_default) }
 
     val facultyName = profile?.studentMovement?.faculty?.get(lang) ?: profile?.studentMovement?.speciality?.faculty?.get(lang) ?: "-"

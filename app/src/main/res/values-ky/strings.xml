@@ -385,4 +385,5 @@
     <string name="close">Жабуу</string>
     <string name="and_more">жана дагы %d…</string>
     <string name="loading">Жүктөлүүдө...</string>
+    <string name="journal_offline">Интернетке туташыңыз</string>
 </resources>

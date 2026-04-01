@@ -84,24 +84,25 @@ class BackgroundSyncWorker(appContext: Context, workerParams: WorkerParameters) 
                     val wrappers = NetworkClient.api.getSchedule(mov.id_speciality!!, mov.id_edu_form!!, activeYearId, profile.active_semester ?: 1)
                     val fullSchedule = wrappers.flatMap { it.schedule_items ?: emptyList() }.sortedBy { it.id_lesson }
 
-                    if (fullSchedule.isNotEmpty()) {
-                        // Save to both SharedPreferences (for backward compatibility) and Room Database
-                        prefs.saveList("schedule_list", fullSchedule)
-                        prefs.getRepository().updateSchedules(fullSchedule)
-                        
-                        if (times.isNotEmpty()) {
-                            val timeMap = times.associate { it.id_lesson to "${it.begin_time ?: ""} - ${it.end_time ?: ""}" }
-                            prefs.saveData("time_map", timeMap)
-                            prefs.getRepository().updateTimeMap(timeMap)
-                            val localizedContext = NotificationHelper.getLocalizedContext(context, prefs)
-                            ScheduleAlarmManager(localizedContext).scheduleNotifications(fullSchedule, timeMap, prefs.loadData("language_pref", String::class.java)?.replace("\"", "") ?: "en")
-                        }
-                        
-                        // Update widget
-                        try {
-                            myedu.oshsu.kg.widget.ScheduleWidgetUpdater.updateWidget(context)
-                        } catch (e: Exception) { e.printStackTrace() }
+                    // Always save the latest schedule (even if empty) so removed classes are cleared
+                    prefs.saveList("schedule_list", fullSchedule)
+                    prefs.getRepository().updateSchedules(fullSchedule)
+
+                    val localizedContext = NotificationHelper.getLocalizedContext(context, prefs)
+                    if (fullSchedule.isNotEmpty() && times.isNotEmpty()) {
+                        val timeMap = times.associate { it.id_lesson to "${it.begin_time ?: ""} - ${it.end_time ?: ""}" }
+                        prefs.saveData("time_map", timeMap)
+                        prefs.getRepository().updateTimeMap(timeMap)
+                        ScheduleAlarmManager(localizedContext).scheduleNotifications(fullSchedule, timeMap, prefs.loadData("language_pref", String::class.java)?.replace("\"", "") ?: "en")
+                    } else {
+                        // No classes — cancel any existing alarms so stale notifications are not fired
+                        ScheduleAlarmManager(localizedContext).cancelAll()
                     }
+
+                    // Update widget to reflect the latest (possibly empty) schedule
+                    try {
+                        myedu.oshsu.kg.widget.ScheduleWidgetUpdater.updateWidget(context)
+                    } catch (e: Exception) { e.printStackTrace() }
                 } catch (e: Exception) { e.printStackTrace() }
             }
             return true

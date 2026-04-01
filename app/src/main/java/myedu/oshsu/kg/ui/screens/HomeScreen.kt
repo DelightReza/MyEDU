@@ -79,12 +79,12 @@ fun HomeScreen(vm: MainViewModel) {
 
                 // --- STATS CARDS ---
                 item {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) { 
+                    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) { 
                         StatCard(
                             icon = Icons.Outlined.CalendarToday, 
                             label = stringResource(R.string.semester), 
                             value = profile?.active_semester?.toString() ?: "-", 
-                            secondaryText = "${stringResource(R.string.stream)} ${vm.determinedStream ?: "-"}",
+                            secondaryText = vm.determinedStream?.let { "${stringResource(R.string.stream)} $it" },
                             modifier = Modifier.weight(1f),
                             glassmorphismEnabled = vm.glassmorphismEnabled,
                             themeMode = vm.themeMode

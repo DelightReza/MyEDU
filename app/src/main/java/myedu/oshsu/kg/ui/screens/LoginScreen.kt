@@ -1,10 +1,12 @@
 package myedu.oshsu.kg.ui.screens
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -33,14 +35,33 @@ import myedu.oshsu.kg.ui.components.SettingsDropdown
 @Composable
 fun LoginScreen(vm: MainViewModel) {
     var showSettingsSheet by remember { mutableStateOf(false) }
-    
-    // State for password visibility
     var isPasswordVisible by remember { mutableStateOf(false) }
-    
     val context = LocalContext.current
     val inputColors = OutlinedTextFieldDefaults.colors()
 
+    // When adding a second account, back = cancel the add-account flow
+    BackHandler(enabled = vm.isAddingAccount) { vm.cancelAddAccount() }
+
     Box(modifier = Modifier.fillMaxSize()) {
+
+        // Top-start: back/cancel button when adding an account
+        if (vm.isAddingAccount) {
+            IconButton(
+                onClick = { vm.cancelAddAccount() },
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .statusBarsPadding()
+                    .padding(16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = stringResource(R.string.cancel_add_account),
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        }
+
         IconButton(
             onClick = { showSettingsSheet = true },
             modifier = Modifier
@@ -53,8 +74,8 @@ fun LoginScreen(vm: MainViewModel) {
                     Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                     DebugLogger.log("UI", msg)
                 }
-        ) { 
-            Icon(imageVector = Icons.Default.Settings, contentDescription = stringResource(R.string.desc_settings), tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(28.dp)) 
+        ) {
+            Icon(imageVector = Icons.Default.Settings, contentDescription = stringResource(R.string.desc_settings), tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(28.dp))
         }
         
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

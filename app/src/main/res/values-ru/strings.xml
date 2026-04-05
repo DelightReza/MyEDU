@@ -386,4 +386,25 @@
     <string name="and_more">и еще %d…</string>
     <string name="loading">Загрузка...</string>
     <string name="journal_offline">Пожалуйста, подключитесь к интернету</string>
+
+    <!-- Account switcher -->
+    <string name="account_switcher_title">Сменить аккаунт</string>
+    <string name="add_another_account">Добавить другой аккаунт</string>
+    <string name="cancel_add_account">Отмена</string>
+    <string name="signing_in_as">Вход как новый аккаунт…</string>
+    <string name="remove_account_title">Удалить аккаунт</string>
+    <string name="remove_account_msg">Удалить %1$s с этого устройства? Вы можете добавить его снова позже.</string>
+    <string name="remove_account_confirm">Удалить</string>
+    <string name="desc_account_switcher">Сменить аккаунт</string>
+    <string name="desc_add_account">Добавить аккаунт</string>
+    <string name="desc_active_account_indicator">Активный аккаунт</string>
+
+    <!-- Notifications -->
+    <string name="notif_new_grades_for">Новые оценки для %1$s</string>
+    <string name="notif_portal_opened_for">Портал открыт для %1$s</string>
+
+    <!-- Widget -->
+    <string name="next_class">Следующее занятие</string>
+
+    <string name="update_repo_path" translatable="false">repos/DelightReza/MyEDU/releases/latest</string>
 </resources>

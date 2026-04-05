@@ -7,10 +7,37 @@ import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.launch
 import myedu.oshsu.kg.database.MyEduRepository
 
-class PrefsManager(private val context: Context) {
+class PrefsManager(private val context: Context, accountId: String = "default") {
     // @PublishedApi makes these accessible to the inline function below
     @PublishedApi
-    internal val prefs: SharedPreferences = context.getSharedPreferences("myedu_offline_cache", Context.MODE_PRIVATE)
+    internal val prefs: SharedPreferences = run {
+        val targetName = "myedu_offline_cache_$accountId"
+        val targetPrefs = context.getSharedPreferences(targetName, Context.MODE_PRIVATE)
+        // One-time migration: if the account-specific file is empty, copy data from the
+        // legacy single-file cache ("myedu_offline_cache") or from the intermediate
+        // "myedu_offline_cache_default" file so existing users don't lose their data.
+        if (targetPrefs.all.isEmpty()) {
+            val legacy = context.getSharedPreferences("myedu_offline_cache", Context.MODE_PRIVATE)
+            val source = if (legacy.all.isNotEmpty()) legacy
+                         else context.getSharedPreferences("myedu_offline_cache_default", Context.MODE_PRIVATE)
+            if (source.all.isNotEmpty()) {
+                val editor = targetPrefs.edit()
+                for ((key, value) in source.all) {
+                    when (value) {
+                        is String  -> editor.putString(key, value)
+                        is Boolean -> editor.putBoolean(key, value)
+                        is Int     -> editor.putInt(key, value)
+                        is Long    -> editor.putLong(key, value)
+                        is Float   -> editor.putFloat(key, value)
+                        is Set<*>  -> @Suppress("UNCHECKED_CAST") editor.putStringSet(key, value as Set<String>)
+                    }
+                }
+                editor.apply()
+                source.edit().clear().apply()
+            }
+        }
+        targetPrefs
+    }
     
     @PublishedApi
     internal val gson = Gson()
@@ -21,6 +48,10 @@ class PrefsManager(private val context: Context) {
     // --- AUTH TOKEN MANAGEMENT ---
     fun saveToken(token: String) {
         prefs.edit().putString("auth_token", token).apply()
+    }
+
+    fun clearToken() {
+        prefs.edit().remove("auth_token").apply()
     }
 
     fun getToken(): String? {

@@ -365,8 +365,23 @@
     <string name="desc_close">Close</string>
     <string name="desc_logo">OshSU Logo</string>
 
+    <string name="remove_account_title">Remove Account</string>
+    <string name="remove_account_msg">Remove %1$s from this device? You can add it again later.</string>
+    <string name="remove_account_confirm">Remove</string>
+
+    <!-- Account Switcher -->
+    <string name="account_switcher_title">Switch Account</string>
+    <string name="add_another_account">Add another account</string>
+    <string name="cancel_add_account">Cancel</string>
+    <string name="signing_in_as">Signing in as new account…</string>
+    <string name="desc_account_switcher">Switch Account</string>
+    <string name="desc_add_account">Add Account</string>
+    <string name="desc_active_account_indicator">Active account</string>
+
     <!-- Notif -->
     <string name="notif_new_grades_title">New Grades Available</string>
+    <string name="notif_new_grades_for">New Grades for %1$s</string>
+    <string name="notif_portal_opened_for">Portal Opened for %1$s</string>
     <string name="notif_grades_msg_single">%1$s: %2$s changed to %3$d</string>
     <string name="notif_grades_msg_multiple">You have %d new grade updates</string>
     <string name="notif_default_title">MyEDU Notification</string>

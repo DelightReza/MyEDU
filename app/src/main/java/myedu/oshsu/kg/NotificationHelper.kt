@@ -74,11 +74,22 @@ object NotificationHelper {
         return Pair(gradeUpdates, portalUpdates)
     }
 
-    fun sendNotification(context: Context, updates: List<String>, isPortalOpening: Boolean) {
-        val title = if (isPortalOpening) {
-            context.getString(R.string.notif_portal_opened_title)
-        } else {
-            context.getString(R.string.notif_new_grades_title)
+    fun sendNotification(
+        context: Context,
+        updates: List<String>,
+        isPortalOpening: Boolean,
+        studentName: String? = null,
+        notificationId: Int? = null
+    ) {
+        val title = when {
+            studentName != null && isPortalOpening ->
+                context.getString(R.string.notif_portal_opened_for, studentName)
+            studentName != null ->
+                context.getString(R.string.notif_new_grades_for, studentName)
+            isPortalOpening ->
+                context.getString(R.string.notif_portal_opened_title)
+            else ->
+                context.getString(R.string.notif_new_grades_title)
         }
         
         val message = if (updates.size > 4) {
@@ -94,7 +105,11 @@ object NotificationHelper {
         val intent = Intent(context, NotificationReceiver::class.java).apply {
             putExtra("TITLE", title)
             putExtra("MESSAGE", message)
-            putExtra("ID", if (isPortalOpening) 778 else 777)
+            putExtra(
+                "ID",
+                notificationId
+                    ?: if (isPortalOpening) 778 else 777
+            )
         }
         context.sendBroadcast(intent)
     }

@@ -386,4 +386,25 @@
     <string name="and_more">жана дагы %d…</string>
     <string name="loading">Жүктөлүүдө...</string>
     <string name="journal_offline">Интернетке туташыңыз</string>
+
+    <!-- Account switcher -->
+    <string name="account_switcher_title">Аккаунтту алмаштыруу</string>
+    <string name="add_another_account">Башка аккаунт кошуу</string>
+    <string name="cancel_add_account">Жокко чыгаруу</string>
+    <string name="signing_in_as">Жаңы аккаунт катары кирүү…</string>
+    <string name="remove_account_title">Аккаунтту өчүрүү</string>
+    <string name="remove_account_msg">%1$s бул түзмөктөн өчүрүлсүнбү? Кийин кайра кошо аласыз.</string>
+    <string name="remove_account_confirm">Өчүрүү</string>
+    <string name="desc_account_switcher">Аккаунтту алмаштыруу</string>
+    <string name="desc_add_account">Аккаунт кошуу</string>
+    <string name="desc_active_account_indicator">Активдүү аккаунт</string>
+
+    <!-- Notifications -->
+    <string name="notif_new_grades_for">%1$s үчүн жаңы баалар</string>
+    <string name="notif_portal_opened_for">%1$s үчүн портал ачылды</string>
+
+    <!-- Widget -->
+    <string name="next_class">Кийинки сабак</string>
+
+    <string name="update_repo_path" translatable="false">repos/DelightReza/MyEDU/releases/latest</string>
 </resources>

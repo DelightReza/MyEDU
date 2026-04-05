@@ -17,7 +17,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,12 +33,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import myedu.oshsu.kg.DebugLogger
 import myedu.oshsu.kg.MainViewModel
+import myedu.oshsu.kg.SavedAccount
 import myedu.oshsu.kg.R
 import myedu.oshsu.kg.secretDebugTrigger
 import myedu.oshsu.kg.ui.components.*
@@ -77,15 +79,50 @@ fun ProfileScreen(vm: MainViewModel) {
             ) {
                 Text(stringResource(R.string.profile), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 
-                IconButton(
-                    onClick = { vm.showSettingsScreen = true },
-                    modifier = Modifier.secretDebugTrigger { 
-                        vm.isDebugPipVisible = !vm.isDebugPipVisible
-                        val msg = if(vm.isDebugPipVisible) context.getString(R.string.debug_enabled) else context.getString(R.string.debug_disabled)
-                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                        DebugLogger.log("UI", msg)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Account-switcher: overlapping avatars when ≥2 accounts, + icon otherwise
+                    val accounts = vm.savedAccounts
+                    val hasMultiple = accounts.size > 1
+                    IconButton(onClick = { vm.showAccountSwitcher = true }) {
+                        if (hasMultiple) {
+                            val activeId = vm.getActiveAccountId()
+                            val active = accounts.find { it.id == activeId } ?: accounts.first()
+                            val other = accounts.firstOrNull { it.id != activeId } ?: accounts.first()
+                            val surfaceColor = MaterialTheme.colorScheme.surface
+                            // Two overlapping circles: other account behind, active on top
+                            Box(modifier = Modifier.size(36.dp)) {
+                                AccountAvatarCircle(
+                                    account = other,
+                                    size = 22.dp,
+                                    modifier = Modifier.align(Alignment.CenterStart)
+                                )
+                                AccountAvatarCircle(
+                                    account = active,
+                                    size = 22.dp,
+                                    modifier = Modifier
+                                        .align(Alignment.CenterEnd)
+                                        .border(1.5.dp, surfaceColor, CircleShape)
+                                )
+                            }
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.PersonAdd,
+                                contentDescription = stringResource(R.string.desc_add_account),
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
-                ) { Icon(Icons.Outlined.Settings, stringResource(R.string.desc_settings), tint = MaterialTheme.colorScheme.onSurface) }
+
+                    IconButton(
+                        onClick = { vm.showSettingsScreen = true },
+                        modifier = Modifier.secretDebugTrigger {
+                            vm.isDebugPipVisible = !vm.isDebugPipVisible
+                            val msg = if (vm.isDebugPipVisible) context.getString(R.string.debug_enabled) else context.getString(R.string.debug_disabled)
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            DebugLogger.log("UI", msg)
+                        }
+                    ) { Icon(Icons.Outlined.Settings, stringResource(R.string.desc_settings), tint = MaterialTheme.colorScheme.onSurface) }
+                }
             }
 
             Spacer(Modifier.height(24.dp))
@@ -248,7 +285,7 @@ fun ProfileScreen(vm: MainViewModel) {
                 )
                 BeautifulDocButton(
                     text = stringResource(R.string.transcript), 
-                    icon = Icons.Default.School, 
+                    icon = Icons.Outlined.School, 
                     themeMode = vm.themeMode, 
                     isLoading = vm.isTranscriptLoading, 
                     modifier = Modifier.weight(1f).fillMaxHeight(), 
@@ -478,6 +515,45 @@ fun ProfileActionButton(
                 text = text,
                 textAlign = TextAlign.Center,
                 lineHeight = 16.sp
+            )
+        }
+    }
+}
+
+/** Single circular avatar for an account. Shows the cached/remote image, or the first
+ *  letter of the display name as a fallback. Used by the overlapping-avatars indicator
+ *  in the Profile screen top bar. */
+@Composable
+private fun AccountAvatarCircle(
+    account: SavedAccount,
+    size: Dp,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val avatarData = account.cachedAvatarPath
+        ?.let { java.io.File(it).takeIf { f -> f.exists() }?.let { f -> android.net.Uri.fromFile(f).toString() } }
+        ?: account.avatarUrl
+
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center
+    ) {
+        if (avatarData != null) {
+            AsyncImage(
+                model = ImageRequest.Builder(context).data(avatarData).crossfade(true).build(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Text(
+                text = account.displayName.take(1).uppercase(),
+                fontSize = (size.value * 0.4f).sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

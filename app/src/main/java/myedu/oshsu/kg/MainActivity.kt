@@ -107,7 +107,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun attachBaseContext(newBase: Context) {
-        val prefs = newBase.getSharedPreferences("myedu_offline_cache", Context.MODE_PRIVATE)
+        val activeAccountId = AccountManager(newBase).getActiveAccountId() ?: "default"
+        val prefs = newBase.getSharedPreferences("myedu_offline_cache_$activeAccountId", Context.MODE_PRIVATE)
         val rawLang = prefs.getString("language_pref", "en") ?: "en"
         val lang = rawLang.replace("\"", "")
         val locale = Locale(lang)
@@ -321,6 +322,10 @@ fun MainAppStructure(vm: MainViewModel) {
             if (vm.selectedClass != null) {
                 val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
                 ModalBottomSheet(onDismissRequest = { vm.selectedClass = null }, sheetState = sheetState, containerColor = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurface, dragHandle = { BottomSheetDefaults.DragHandle(color = MaterialTheme.colorScheme.onSurfaceVariant) }, windowInsets = WindowInsets.statusBars) { vm.selectedClass?.let { ClassDetailsSheet(vm, it) } }
+            }
+
+            if (vm.showAccountSwitcher) {
+                AccountSwitcherSheet(vm = vm, onDismiss = { vm.showAccountSwitcher = false })
             }
         }
     }

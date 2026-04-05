@@ -1,6 +1,7 @@
 package myedu.oshsu.kg.widget
 
 import android.content.Context
+import myedu.oshsu.kg.AccountManager
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -54,7 +55,9 @@ class ScheduleWidget : GlanceAppWidget() {
     private fun WidgetContent() {
         val context = LocalContext.current
         val size = LocalSize.current
-        val prefs = PrefsManager(context)
+        val accountManager = AccountManager(context)
+        val activeAccountId = accountManager.getActiveAccountId() ?: "default"
+        val prefs = PrefsManager(context, activeAccountId)
         
         // Determine widget size category
         val widgetHeight = size.height.value
@@ -112,8 +115,7 @@ class ScheduleWidget : GlanceAppWidget() {
                 roomTimeMap
             } else {
                 // Fallback to SharedPreferences
-                val appPrefs = context.applicationContext.getSharedPreferences("myedu_offline_cache", Context.MODE_PRIVATE)
-                val timeMapJson = appPrefs.getString("time_map", null)
+                val timeMapJson = prefs.prefs.getString("time_map", null)
                 parseTimeMap(timeMapJson)
             }
         } catch (e: Exception) {
@@ -121,8 +123,7 @@ class ScheduleWidget : GlanceAppWidget() {
         }
         
         val language = try {
-            val appPrefs = context.applicationContext.getSharedPreferences("myedu_offline_cache", Context.MODE_PRIVATE)
-            appPrefs.getString("language_pref", "\"en\"")?.replace("\"", "") ?: "en"
+            prefs.prefs.getString("language_pref", "\"en\"")?.replace("\"", "") ?: "en"
         } catch (e: Exception) {
             "en"
         }

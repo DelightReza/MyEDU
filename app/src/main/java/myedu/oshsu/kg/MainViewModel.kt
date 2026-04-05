@@ -45,7 +45,14 @@ class MainViewModel : ViewModel() {
     var loginPass by mutableStateOf("")
     var rememberMe by mutableStateOf(false)
 
-    // --- NAVIGATION STATES ---
+    // --- ACCOUNT SWITCHER ---
+    var showAccountSwitcher by mutableStateOf(false)
+    var savedAccounts by mutableStateOf<List<SavedAccount>>(emptyList())
+    var isAddingAccount by mutableStateOf(false)
+    private var accountManager: AccountManager? = null
+    fun getActiveAccountId(): String? = accountManager?.getActiveAccountId()
+
+
     var showPersonalInfoScreen by mutableStateOf(false)
     var showEditProfileScreen by mutableStateOf(false)
     var showTranscriptScreen by mutableStateOf(false)
@@ -165,10 +172,15 @@ class MainViewModel : ViewModel() {
 
     fun initSession(context: Context) {
         appContext = context.applicationContext
-        if (prefs == null) prefs = PrefsManager(context)
         if (jsFetcher == null) jsFetcher = JsResourceFetcher(context)
         if (refFetcher == null) refFetcher = ReferenceJsFetcher(context)
-        
+        if (accountManager == null) accountManager = AccountManager(context)
+
+        // Resolve active account ID before creating PrefsManager so each account
+        // gets its own isolated "myedu_offline_cache_{id}" SharedPreferences file.
+        val activeAccountId = accountManager!!.getActiveAccountId() ?: "default"
+        if (prefs == null) prefs = PrefsManager(context, activeAccountId)
+
         val token = prefs?.getToken()
         val savedTheme = prefs?.loadData("theme_mode_pref", String::class.java)
         if (savedTheme != null) themeMode = savedTheme
@@ -192,6 +204,19 @@ class MainViewModel : ViewModel() {
         if (savedAvatarPath != null && File(savedAvatarPath).exists()) {
             cachedAvatarUri = Uri.fromFile(File(savedAvatarPath)).toString()
         }
+
+        // Backward-compat: if a token exists but no accounts are saved yet, create a
+        // SavedAccount entry from the stored credentials so the switcher sees it.
+        if (token != null && accountManager?.getAllAccounts().isNullOrEmpty() && loginEmail.isNotBlank() && loginPass.isNotBlank()) {
+            val migrated = SavedAccount(
+                email = loginEmail,
+                password = loginPass,
+                token = token
+            )
+            accountManager?.saveOrUpdateAccount(migrated)
+            accountManager?.setActiveAccount(migrated.id)
+        }
+        savedAccounts = accountManager?.getAllAccounts() ?: emptyList()
 
         loadLocalDictionary()
         loadDictionaries()
@@ -276,7 +301,8 @@ class MainViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val context = appContext ?: return@launch
-                val localFile = File(context.filesDir, "avatar_cache.jpg")
+                val accountId = accountManager?.getActiveAccountId() ?: "default"
+                val localFile = File(context.filesDir, "avatar_cache_$accountId.jpg")
                 val cachedUrl = prefs?.loadData("avatar_source_url", String::class.java)
                 if (localFile.exists() && cachedUrl == avatarUrl) {
                     if (cachedAvatarUri == null) {
@@ -535,11 +561,16 @@ class MainViewModel : ViewModel() {
             fullSchedule = p.loadList("schedule_list")
             sessionData = p.loadList("session_list")
             transcriptData = p.loadList("transcript_list")
+            val tmJson = p.prefs.getString("time_map", null)
+            timeMap = if (tmJson != null) {
+                try { Gson().fromJson(tmJson, object : TypeToken<Map<Int, String>>() {}.type) }
+                catch (_: Exception) { emptyMap() }
+            } else emptyMap()
             processScheduleLocally()
         }
     }
 
-    private fun loadOfflineData() {
+    internal fun loadOfflineData() {
         viewModelScope.launch {
             try {
                 // Try to load from Room Database first
@@ -641,8 +672,35 @@ class MainViewModel : ViewModel() {
                     prefs?.saveToken(token)
                     NetworkClient.interceptor.authToken = token
                     NetworkClient.cookieJar.injectSessionCookies(token)
+
+                    // Persist account in AccountManager ----------------------------
+                    val existingAccount = accountManager?.getAllAccounts()
+                        ?.find { it.email.equals(normalizedEmail, ignoreCase = true) }
+                    val accountToSave = existingAccount?.copy(token = token, password = pass)
+                        ?: SavedAccount(email = normalizedEmail, password = pass, token = token)
+                    accountManager?.saveOrUpdateAccount(accountToSave)
+                    accountManager?.setActiveAccount(accountToSave.id)
+                    // ---------------------------------------------------------------
+
+                    val wasAddingAccount = isAddingAccount
+                    isAddingAccount = false
+                    currentTab = 0
+                    if (wasAddingAccount) {
+                        // Reinitialize prefs for the newly logged-in account so its data
+                        // is fully isolated from the previous account's cache.
+                        val ctx = appContext
+                        if (ctx != null) prefs = PrefsManager(ctx, accountToSave.id)
+                        try { prefs?.getRepository()?.clearAll() } catch (_: Exception) {}
+
+                        // Show the MyEDU loading splash while offline data is populated,
+                        // then fade into the home screen — same experience as a fresh launch.
+                        appState = "STARTUP"
+                        loadOfflineData()
+                        delay(700)
+                    }
                     refreshAllData(force = true)
                     appState = "APP"
+                    savedAccounts = accountManager?.getAllAccounts() ?: emptyList()
                 } else errorMsg = appContext?.getString(R.string.error_credentials) ?: "Incorrect credentials"
             } catch (e: Exception) { 
                 errorMsg = appContext?.getString(R.string.error_login_failed, e.message) ?: "Login Failed: ${e.message}" 
@@ -656,6 +714,10 @@ class MainViewModel : ViewModel() {
         val savedE = loginEmail
         val savedP = loginPass
 
+        // Remove the current account from AccountManager before clearing prefs
+        val activeId = accountManager?.getActiveAccountId()
+        if (activeId != null) accountManager?.removeAccount(activeId)
+
         appState = "LOGIN"; currentTab = 0; userData = null; profileData = null; payStatus = null
         newsList = emptyList(); fullSchedule = emptyList(); sessionData = emptyList(); transcriptData = emptyList()
         verify2FAStatus = null; cachedAvatarUri = null
@@ -666,7 +728,39 @@ class MainViewModel : ViewModel() {
         prefs?.saveData("doc_download_mode", downloadMode)
         prefs?.saveData("language_pref", language)
         prefs?.saveData("custom_dictionary_json", Gson().toJson(dictionaryMap))
-        
+
+        // Check if another account is available to switch to
+        val remaining = accountManager?.getAllAccounts() ?: emptyList()
+        savedAccounts = remaining
+        if (remaining.isNotEmpty()) {
+            val next = remaining.first()
+            accountManager?.setActiveAccount(next.id)
+            loginEmail = next.email
+            loginPass = next.password
+            rememberMe = true
+            // Switch the prefs reference to the next account's own isolated cache file.
+            val ctx = appContext
+            if (ctx != null) prefs = PrefsManager(ctx, next.id)
+            prefs?.saveData("pref_remember_me", true)
+            prefs?.saveData("pref_saved_email", next.email)
+            prefs?.saveData("pref_saved_pass", next.password)
+            prefs?.saveData("theme_mode_pref", themeMode)
+            prefs?.saveData("doc_download_mode", downloadMode)
+            prefs?.saveData("language_pref", language)
+            // Silently restore the next account's session
+            val nextToken = next.token
+            if (nextToken != null) {
+                prefs?.saveToken(nextToken)
+                NetworkClient.interceptor.authToken = nextToken
+                NetworkClient.cookieJar.injectSessionCookies(nextToken)
+                viewModelScope.launch(Dispatchers.IO) { try { prefs?.getRepository()?.clearAll() } catch (_: Exception) {} }
+                loadOfflineData()
+                appState = "APP"
+                refreshAllData(force = true)
+            }
+            return
+        }
+
         if (wasRemember) {
             prefs?.saveData("pref_remember_me", true)
             prefs?.saveData("pref_saved_email", savedE)
@@ -676,6 +770,93 @@ class MainViewModel : ViewModel() {
             rememberMe = true
         }
     }
+
+    /** Navigate to login screen to add a second account. Fields are always empty. */
+    fun addAnotherAccount() {
+        showAccountSwitcher = false
+        isAddingAccount = true
+        loginEmail = ""
+        loginPass = ""
+        appState = "LOGIN"
+    }
+
+    /** Cancel the "add account" flow and return to the already-active account. */
+    fun cancelAddAccount() {
+        isAddingAccount = false
+        loginEmail = prefs?.loadData("pref_saved_email", String::class.java) ?: ""
+        loginPass = prefs?.loadData("pref_saved_pass", String::class.java) ?: ""
+        if (prefs?.getToken() != null) appState = "APP"
+    }
+
+        /** Switch the active session to [account] by fully restarting the app. */
+    fun switchAccount(account: SavedAccount) {
+        showAccountSwitcher = false
+        viewModelScope.launch(Dispatchers.IO) {
+            val ctx = appContext ?: return@launch
+
+            // 1. Set the new account as active.
+            accountManager?.setActiveAccount(account.id)
+
+            // 2. Seed the new account's own prefs file with credentials and
+            //    account-agnostic settings so initSession() has everything it
+            //    needs on the fresh start without any cross-account copying.
+            val newPrefs = PrefsManager(ctx, account.id)
+            val token = account.token
+            if (token != null) newPrefs.saveToken(token) else newPrefs.clearToken()
+            newPrefs.saveData("pref_saved_email", account.email)
+            newPrefs.saveData("pref_saved_pass", account.password)
+            newPrefs.saveData("pref_remember_me", true)
+            newPrefs.saveData("theme_mode_pref", themeMode)
+            newPrefs.saveData("doc_download_mode", downloadMode)
+            newPrefs.saveData("language_pref", language)
+
+            // 3. Clear Room DB — initSession() / loadOfflineData() will repopulate it
+            //    from the new account's prefs on the fresh start.
+            try { prefs?.getRepository()?.clearAll() } catch (_: Exception) {}
+
+            // 4. Fully restart the app: FLAG_ACTIVITY_CLEAR_TASK kills the current task
+            //    and starts a brand-new Activity, giving a clean ViewModel + home tab.
+            val intent = Intent(ctx, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
+            ctx.startActivity(intent)
+        }
+    }
+
+    /** Update the cached name/avatar for the active account in AccountManager. */
+    fun syncActiveAccountProfile() {
+        val activeId = accountManager?.getActiveAccountId() ?: return
+        val existing = accountManager?.getAllAccounts()?.find { it.id == activeId } ?: return
+        val updated = existing.copy(
+            name = userData?.name,
+            lastName = userData?.last_name,
+            avatarUrl = profileData?.avatar,
+            cachedAvatarPath = prefs?.loadData("avatar_local_path", String::class.java)
+        )
+        accountManager?.saveOrUpdateAccount(updated)
+        savedAccounts = accountManager?.getAllAccounts() ?: emptyList()
+    }
+
+    /**
+     * Remove [account] from the saved account list.
+     *
+     * - If [account] is the **active** account this behaves exactly like [logout]:
+     *   the session is cleared and either the next available account is restored or
+     *   the app returns to the login screen.
+     * - If [account] is a **background** account it is simply deleted from the list
+     *   without touching the current session.
+     */
+    fun removeAccount(account: SavedAccount) {
+        val isActive = account.id == accountManager?.getActiveAccountId()
+        if (isActive) {
+            // Re-use logout() which already handles "switch to next or go to LOGIN"
+            logout()
+        } else {
+            accountManager?.removeAccount(account.id)
+            savedAccounts = accountManager?.getAllAccounts() ?: emptyList()
+        }
+    }
+
 
     private fun refreshAllData(force: Boolean, retryCount: Int = 0) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -701,7 +882,8 @@ class MainViewModel : ViewModel() {
                     fetchSession(profile)
                 }
                 lastRefreshTime = System.currentTimeMillis()
-                checkForUpdates() 
+                checkForUpdates()
+                withContext(Dispatchers.Main) { syncActiveAccountProfile() }
             } catch (e: Exception) {
                 // --- RESTORED RETRY LOGIC ---
                 val isAuthError = e.message?.contains("401") == true || e.message?.contains("HTTP 401") == true || e.message?.contains("Unauthenticated") == true

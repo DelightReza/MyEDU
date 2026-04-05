@@ -12,8 +12,8 @@ android {
         applicationId = "myedu.oshsu.kg"
         minSdk = 24
         targetSdk = 34
-        versionCode = 260
-        versionName = "2.6"
+        versionCode = 313
+        versionName = "4.0"
     }
 
     signingConfigs {
@@ -84,4 +84,7 @@ dependencies {
     implementation("androidx.glance:glance:1.0.0")
     implementation("androidx.glance:glance-appwidget:1.0.0")
     implementation("androidx.glance:glance-material3:1.0.0")
+
+    // Encrypted SharedPreferences for account credential storage
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 }
